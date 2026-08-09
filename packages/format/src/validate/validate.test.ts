@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { reactPack } from "../fixtures";
-import { validatePack, validatePractice } from "./validate";
+import { parsePackInput, validatePack, validatePractice } from "./validate";
 
 function findCode(
   report: { errors: { code: string }[]; warnings: { code: string }[]; infos: { code: string }[] },
@@ -84,6 +84,32 @@ describe("validatePack — reference integrity errors", () => {
     input.decisions[0]!.branches[0]!.next = "no.such.decision";
     const r = validatePack(input);
     expect(findCode(r, "errors", "dangling-ref")).toBe(true);
+  });
+
+  test("branch.next may reference a Decision declared later in the file", () => {
+    const input = reactPack();
+    input.decisions = [
+      {
+        id: "state.first-choice",
+        question: "first",
+        branches: [
+          {
+            when: "always",
+            recommend: ["react.state.redux"],
+            reason: "continue",
+            next: "state.later-choice",
+          },
+        ],
+      },
+      {
+        id: "state.later-choice",
+        question: "later",
+        branches: [{ when: "always", recommend: ["react.auth.guard"], reason: "done" }],
+      },
+    ];
+    const report = validatePack(input);
+    expect(report.valid).toBe(true);
+    expect(findCode(report, "errors", "dangling-ref")).toBe(false);
   });
 
   test("decision cycle via next edges", () => {
@@ -173,5 +199,41 @@ describe("validatePractice", () => {
     const issues = validatePractice({ id: "bad", title: "x" });
     expect(issues.length).toBeGreaterThan(0);
     expect(issues.every((i) => i.code === "format")).toBe(true);
+  });
+});
+
+describe("parsePackInput", () => {
+  test("valid input yields typed data", () => {
+    const parsed = parsePackInput(reactPack());
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.value.pack.name).toBe("react-fullstack");
+      expect(parsed.value.practices.length).toBe(reactPack().practices.length);
+    }
+  });
+
+  test("untyped input with a format error yields the report, not data", () => {
+    const parsed = parsePackInput({
+      pack: { version: "1.0.0" }, // missing required name
+      practices: [],
+      decisions: [],
+    });
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      expect(parsed.report.valid).toBe(false);
+      expect(parsed.report.errors.some((i) => i.code === "format")).toBe(true);
+    }
+  });
+
+  test("non-array practices or decisions yield format errors, not TypeErrors", () => {
+    const parsed = parsePackInput({
+      pack: { name: "p", version: "1.0.0" },
+      practices: null as unknown as unknown[],
+      decisions: {} as unknown as unknown[],
+    });
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      expect(parsed.report.errors.map((i) => i.path)).toEqual(["practices", "decisions"]);
+    }
   });
 });
