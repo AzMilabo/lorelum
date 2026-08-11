@@ -85,9 +85,12 @@ test("sealing publishes the generated projection before calculating the digest",
       },
       {},
     );
-    const digest = await sealSnapshot(path, createProjection(candidate.pack, candidate.sources));
+    const digest = await sealSnapshot(
+      path,
+      createProjection(candidate.pack, candidate.sources, candidate.decisions),
+    );
     expect(await readFile(join(path, ".lorelum", "local-store-projection.json"), "utf8")).toContain(
-      '"projectionVersion":1',
+      '"projectionVersion":2',
     );
     expect(digest).toBe(await calculateArtifactDigest(path));
   });

@@ -59,6 +59,7 @@ async function readSealedProjection(artifactDir: string): Promise<SnapshotProjec
 function verifyProjectionMatches(
   entry: InstalledPackManifestEntry,
   sources: readonly PracticeSource[],
+  decisions: readonly import("@lorelum/format").DecisionNode[],
   projection: SnapshotProjection,
 ): void {
   if (projection.pack.name !== entry.packName || projection.pack.version !== entry.packVersion) {
@@ -84,13 +85,17 @@ function verifyProjectionMatches(
       );
     }
   }
+  if (JSON.stringify(projection.decisions) !== JSON.stringify(decisions)) {
+    throw new ManifestError(entry.storageKey, "projection decisions differ from re-parsed snapshot");
+  }
 }
 
 /**
  * Merge every pack's sources from scratch. Packs are grouped by name and
  * reconciled one candidate at a time (candidate.pack.name must equal each
  * source's packName, which the merge rules assert); a cross-pack conflict
- * surfaces as `PracticeConflictError` and aborts the reindex.
+ * surfaces as `PracticeConflictError` and aborts the reindex. Decisions are
+ * not part of the merge (they are per-pack, sealed in the projection).
  */
 function mergeSources(sources: readonly PracticeSource[]): readonly EffectivePractice[] {
   const byPack = new Map<string, PracticeSource[]>();
@@ -104,6 +109,7 @@ function mergeSources(sources: readonly PracticeSource[]): readonly EffectivePra
     const candidate = {
       pack: Object.freeze({ name: packName, version: "0.0.0" }),
       sources: Object.freeze(packSources),
+      decisions: Object.freeze([]),
     };
     reconciled = reconcileEffectivePractices(reconciled.sources, candidate);
   }
@@ -146,7 +152,12 @@ export async function reindexStore(
         }
         const decoded = await decodeSnapshot(artifactDir);
         const projection = await readSealedProjection(artifactDir);
-        verifyProjectionMatches(entry, decoded.candidate.sources, projection);
+        verifyProjectionMatches(
+          entry,
+          decoded.candidate.sources,
+          decoded.candidate.decisions,
+          projection,
+        );
         return decoded.candidate.sources;
       }),
     );

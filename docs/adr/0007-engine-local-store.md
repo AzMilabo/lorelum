@@ -160,7 +160,7 @@ Freeze how LocalStore consumes `@lorelum/format` so the storage layer never gues
 - **SnapshotCodec owns Pack-file → PackInput assembly.** A new `SnapshotCodec` (the planning doc's name; lives under `storage/artifacts/` alongside `artifact-store.ts` and `projection.ts`) is the sole component that reads the on-disk Pack snapshot and assembles the `{ pack, practices, decisions }` consumed by `validatePack`. Responsibilities: read `pack.yaml`; discover Practice files; parse each Practice's frontmatter via `@lorelum/format`'s `parseFrontmatter`; assemble `PackInput`.- **File path & YAML parsing ownership.** The codec lives at `packages/engine/src/local-store/storage/artifacts/snapshot-codec.ts` (PR 1 storage scope). `@lorelum/format` exposes `parseFrontmatter` (Markdown frontmatter) but **not** a general YAML parser; `pack.yaml` and `decisions.yaml` are pure YAML, not Markdown. To avoid reaching into `gray-matter`'s transitive `js-yaml` dependency (a private implementation detail of format), YAML parsing is owned as follows: **`@lorelum/format` gains a thin `parseYaml(text): unknown` entry point** that wraps the same `js-yaml` it already pulls in for frontmatter, re-exported from `@lorelum/format`'s public surface. `SnapshotCodec` calls `parseYaml` for `pack.yaml`/`decisions.yaml` and `parseFrontmatter` for Practice `.md` files. This keeps a single YAML dependency in the workspace (no engine-side `js-yaml`), and a future swap of the YAML library (per ADR 0002's gray-matter note) stays a one-package change. _If `@lorelum/format` declines to expose `parseYaml`, the fallback is a direct, declared `js-yaml` dependency in `@lorelum/engine/package.json` — never an implicit transitive import._
 
 - **`body` is injected by the codec, not authored in YAML.** The Practice frontmatter carries structural fields (`id`/`title`/`stage`/`tech_stack`/`applies_when`/`severity`); the guidance `body` is the Practice Markdown's content (frontmatter body), injected by `SnapshotCodec` into the `Practice` object. Pack authors write guidance as Markdown prose, not as a YAML string. (This is why `Practice.body` is optional in the schema — it's absent in raw frontmatter and present after codec assembly.)
-- **`decisions.yaml` is optional and has one v1 shape.** A Pack with no `decisions.yaml` is valid and assembles an empty `DecisionNode[]` (not an error). When present, the YAML document must be a top-level sequence of Decision Nodes (for example, `- id: state.client-vs-server`); wrapper objects such as `{ decisions: [...] }`, `null`, and an empty document are format errors. This maps directly to `PackInput.decisions`.
+- **`decisions.yaml` is optional and has one v1 shape.** A Pack with no `decisions.yaml` is valid and assembles an empty `DecisionNode[]` (not an error). When present, the YAML document must be a top-level sequence of Decision Nodes (for example, `- id: state.client-vs-server`); wrapper objects such as `{ decisions: [...] }`, `null`, and an empty document are format errors. This maps directly to `PackInput.decisions`. **`PackCandidate.decisions` (see §13) is the sealed copy of this array**: the rebuilt snapshot writes `decisions.yaml` from it (top-level JSON array — a YAML sequence subset), the sealed projection records the decisions verbatim so `reindex` re-parses and verifies them, and a pack with no decisions writes no `decisions.yaml`. Decisions do **not** participate in `effectiveRevision` increments (ADR 0007 §1 rules cover Effective Practice set/content only); a decisions-only change still alters `artifactDigest`, which advances `generation`.
 - **Practice discovery + source path normalization.** Practice files live under `practices/**/*.md` relative to the Pack root. The `sourcePath` recorded in the Practice-source table is the POSIX-style relative path from the Pack root (forward slashes, normalized, no `./`/`../`, no trailing slash), stable across platforms. Only `.md` files are discovered. The discovery set is fixed at snapshot-seal time and recorded in the projection, so re-parse during reindex finds the identical set.
 
 ### 11. Artifact digest — exact algorithm
@@ -192,6 +192,18 @@ PR 2 exposes the LocalStore public surface from `packages/engine/src/index.ts` (
 
 ```
 type StorageRoot = { readonly rootPath: string };   // injectable; default resolves ~/.lorelum/
+
+type PackCandidate = {                             // format-valid pack, ready to install
+  pack: PackSnapshot;
+  sources: readonly PracticeSource[];              // per-Practice canonical sources
+  decisions: readonly DecisionNode[];              // the pack's decision graph (ADR 0003);
+};                                                 // empty when the pack has no decisions.yaml
+
+type OpenResult = {                                // cold open result (this ADR)
+  generation: number;
+  effectiveRevision: number;
+  effectivePractices: readonly EffectivePractice[];
+};
 
 interface LocalStore {
   open(root: StorageRoot): Promise<OpenResult>;       // cold open; throws StoreRecoveryRequiredError on inconsistency

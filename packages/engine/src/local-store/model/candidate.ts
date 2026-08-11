@@ -57,7 +57,7 @@ export function createPackCandidate(
 ): { candidate: PackCandidate; diagnostics: readonly ValidationIssue[] } {
   const parsed = parsePackInput(input);
   if (!parsed.ok) throw new PackValidationError(parsed.report);
-  const { pack, practices } = parsed.value;
+  const { pack, practices, decisions } = parsed.value;
   // Full report: format gate already passed, so the semantic stages decide
   // validity (reference integrity, cycles) and provide diagnostics.
   const report = validateParsedPack(parsed.value);
@@ -98,7 +98,13 @@ export function createPackCandidate(
   }
 
   return {
-    candidate: Object.freeze({ pack: snapshotPack(pack), sources: Object.freeze(sources) }),
+    candidate: Object.freeze({
+      pack: snapshotPack(pack),
+      sources: Object.freeze(sources),
+      decisions: Object.freeze(
+        decisions.map((decision) => deepFreeze(structuredClone(decision))),
+      ),
+    }),
     diagnostics: [...report.warnings, ...report.infos],
   };
 }

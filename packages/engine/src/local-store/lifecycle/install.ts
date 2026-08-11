@@ -116,7 +116,11 @@ export async function installOrUpgrade(
     let artifactDigest: string;
     try {
       await writeSnapshotFromCandidate(stagingPath, candidate);
-      const projection: SnapshotProjection = createProjection(candidate.pack, candidate.sources);
+      const projection: SnapshotProjection = createProjection(
+        candidate.pack,
+        candidate.sources,
+        candidate.decisions,
+      );
       artifactDigest = await sealSnapshot(stagingPath, projection);
     } catch (error) {
       await rm(stagingPath, { recursive: true, force: true });

@@ -28,7 +28,12 @@ import {
 
 import { runStoreRecovery } from "./recovery";
 
-export interface OpenResult {
+/**
+ * Internal cold-open result: the converged manifest plus materialized
+ * practices. The public facade maps this to the exported `OpenResult`
+ * (ADR 0007 §13), keeping the manifest type out of the public surface.
+ */
+export interface ColdOpenResult {
   manifest: InstalledPacksManifest;
   effectivePractices: readonly EffectivePractice[];
 }
@@ -94,7 +99,7 @@ async function readSealedProjection(artifactDir: string): Promise<SnapshotProjec
  * mutation lock is reclaimed only after the recovery check passed (ADR 0007
  * §12).
  */
-export async function openLocalStore(rootPath: string): Promise<OpenResult> {
+export async function openLocalStore(rootPath: string): Promise<ColdOpenResult> {
   const database = await openStoreForLifecycle(rootPath);
   try {
     const { manifest } = await runStoreRecovery(rootPath, database);

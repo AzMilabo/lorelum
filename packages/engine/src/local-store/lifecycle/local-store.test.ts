@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -7,6 +7,8 @@ import type { UnvalidatedPackInput } from "@lorelum/format";
 
 import { createLocalStore, defaultStorageRoot, type StorageRoot } from "../index";
 import { createPackCandidate, type PackCandidate } from "../model";
+import { artifactPath } from "../storage/artifacts/artifact-store";
+import { readManifest } from "../storage/manifest/manifest-store";
 
 /**
  * bun:sqlite releases its Windows file handle asynchronously after close(),
@@ -227,5 +229,49 @@ test("format validation failure leaves no state behind", async () => {
     ).rejects.toThrow("format validation");
     const opened = await store.open(root);
     expect(opened.effectivePractices).toEqual([]);
+  });
+});
+
+test("install seals decisions into the snapshot and reindex preserves them (N2)", async () => {
+  await withRoot(async (root) => {
+    const input = packInput("platform", platform);
+    input.decisions = [
+      {
+        id: "state.client-vs-server",
+        question: "How much client state?",
+        branches: [
+          {
+            when: "heavy client state",
+            recommend: ["platform.api"],
+            reason: "Redux scales",
+          },
+        ],
+      },
+    ];
+    const cand = createPackCandidate(input, sourcePaths(input)).candidate;
+    expect(cand.decisions).toHaveLength(1);
+
+    const store = createLocalStore();
+    await store.install(root, cand);
+
+    // The rebuilt snapshot carries decisions.yaml and the sealed projection
+    // records them, so a later reindex re-derives the same decision graph.
+    const manifest = await readManifest(root.rootPath);
+    const entry = manifest.packs[0]!;
+    const artifactDir = artifactPath(root.rootPath, entry.storageKey, entry.artifactDigest);
+    expect(
+      await readFile(join(artifactDir, "decisions.yaml"), "utf8"),
+    ).toContain("state.client-vs-server");
+
+    const reindexed = await store.reindex(root);
+    expect(reindexed.effectiveRevision).toBeGreaterThan(0);
+    const reopened = await store.open(root);
+    expect(reopened.effectivePractices).toHaveLength(2);
+
+    const projection = JSON.parse(
+      await readFile(join(artifactDir, ".lorelum", "local-store-projection.json"), "utf8"),
+    ) as { decisions: unknown[] };
+    expect(projection.decisions).toHaveLength(1);
+    expect(projection.decisions[0]).toMatchObject({ id: "state.client-vs-server" });
   });
 });

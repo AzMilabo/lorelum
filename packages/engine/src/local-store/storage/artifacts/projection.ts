@@ -1,4 +1,5 @@
-import { PackSchema, PracticeSchema } from "@lorelum/format";
+import { DecisionNodeSchema, PackSchema, PracticeSchema } from "@lorelum/format";
+import type { DecisionNode } from "@lorelum/format";
 
 import {
   canonicalizePractice,
@@ -11,12 +12,17 @@ import {
 import { ArtifactIntegrityError } from "../errors";
 
 export const PROJECTION_RELATIVE_PATH = ".lorelum/local-store-projection.json";
-export const PROJECTION_VERSION = 1;
+export const PROJECTION_VERSION = 2;
 
 export interface SnapshotProjection {
   projectionVersion: number;
   pack: PackSnapshot;
   practices: readonly ProjectionPractice[];
+  /**
+   * The pack's decision graph, sealed verbatim so reindex can verify the
+   * re-parsed decisions.yaml matches what was installed (ADR 0007 §10).
+   */
+  decisions: readonly DecisionNode[];
 }
 
 export interface ProjectionPractice {
@@ -33,6 +39,7 @@ function compareCodeUnits(left: string, right: string): number {
 export function createProjection(
   pack: PackSnapshot,
   sources: readonly PracticeSource[],
+  decisions: readonly DecisionNode[],
 ): SnapshotProjection {
   return Object.freeze({
     projectionVersion: PROJECTION_VERSION,
@@ -48,6 +55,9 @@ export function createProjection(
           }),
         )
         .sort((left, right) => compareCodeUnits(left.sourcePath, right.sourcePath)),
+    ),
+    decisions: Object.freeze(
+      decisions.map((decision) => deepFreeze(structuredClone(decision))),
     ),
   });
 }
@@ -69,6 +79,9 @@ export function parseProjection(text: string, artifactPath: string): SnapshotPro
   }
   if (!Array.isArray(value.practices)) {
     throw new ArtifactIntegrityError(artifactPath, "projection practices must be an array");
+  }
+  if (!Array.isArray(value.decisions)) {
+    throw new ArtifactIntegrityError(artifactPath, "projection decisions must be an array");
   }
   const pack = PackSchema.safeParse(value.pack);
   if (!pack.success)
@@ -121,10 +134,18 @@ export function parseProjection(text: string, artifactPath: string): SnapshotPro
       sourcePath: practice.sourcePath,
     });
   });
+  const decisions: DecisionNode[] = value.decisions.map((decision) => {
+    const parsedDecision = DecisionNodeSchema.safeParse(decision);
+    if (!parsedDecision.success) {
+      throw new ArtifactIntegrityError(artifactPath, "projection decision violates schema");
+    }
+    return deepFreeze(structuredClone(parsedDecision.data));
+  });
   return Object.freeze({
     projectionVersion: PROJECTION_VERSION,
     pack: deepFreeze(structuredClone(pack.data)) as PackSnapshot,
     practices: Object.freeze(practices),
+    decisions: Object.freeze(decisions),
   });
 }
 

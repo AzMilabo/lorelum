@@ -7,16 +7,16 @@ import { ArtifactIntegrityError } from "../errors";
 /**
  * Rebuild a Pack snapshot directory from an in-memory candidate. The public
  * install/upgrade API takes a `PackCandidate` (ADR 0007 §13), so the immutable
- * snapshot is reconstructed from the validated data: `pack.yaml` and each
- * Practice's frontmatter are serialized as JSON, which is a strict YAML 1.2
- * subset — `@lorelum/format`'s `parseYaml` and the guarded frontmatter parser
- * both accept it, so the workspace keeps its single YAML dependency.
+ * snapshot is reconstructed from the validated data: `pack.yaml`, each
+ * Practice's frontmatter, and `decisions.yaml` are serialized as JSON, which
+ * is a strict YAML 1.2 subset — `@lorelum/format`'s `parseYaml` and the
+ * guarded frontmatter parser both accept it, so the workspace keeps its
+ * single YAML dependency.
  *
  * The snapshot is sealed (projection written, digest computed) by the caller
  * via `sealSnapshot` + `promoteArtifact`; this module only materializes the
- * author-visible files. Decisions are intentionally not reconstructed:
- * `PackCandidate` carries no `decisions`, and a snapshot without
- * `decisions.yaml` is a valid v1 pack (ADR 0007 §10).
+ * author-visible files. A candidate with no decisions writes no
+ * `decisions.yaml`, which is a valid v1 pack (ADR 0007 §10).
  */
 
 function frontmatterFields(practice: PackCandidate["sources"][number]["canonicalPractice"]["practice"]): object {
@@ -49,6 +49,22 @@ export async function writeSnapshotFromCandidate(
       snapshotPath,
       "cannot write pack.yaml: " + (error instanceof Error ? error.message : String(error)),
     );
+  }
+
+  // decisions.yaml as a top-level JSON array (YAML sequence) when present.
+  if (candidate.decisions.length > 0) {
+    try {
+      await writeFile(
+        join(snapshotPath, "decisions.yaml"),
+        JSON.stringify(candidate.decisions),
+        "utf8",
+      );
+    } catch (error) {
+      throw new ArtifactIntegrityError(
+        snapshotPath,
+        "cannot write decisions.yaml: " + (error instanceof Error ? error.message : String(error)),
+      );
+    }
   }
 
   // Materialize each Practice file; writes are independent per source.
