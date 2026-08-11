@@ -55,3 +55,19 @@ export class SqliteStateError extends LocalStoreStorageError {
     this.name = "SqliteStateError";
   }
 }
+
+/** The store is temporarily busy (mutation lock held, or read retries exhausted). */
+export class StoreBusyError extends Error {
+  constructor(message: string, cause?: unknown) {
+    super(message, cause === undefined ? undefined : { cause });
+    this.name = "StoreBusyError";
+  }
+}
+
+/** The store cannot be queried until `lore reindex` re-derives its state. */
+export class StoreRecoveryRequiredError extends Error {
+  constructor(message = "LocalStore recovery is required; run lore reindex") {
+    super(message);
+    this.name = "StoreRecoveryRequiredError";
+  }
+}

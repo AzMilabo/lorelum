@@ -56,7 +56,7 @@ export function writeDerivedState(database: Database, state: DerivedStoreState):
       database.exec("DELETE FROM active_packs");
       database.exec("DELETE FROM local_store_metadata");
 
-      const insertPack = database.prepare(
+      const insertPack = database.query(
         "INSERT INTO active_packs (pack_name, pack_version, artifact_digest, storage_key, installed_at) VALUES (?, ?, ?, ?, ?)",
       );
       for (const pack of state.activePacks) {
@@ -69,10 +69,10 @@ export function writeDerivedState(database: Database, state: DerivedStoreState):
         );
       }
 
-      const insertEffective = database.prepare(
+      const insertEffective = database.query(
         "INSERT INTO effective_practices (practice_id, content_digest, canonical_content, title, stage, tech_stack_json, applies_when, severity, effective_revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       );
-      const insertSource = database.prepare(
+      const insertSource = database.query(
         "INSERT INTO practice_sources (pack_name, practice_id, content_digest, source_path) VALUES (?, ?, ?, ?)",
       );
       for (const effective of state.effectivePractices) {
@@ -99,7 +99,7 @@ export function writeDerivedState(database: Database, state: DerivedStoreState):
       }
 
       database
-        .prepare(
+        .query(
           "INSERT INTO local_store_metadata (singleton, schema_version, installed_packs_generation, effective_revision) VALUES (1, 1, ?, ?)",
         )
         .run(state.generation, state.effectiveRevision);

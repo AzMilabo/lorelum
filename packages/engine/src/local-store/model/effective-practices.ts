@@ -95,7 +95,12 @@ function effectiveDigestMap(practices: readonly EffectivePractice[]): Map<string
   return new Map(practices.map((practice) => [practice.practiceId, practice.contentDigest]));
 }
 
-function calculateDelta(
+/**
+ * Diff two Effective Practice sets by `practiceId` + `contentDigest` into the
+ * vector-seam delta. Exported so reindex can report what changed relative to
+ * the previous state without re-deriving the rule (ADR 0007 §4).
+ */
+export function diffEffectivePractices(
   previous: readonly EffectivePractice[],
   next: readonly EffectivePractice[],
 ): RevisionDelta {
@@ -151,7 +156,7 @@ export function reconcileEffectivePractices(
   }
   const sources = [...retainedSources, ...candidate.sources].sort(compareSources);
   const effectivePractices = buildEffectivePractices(sources);
-  const delta = calculateDelta(previous, effectivePractices);
+  const delta = diffEffectivePractices(previous, effectivePractices);
   return Object.freeze({
     sources: Object.freeze(sources),
     effectivePractices: Object.freeze(effectivePractices),
@@ -171,7 +176,7 @@ export function removePackSources(
     .filter((source) => source.packName !== packName)
     .sort(compareSources);
   const effectivePractices = buildEffectivePractices(sources);
-  const delta = calculateDelta(previous, effectivePractices);
+  const delta = diffEffectivePractices(previous, effectivePractices);
   return Object.freeze({
     sources: Object.freeze(sources),
     effectivePractices: Object.freeze(effectivePractices),

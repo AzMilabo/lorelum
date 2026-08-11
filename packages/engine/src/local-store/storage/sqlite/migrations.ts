@@ -13,7 +13,7 @@ const INITIAL_SCHEMA = [
 ].join(";");
 
 function userVersion(database: Database): number {
-  const row = database.prepare("PRAGMA user_version").get() as Record<string, unknown> | undefined;
+  const row = database.query("PRAGMA user_version").get() as Record<string, unknown> | undefined;
   if (
     row === undefined ||
     typeof row.user_version !== "number" ||
