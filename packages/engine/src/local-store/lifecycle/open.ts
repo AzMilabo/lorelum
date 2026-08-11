@@ -8,12 +8,17 @@ import {
   PROJECTION_RELATIVE_PATH,
   type SnapshotProjection,
 } from "../storage/artifacts/projection";
-import { StoreBusyError, StoreRecoveryRequiredError } from "../storage/errors";
+import {
+  SqliteStateError,
+  StoreBusyError,
+  StoreRecoveryRequiredError,
+} from "../storage/errors";
 import {
   serializeManifest,
   tryReadManifest,
   type InstalledPacksManifest,
 } from "../storage/manifest/manifest-store";
+import { reclaimStaleMutationLock } from "../storage/mutation-lock";
 import { openStoreDatabase } from "../storage/sqlite/database";
 import {
   readActivePackEntries,
@@ -26,6 +31,24 @@ import { runStoreRecovery } from "./recovery";
 export interface OpenResult {
   manifest: InstalledPacksManifest;
   effectivePractices: readonly EffectivePractice[];
+}
+
+/** ADR 0007 §8: cold open reports every inconsistency as recovery required. */
+function translateStoreErrors(error: unknown): never {
+  if (error instanceof StoreRecoveryRequiredError || error instanceof StoreBusyError) throw error;
+  if (error instanceof SqliteStateError) {
+    throw new StoreRecoveryRequiredError(`SQLite is missing or corrupt: ${error.message}`);
+  }
+  throw error;
+}
+
+/** Open + migrate SQLite, mapping storage errors to the recovery contract. */
+async function openStoreForLifecycle(rootPath: string): Promise<Awaited<ReturnType<typeof openStoreDatabase>>> {
+  try {
+    return await openStoreDatabase(rootPath);
+  } catch (error) {
+    translateStoreErrors(error);
+  }
 }
 
 function activeEntriesEqual(
@@ -67,12 +90,17 @@ async function readSealedProjection(artifactDir: string): Promise<SnapshotProjec
  * matching digest, read the digest-protected projection, and reconcile
  * SQLite's Active Pack / Practice source / Effective Practice against it.
  * Cold open does not scan all packs, re-parse Practice files, or regenerate
- * embeddings. Any inconsistency → `StoreRecoveryRequiredError`.
+ * embeddings. Any inconsistency → `StoreRecoveryRequiredError`. A stale
+ * mutation lock is reclaimed only after the recovery check passed (ADR 0007
+ * §12).
  */
 export async function openLocalStore(rootPath: string): Promise<OpenResult> {
-  const database = await openStoreDatabase(rootPath);
+  const database = await openStoreForLifecycle(rootPath);
   try {
     const { manifest } = await runStoreRecovery(rootPath, database);
+    // Recovery converged and the store is consistent — now a stale lock can
+    // be reclaimed safely (ADR 0007 §12: reclaiming never skips recovery).
+    await reclaimStaleMutationLock(rootPath);
     const metadata = readStoreMetadata(database);
     if (metadata === undefined) {
       // Fresh store: manifest is empty and SQLite was never written.
@@ -89,6 +117,8 @@ export async function openLocalStore(rootPath: string): Promise<OpenResult> {
     // Each active artifact must exist with a matching digest and a valid,
     // digest-protected projection; sources and digests must reconcile.
     // Artifact checks are independent per pack — verify them in parallel.
+    // The key is packName + sourcePath: a relative source path is only unique
+    // within its own Pack (ADR 0007 §10), so two Packs may share one path.
     const expectedSources = new Map<string, { digest: string }>();
     await Promise.all(
       manifest.packs.map(async (entry) => {
@@ -107,7 +137,9 @@ export async function openLocalStore(rootPath: string): Promise<OpenResult> {
           );
         }
         for (const practice of projection.practices) {
-          expectedSources.set(practice.sourcePath, { digest: practice.contentDigest });
+          expectedSources.set(`${entry.packName}/${practice.sourcePath}`, {
+            digest: practice.contentDigest,
+          });
         }
       }),
     );
@@ -115,13 +147,13 @@ export async function openLocalStore(rootPath: string): Promise<OpenResult> {
     // Practice sources and Effective Practice rows must match the projections.
     for (const practice of snapshot.effectivePractices) {
       for (const source of practice.sources) {
-        const expected = expectedSources.get(source.sourcePath);
+        const expected = expectedSources.get(`${source.packName}/${source.sourcePath}`);
         if (expected === undefined || expected.digest !== source.contentDigest) {
           throw new StoreRecoveryRequiredError(
-            `source ${source.sourcePath} does not reconcile with any sealed projection`,
+            `source ${source.packName}/${source.sourcePath} does not reconcile with any sealed projection`,
           );
         }
-        expectedSources.delete(source.sourcePath);
+        expectedSources.delete(`${source.packName}/${source.sourcePath}`);
       }
     }
     if (expectedSources.size > 0) {
@@ -145,7 +177,7 @@ export async function openLocalStore(rootPath: string): Promise<OpenResult> {
  */
 export async function readEffectivePractices(rootPath: string): Promise<readonly EffectivePractice[]> {
   const MAX_READ_RETRIES = 3;
-  const database = await openStoreDatabase(rootPath);
+  const database = await openStoreForLifecycle(rootPath);
   try {
     for (let attempt = 0; attempt < MAX_READ_RETRIES; attempt++) {
       // eslint-disable-next-line no-await-in-loop -- bounded retry is inherently sequential

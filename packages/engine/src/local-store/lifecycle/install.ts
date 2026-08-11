@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { ValidationIssue } from "@lorelum/format";
 
 import {
+  diffEffectivePractices,
   reconcileEffectivePractices,
   type EffectivePractice,
   type PackCandidate,
@@ -35,8 +36,8 @@ import {
 } from "../storage/sqlite/snapshot-reader";
 import { writeDerivedState } from "../storage/sqlite/state-writer";
 
-import { UpgradeRequiredError } from "./errors";
-import { notifyRevision, withStoreMutation, type MutationLockOptions } from "./mutation";
+import { UpgradeRequiredError, PackNotInstalledError } from "./errors";
+import { notifyRevision, withStoreMutation } from "./mutation";
 import type { EffectiveRevisionHook, InstallResult } from "./types";
 
 function compareCodeUnits(left: string, right: string): number {
@@ -94,7 +95,6 @@ export async function installOrUpgrade(
   mode: "install" | "upgrade",
   hook: EffectiveRevisionHook | undefined,
   diagnostics: readonly ValidationIssue[] = [],
-  lockOptions: MutationLockOptions = {},
 ): Promise<InstallResult> {
   return withStoreMutation(
     rootPath,
@@ -129,7 +129,7 @@ export async function installOrUpgrade(
       return Object.freeze({
         generation: recovery.manifest.generation,
         effectiveRevision: recovery.manifest.effectiveRevision,
-        delta: Object.freeze({ added: Object.freeze([]), changed: Object.freeze([]), invalidated: Object.freeze([]) }),
+        delta: diffEffectivePractices([], []),
         diagnostics,
         cleanupPending: false,
         idempotent: true,
@@ -144,6 +144,13 @@ export async function installOrUpgrade(
         existingEntry.artifactDigest,
         artifactDigest,
       );
+    }
+    // upgrade replaces an active pack's sources; upgrading a pack that was
+    // never installed is the same class of error as uninstalling one that
+    // isn't there (ADR 0007 §7 — never silent success).
+    if (mode === "upgrade" && existingEntry === undefined) {
+      await rm(stagingPath, { recursive: true, force: true });
+      throw new PackNotInstalledError(candidate.pack.name);
     }
 
     const reconciled = reconcileEffectivePractices(
@@ -212,6 +219,5 @@ export async function installOrUpgrade(
       notificationPending,
     });
     },
-    lockOptions,
   );
 }

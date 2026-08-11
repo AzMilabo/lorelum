@@ -67,6 +67,34 @@ export interface AcquireLockOptions {
 const DEFAULT_WAIT_MS = 5_000;
 const DEFAULT_POLL_INTERVAL_MS = 50;
 
+/**
+ * Reclaim a lock whose holder process is gone (ADR 0007 §12). Callers must
+ * have run the operation-journal recovery check first and confirmed the store
+ * is in a consistent state — reclaiming a lock never skips recovery. Returns
+ * whether a stale lock was actually removed.
+ */
+export async function reclaimStaleMutationLock(rootPath: string): Promise<boolean> {
+  const path = lockPath(rootPath);
+  let text: string;
+  try {
+    text = await readFile(path, "utf8");
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return false; // no lock at all
+    }
+    throw new StoreBusyError(`cannot read lock file ${path}`, error);
+  }
+  const record = parseLockRecord(text, path);
+  if (isProcessAlive(record.pid)) return false;
+  await unlink(path).catch(() => undefined);
+  return true;
+}
+
 async function tryCreateLock(
   rootPath: string,
 ): Promise<MutationLockHandle | { held: MutationLockRecord } | "stale"> {

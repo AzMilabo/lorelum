@@ -3,6 +3,7 @@ import type { Database } from "bun:sqlite";
 import type { EffectivePractice, PracticeSource } from "../model";
 import { acquireMutationLock } from "../storage/mutation-lock";
 import { openStoreDatabase } from "../storage/sqlite/database";
+import { openLocalStore } from "./open";
 import { runStoreRecovery, type RecoveryResult } from "./recovery";
 import type { EffectiveRevisionHook } from "./types";
 
@@ -27,15 +28,30 @@ export function activeSources(effectivePractices: readonly EffectivePractice[]):
 
 /**
  * Run one manifest-mutating operation under the cross-process mutation lock
- * (ADR 0007 §12): acquire the lock, open + migrate SQLite, converge leftover
- * journal records, then hand a consistent context to `run`. The lock and the
- * database handle are always released, even when `run` throws.
+ * (ADR 0007 §12). Sequencing is frozen by the ADR:
+ *
+ * 1. Cold open **first** ("normal install/upgrade/uninstall still go through
+ *    open()", ADR 0007 §8): this converges leftover journals, verifies the
+ *    manifest/SQLite tuple and artifacts, and throws `StoreRecoveryRequiredError`
+ *    on any inconsistency — so a stale lock is only ever reclaimed after the
+ *    store is known consistent ("reclaiming a lock never skips recovery").
+ * 2. Acquire the lock, then re-run the recovery check inside the lock to
+ *    close the window between step 1 and acquisition.
+ *
+ * The lock and the database handle are always released, even when `run`
+ * throws.
  */
 export async function withStoreMutation<T>(
   rootPath: string,
   run: (context: MutationContext) => Promise<T>,
   options: MutationLockOptions = {},
 ): Promise<T> {
+  // Step 1 — cold open without the lock (recovery check + stale-lock reclaim
+  // authority; throws StoreRecoveryRequiredError on inconsistency).
+  await openLocalStore(rootPath);
+
+  // Step 2 — acquire (a stale lock is now reclaimable: recovery already ran
+  // and the store is consistent), then re-converge under the lock.
   const lock = await acquireMutationLock(rootPath, {
     ...(options.waitMs === undefined ? {} : { waitMs: options.waitMs }),
   });

@@ -226,3 +226,61 @@ test("concurrent mutations are serialized by the lock", async () => {
     expect(installed.generation).toBe(1);
   });
 });
+
+test("cold open accepts two Packs that share a sourcePath (regression M1)", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    // Both Packs use the same relative path "practices/api.md" inside their
+    // own snapshot; a sourcePath is only unique within a Pack (ADR 0007 §10).
+    const samePath = (name: string, id: string, body: string): PackCandidate => {
+      const input = packInput(name, { [id]: body });
+      return createPackCandidate(input, { [id]: "practices/api.md" }).candidate;
+    };
+    await store.install(root, samePath("platform", "platform.api", "Use APIs.\n"));
+    await store.install(root, samePath("web", "web.api", "Use Web APIs.\n"));
+    const opened = await store.open(root);
+    expect(opened.effectivePractices.map((p) => p.practiceId).sort()).toEqual([
+      "platform.api",
+      "web.api",
+    ]);
+  });
+});
+
+test("cold open reports a corrupt SQLite file as StoreRecoveryRequiredError (regression M2)", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    await store.install(root, candidate("platform", platform));
+    await writeFile(sqlitePath(root.rootPath), "this is not a sqlite database at all");
+    await expect(store.open(root)).rejects.toBeInstanceOf(StoreRecoveryRequiredError);
+  });
+});
+
+test("upgrade of a pack that was never installed throws PackNotInstalledError (regression M3)", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    await store.install(root, candidate("platform", platform));
+    await expect(
+      store.upgrade(root, candidate("missing", { "missing.api": "x" })),
+    ).rejects.toThrow("not installed");
+  });
+});
+
+test("cold open reclaims a stale mutation lock only after recovery passes (ADR 0007 §12)", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    await store.install(root, candidate("platform", platform));
+    // A stale lock left by a crashed holder.
+    const lockPath = join(root.rootPath, ".lock");
+    await writeFile(
+      lockPath,
+      JSON.stringify({ pid: Number.MAX_SAFE_INTEGER, startedAt: new Date().toISOString() }),
+      "utf8",
+    );
+    const opened = await store.open(root);
+    expect(opened.effectivePractices).toHaveLength(2);
+    // The stale lock was removed as part of cold open.
+    await expect(
+      import("node:fs/promises").then((fs) => fs.access(lockPath)),
+    ).rejects.toThrow();
+  });
+});
