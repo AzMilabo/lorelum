@@ -38,8 +38,9 @@ test("promotion verifies an existing artifact before treating it as idempotent",
     await mkdir(staging);
     await writeFile(join(staging, "pack.yaml"), "name: platform\n");
     const digest = await calculateArtifactDigest(staging);
-    const target = await promoteArtifact(root, "p-platform", digest, staging);
-    expect(target).toContain(digest);
+    const result = await promoteArtifact(root, "p-platform", digest, staging);
+    expect(result.targetPath).toContain(digest);
+    expect(result.stagedSnapshotConsumed).toBe(true);
   });
 });
 
@@ -49,7 +50,7 @@ test("promotion rejects a digest-mismatched target for lifecycle to handle safel
     await mkdir(firstStaging);
     await writeFile(join(firstStaging, "pack.yaml"), "name: platform\n");
     const digest = await calculateArtifactDigest(firstStaging);
-    const target = await promoteArtifact(root, "p-platform", digest, firstStaging);
+    const target = (await promoteArtifact(root, "p-platform", digest, firstStaging)).targetPath;
 
     await writeFile(join(target, "pack.yaml"), "tampered\n");
     const secondStaging = join(root, "second-staging");
@@ -58,6 +59,72 @@ test("promotion rejects a digest-mismatched target for lifecycle to handle safel
     await expect(promoteArtifact(root, "p-platform", digest, secondStaging)).rejects.toThrow(
       "existing artifact digest differs",
     );
+  });
+});
+
+test("promotion can replace a corrupt unreferenced target only with explicit authorization", async () => {
+  await withDirectory(async (root) => {
+    const firstStaging = join(root, "first-staging");
+    await mkdir(firstStaging);
+    await writeFile(join(firstStaging, "pack.yaml"), "name: platform\n");
+    const digest = await calculateArtifactDigest(firstStaging);
+    const first = await promoteArtifact(root, "p-platform", digest, firstStaging);
+
+    await writeFile(join(first.targetPath, "pack.yaml"), "tampered\n");
+    const secondStaging = join(root, "second-staging");
+    await mkdir(secondStaging);
+    await writeFile(join(secondStaging, "pack.yaml"), "name: platform\n");
+    const replacement = await promoteArtifact(root, "p-platform", digest, secondStaging, {
+      replaceCorruptTarget: { activeReferences: [] },
+    });
+
+    expect(replacement.targetPath).toBe(first.targetPath);
+    expect(replacement.stagedSnapshotConsumed).toBe(true);
+    expect(await readFile(join(replacement.targetPath, "pack.yaml"), "utf8")).toBe(
+      "name: platform\n",
+    );
+  });
+});
+
+test("promotion never replaces a corrupt target still referenced by the active manifest", async () => {
+  await withDirectory(async (root) => {
+    const firstStaging = join(root, "first-staging");
+    await mkdir(firstStaging);
+    await writeFile(join(firstStaging, "pack.yaml"), "name: platform\n");
+    const digest = await calculateArtifactDigest(firstStaging);
+    const first = await promoteArtifact(root, "p-platform", digest, firstStaging);
+
+    await writeFile(join(first.targetPath, "pack.yaml"), "tampered\n");
+    const secondStaging = join(root, "second-staging");
+    await mkdir(secondStaging);
+    await writeFile(join(secondStaging, "pack.yaml"), "name: platform\n");
+    await expect(
+      promoteArtifact(root, "p-platform", digest, secondStaging, {
+        replaceCorruptTarget: {
+          activeReferences: [{ storageKey: "p-platform", artifactDigest: digest }],
+        },
+      }),
+    ).rejects.toThrow("cannot replace an artifact referenced by the active manifest");
+    expect(await readFile(join(first.targetPath, "pack.yaml"), "utf8")).toBe("tampered\n");
+  });
+});
+
+test("promotion reports that an existing valid target did not consume staging", async () => {
+  await withDirectory(async (root) => {
+    const firstStaging = join(root, "first-staging");
+    await mkdir(firstStaging);
+    await writeFile(join(firstStaging, "pack.yaml"), "name: platform\n");
+    const digest = await calculateArtifactDigest(firstStaging);
+    const first = await promoteArtifact(root, "p-platform", digest, firstStaging);
+
+    const secondStaging = join(root, "second-staging");
+    await mkdir(secondStaging);
+    await writeFile(join(secondStaging, "pack.yaml"), "name: platform\n");
+    const second = await promoteArtifact(root, "p-platform", digest, secondStaging);
+
+    expect(second.targetPath).toBe(first.targetPath);
+    expect(second.stagedSnapshotConsumed).toBe(false);
+    expect(await readFile(join(secondStaging, "pack.yaml"), "utf8")).toBe("name: platform\n");
   });
 });
 

@@ -101,9 +101,7 @@ export function createPackCandidate(
     candidate: Object.freeze({
       pack: snapshotPack(pack),
       sources: Object.freeze(sources),
-      decisions: Object.freeze(
-        decisions.map((decision) => deepFreeze(structuredClone(decision))),
-      ),
+      decisions: Object.freeze(decisions.map((decision) => deepFreeze(structuredClone(decision)))),
     }),
     diagnostics: [...report.warnings, ...report.infos],
   };

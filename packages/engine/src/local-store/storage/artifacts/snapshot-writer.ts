@@ -19,7 +19,9 @@ import { ArtifactIntegrityError } from "../errors";
  * `decisions.yaml`, which is a valid v1 pack (ADR 0007 §10).
  */
 
-function frontmatterFields(practice: PackCandidate["sources"][number]["canonicalPractice"]["practice"]): object {
+function frontmatterFields(
+  practice: PackCandidate["sources"][number]["canonicalPractice"]["practice"],
+): object {
   const { id, title, stage, tech_stack, applies_when, severity, anti_patterns } = practice;
   return {
     id,
@@ -28,9 +30,7 @@ function frontmatterFields(practice: PackCandidate["sources"][number]["canonical
     tech_stack,
     applies_when,
     ...(severity === undefined ? {} : { severity }),
-    ...(anti_patterns === undefined || anti_patterns.length === 0
-      ? {}
-      : { anti_patterns }),
+    ...(anti_patterns === undefined || anti_patterns.length === 0 ? {} : { anti_patterns }),
   };
 }
 

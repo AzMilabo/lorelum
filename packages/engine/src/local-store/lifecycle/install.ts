@@ -10,15 +10,8 @@ import {
   type PackCandidate,
   type PracticeSource,
 } from "../model";
-import {
-  artifactPath,
-  promoteArtifact,
-  sealSnapshot,
-} from "../storage/artifacts/artifact-store";
-import {
-  createProjection,
-  type SnapshotProjection,
-} from "../storage/artifacts/projection";
+import { artifactPath, promoteArtifact, sealSnapshot } from "../storage/artifacts/artifact-store";
+import { createProjection, type SnapshotProjection } from "../storage/artifacts/projection";
 import { writeSnapshotFromCandidate } from "../storage/artifacts/snapshot-writer";
 import {
   clearOperationJournal,
@@ -37,14 +30,18 @@ import {
 import { writeDerivedState } from "../storage/sqlite/state-writer";
 
 import { UpgradeRequiredError, PackNotInstalledError } from "./errors";
-import { notifyRevision, withStoreMutation } from "./mutation";
+import { nextStoreCounter } from "./counters";
+import { deliverRevisionNotifications, withStoreMutation } from "./mutation";
 import type { EffectiveRevisionHook, InstallResult } from "./types";
 
 function compareCodeUnits(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function entryForCandidate(candidate: PackCandidate, artifactDigest: string): InstalledPackManifestEntry {
+function entryForCandidate(
+  candidate: PackCandidate,
+  artifactDigest: string,
+): InstalledPackManifestEntry {
   return Object.freeze({
     packName: candidate.pack.name,
     packVersion: candidate.pack.version,
@@ -58,6 +55,7 @@ function withPackEntry(
   manifest: InstalledPacksManifest,
   entry: InstalledPackManifestEntry,
   replace: boolean,
+  generation: number,
   effectiveRevision: number,
 ): InstalledPacksManifest {
   const packs = replace
@@ -65,14 +63,16 @@ function withPackEntry(
     : [...manifest.packs, entry];
   return Object.freeze({
     schemaVersion: manifest.schemaVersion,
-    generation: manifest.generation + 1,
+    generation,
     effectiveRevision,
     packs: Object.freeze([...packs].sort((l, r) => compareCodeUnits(l.packName, r.packName))),
   });
 }
 
 /** Materialize the active source set from the materialized snapshot. */
-function activeSources(effectivePractices: readonly EffectivePractice[]): readonly PracticeSource[] {
+function activeSources(
+  effectivePractices: readonly EffectivePractice[],
+): readonly PracticeSource[] {
   return effectivePractices.flatMap((practice) => practice.sources);
 }
 
@@ -96,17 +96,13 @@ export async function installOrUpgrade(
   hook: EffectiveRevisionHook | undefined,
   diagnostics: readonly ValidationIssue[] = [],
 ): Promise<InstallResult> {
-  return withStoreMutation(
-    rootPath,
-    async ({ database, recovery }) => {
+  const committed = await withStoreMutation(rootPath, async ({ database, recovery }) => {
     // `recovery.manifest` is the converged, tuple-validated manifest (fresh
     // store → empty manifest), so install never re-reads or re-guesses it.
     const active = recovery.manifest;
     const metadata = readStoreMetadata(database);
     const effectivePractices =
-      metadata === undefined
-        ? []
-        : readEffectivePracticeSnapshot(database).effectivePractices;
+      metadata === undefined ? [] : readEffectivePracticeSnapshot(database).effectivePractices;
     const existingEntry = active.packs.find((pack) => pack.packName === candidate.pack.name);
 
     // Stage the immutable snapshot and compute its artifact digest before any
@@ -157,19 +153,30 @@ export async function installOrUpgrade(
       throw new PackNotInstalledError(candidate.pack.name);
     }
 
-    const reconciled = reconcileEffectivePractices(
-      activeSources(effectivePractices),
-      candidate,
-      mode === "upgrade" ? candidate.pack.name : undefined,
-    );
     const entry = entryForCandidate(candidate, artifactDigest);
+    let reconciled: ReturnType<typeof reconcileEffectivePractices>;
+    let targetManifest: InstalledPacksManifest;
+    try {
+      const targetGeneration = nextStoreCounter(active.generation, "generation");
+      reconciled = reconcileEffectivePractices(
+        activeSources(effectivePractices),
+        candidate,
+        mode === "upgrade" ? candidate.pack.name : undefined,
+      );
+      targetManifest = withPackEntry(
+        active,
+        entry,
+        mode === "upgrade",
+        targetGeneration,
+        reconciled.advancesEffectiveRevision
+          ? nextStoreCounter(active.effectiveRevision, "effectiveRevision")
+          : active.effectiveRevision,
+      );
+    } catch (error) {
+      await rm(stagingPath, { recursive: true, force: true });
+      throw error;
+    }
     const advances = reconciled.advancesEffectiveRevision;
-    const targetManifest = withPackEntry(
-      active,
-      entry,
-      mode === "upgrade",
-      advances ? active.effectiveRevision + 1 : active.effectiveRevision,
-    );
 
     // Persist the journal before publishing the target manifest so recovery
     // can compare the (generation, effectiveRevision) tuple (ADR 0007 §8).
@@ -177,26 +184,40 @@ export async function installOrUpgrade(
     await writeOperationJournal(rootPath, journal);
 
     try {
-      await promoteArtifact(rootPath, entry.storageKey, artifactDigest, stagingPath);
+      const promotion = await promoteArtifact(
+        rootPath,
+        entry.storageKey,
+        artifactDigest,
+        stagingPath,
+        {
+          replaceCorruptTarget: {
+            activeReferences: active.packs.map(({ storageKey, artifactDigest: digest }) => ({
+              storageKey,
+              artifactDigest: digest,
+            })),
+          },
+        },
+      );
+      if (!promotion.stagedSnapshotConsumed) {
+        await rm(stagingPath, { recursive: true, force: true });
+      }
       await writeManifest(rootPath, targetManifest);
       writeDerivedState(database, {
         generation: targetManifest.generation,
         effectiveRevision: targetManifest.effectiveRevision,
         activePacks: targetManifest.packs,
         effectivePractices: reconciled.effectivePractices,
+        revisionNotification:
+          advances && hook !== undefined ? { delta: reconciled.delta } : undefined,
       });
     } catch (error) {
       await rm(stagingPath, { recursive: true, force: true });
       throw error;
     }
 
-    // The mutation has committed: the journal can be cleared, then the
-    // post-commit hook fires. A hook failure never rolls back the commit —
-    // it is surfaced as a pending notification (ADR 0007 §4).
+    // The mutation has committed. Hook delivery happens after withStoreMutation
+    // releases the commit lock, so a hook may safely start another mutation.
     await clearOperationJournal(rootPath, journal.operationId);
-    const notificationPending = advances
-      ? await notifyRevision(hook, targetManifest.effectiveRevision, reconciled.delta)
-      : undefined;
 
     // Post-commit GC: an upgrade leaves the previous digest's artifact
     // unreferenced. Cleanup failure is retryable and never turns the
@@ -204,10 +225,10 @@ export async function installOrUpgrade(
     let cleanupPending = false;
     if (mode === "upgrade" && existingEntry !== undefined) {
       try {
-        await rm(
-          artifactPath(rootPath, entry.storageKey, existingEntry.artifactDigest),
-          { recursive: true, force: true },
-        );
+        await rm(artifactPath(rootPath, entry.storageKey, existingEntry.artifactDigest), {
+          recursive: true,
+          force: true,
+        });
       } catch {
         cleanupPending = true;
       }
@@ -220,8 +241,12 @@ export async function installOrUpgrade(
       diagnostics,
       cleanupPending,
       idempotent: false,
-      notificationPending,
     });
-    },
+  });
+  const notificationPending = await deliverRevisionNotifications(
+    rootPath,
+    hook,
+    committed.effectiveRevision,
   );
+  return Object.freeze({ ...committed, notificationPending });
 }

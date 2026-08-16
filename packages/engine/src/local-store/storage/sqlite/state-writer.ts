@@ -1,14 +1,29 @@
 import type { Database } from "bun:sqlite";
 
-import { canonicalizePractice, isPracticeSourcePath, type EffectivePractice } from "../../model";
+import {
+  canonicalizePractice,
+  isPracticeSourcePath,
+  type EffectivePractice,
+  type RevisionDelta,
+} from "../../model";
 import type { InstalledPackManifestEntry } from "../manifest/manifest-store";
 import { SqliteStateError } from "../errors";
+import { LOCAL_STORE_SCHEMA_VERSION } from "./migrations";
+import { serializeRevisionDelta } from "./revision-outbox";
 
 export interface DerivedStoreState {
   generation: number;
   effectiveRevision: number;
   activePacks: readonly InstalledPackManifestEntry[];
   effectivePractices: readonly EffectivePractice[];
+  /** Persisted atomically with the revision so later deliveries cannot overtake it. */
+  revisionNotification?:
+    | {
+        delta: RevisionDelta;
+        /** A reindex notification is a full refresh and supersedes older pending deltas. */
+        supersedesPending?: boolean;
+      }
+    | undefined;
 }
 
 function assertStateIsCoherent(state: DerivedStoreState): void {
@@ -56,6 +71,10 @@ export function writeDerivedState(database: Database, state: DerivedStoreState):
       database.exec("DELETE FROM active_packs");
       database.exec("DELETE FROM local_store_metadata");
 
+      if (state.revisionNotification?.supersedesPending === true) {
+        database.exec("DELETE FROM effective_revision_outbox");
+      }
+
       const insertPack = database.query(
         "INSERT INTO active_packs (pack_name, pack_version, artifact_digest, storage_key, installed_at) VALUES (?, ?, ?, ?, ?)",
       );
@@ -100,9 +119,21 @@ export function writeDerivedState(database: Database, state: DerivedStoreState):
 
       database
         .query(
-          "INSERT INTO local_store_metadata (singleton, schema_version, installed_packs_generation, effective_revision) VALUES (1, 1, ?, ?)",
+          "INSERT INTO local_store_metadata (singleton, schema_version, installed_packs_generation, effective_revision) VALUES (1, ?, ?, ?)",
         )
-        .run(state.generation, state.effectiveRevision);
+        .run(LOCAL_STORE_SCHEMA_VERSION, state.generation, state.effectiveRevision);
+
+      if (state.revisionNotification !== undefined) {
+        database
+          .query(
+            "INSERT OR REPLACE INTO effective_revision_outbox (revision, delta_json, created_at) VALUES (?, ?, ?)",
+          )
+          .run(
+            state.effectiveRevision,
+            serializeRevisionDelta(state.revisionNotification.delta),
+            new Date().toISOString(),
+          );
+      }
     })();
   } catch (error) {
     if (error instanceof SqliteStateError) throw error;

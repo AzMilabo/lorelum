@@ -1,14 +1,21 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { UnvalidatedPackInput } from "@lorelum/format";
 
-import { createLocalStore, defaultStorageRoot, type StorageRoot } from "../index";
+import {
+  createLocalStore,
+  defaultStorageRoot,
+  StoreCounterExhaustedError,
+  type StorageRoot,
+} from "../index";
 import { createPackCandidate, type PackCandidate } from "../model";
-import { artifactPath } from "../storage/artifacts/artifact-store";
-import { readManifest } from "../storage/manifest/manifest-store";
+import { artifactPath, calculateArtifactDigest } from "../storage/artifacts/artifact-store";
+import { listOperationJournals } from "../storage/journal/operation-journal";
+import { readManifest, writeManifest } from "../storage/manifest/manifest-store";
+import { openStoreDatabase } from "../storage/sqlite/database";
 
 /**
  * bun:sqlite releases its Windows file handle asynchronously after close(),
@@ -117,9 +124,9 @@ test("install with a different digest requires upgrade", async () => {
   await withRoot(async (root) => {
     const store = createLocalStore();
     await store.install(root, candidate("platform", platform));
-    await expect(
-      store.install(root, candidate("platform", platformV2)),
-    ).rejects.toThrow("use upgrade");
+    await expect(store.install(root, candidate("platform", platformV2))).rejects.toThrow(
+      "use upgrade",
+    );
   });
 });
 
@@ -147,9 +154,9 @@ test("upgrade conflicting with another active pack's practice is rejected", asyn
     // web provides platform.api with identical content → mergeable.
     await store.install(root, candidate("web", web));
     // platformV2 changes platform.api; web still provides the old content.
-    await expect(
-      store.upgrade(root, candidate("platform", platformV2)),
-    ).rejects.toThrow("conflicts with active pack");
+    await expect(store.upgrade(root, candidate("platform", platformV2))).rejects.toThrow(
+      "conflicts with active pack",
+    );
   });
 });
 
@@ -168,10 +175,7 @@ test("a source-only addition does not advance effectiveRevision (定稿 §9 #6)"
     const first = await store.install(root, candidate("platform", platform));
     // web re-provides platform.api with byte-identical content and nothing
     // else: only the source set changes, the Effective Practice set does not.
-    const merged = await store.install(
-      root,
-      candidate("web", { "platform.api": "Use APIs.\n" }),
-    );
+    const merged = await store.install(root, candidate("web", { "platform.api": "Use APIs.\n" }));
     expect(merged.delta).toEqual({
       added: [],
       changed: [],
@@ -259,9 +263,9 @@ test("install seals decisions into the snapshot and reindex preserves them (N2)"
     const manifest = await readManifest(root.rootPath);
     const entry = manifest.packs[0]!;
     const artifactDir = artifactPath(root.rootPath, entry.storageKey, entry.artifactDigest);
-    expect(
-      await readFile(join(artifactDir, "decisions.yaml"), "utf8"),
-    ).toContain("state.client-vs-server");
+    expect(await readFile(join(artifactDir, "decisions.yaml"), "utf8")).toContain(
+      "state.client-vs-server",
+    );
 
     const reindexed = await store.reindex(root);
     expect(reindexed.effectiveRevision).toBeGreaterThan(0);
@@ -273,5 +277,45 @@ test("install seals decisions into the snapshot and reindex preserves them (N2)"
     ) as { decisions: unknown[] };
     expect(projection.decisions).toHaveLength(1);
     expect(projection.decisions[0]).toMatchObject({ id: "state.client-vs-server" });
+  });
+});
+
+test("install replaces a corrupt artifact only after uninstall made it unreferenced", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    const cand = candidate("platform", platform);
+    await store.install(root, cand);
+    const entry = (await readManifest(root.rootPath)).packs[0]!;
+    await store.uninstall(root, "platform");
+
+    const target = artifactPath(root.rootPath, entry.storageKey, entry.artifactDigest);
+    await mkdir(target, { recursive: true });
+    await writeFile(join(target, "corrupt.txt"), "not the sealed snapshot", "utf8");
+
+    await expect(store.install(root, cand)).resolves.toMatchObject({ idempotent: false });
+    expect(await calculateArtifactDigest(target)).toBe(entry.artifactDigest);
+  });
+});
+
+test("counter exhaustion rejects before writing a journal or changing state", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    await store.install(root, candidate("platform", platform));
+    const manifest = await readManifest(root.rootPath);
+    await writeManifest(root.rootPath, {
+      ...manifest,
+      generation: Number.MAX_SAFE_INTEGER,
+    });
+    const database = await openStoreDatabase(root.rootPath);
+    database
+      .query("UPDATE local_store_metadata SET installed_packs_generation = ?")
+      .run(Number.MAX_SAFE_INTEGER);
+    database.close();
+
+    await expect(
+      store.install(root, candidate("web", { "web.css": "Use CSS.\n" })),
+    ).rejects.toBeInstanceOf(StoreCounterExhaustedError);
+    expect((await readManifest(root.rootPath)).generation).toBe(Number.MAX_SAFE_INTEGER);
+    expect(await listOperationJournals(root.rootPath)).toEqual([]);
   });
 });

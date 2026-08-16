@@ -2,7 +2,11 @@ import { mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/pro
 import { join } from "node:path";
 
 import { ManifestError } from "../errors";
-import { parseManifest, serializeManifest, type InstalledPacksManifest } from "../manifest/manifest-store";
+import {
+  parseManifest,
+  serializeManifest,
+  type InstalledPacksManifest,
+} from "../manifest/manifest-store";
 
 export const OPERATIONS_DIRECTORY_NAME = "operations";
 
@@ -42,18 +46,10 @@ function isNonNegativeInteger(value: unknown): value is number {
 }
 
 const OPERATION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const OPERATION_TYPES: readonly OperationType[] = [
-  "install",
-  "upgrade",
-  "uninstall",
-  "reindex",
-];
+const OPERATION_TYPES: readonly OperationType[] = ["install", "upgrade", "uninstall", "reindex"];
 
 /** Validate and freeze a journal record read from disk before anyone trusts it. */
-export function parseOperationJournalRecord(
-  text: string,
-  path: string,
-): OperationJournalRecord {
+export function parseOperationJournalRecord(text: string, path: string): OperationJournalRecord {
   let value: unknown;
   try {
     value = JSON.parse(text);
@@ -151,12 +147,7 @@ export async function listOperationJournals(rootPath: string): Promise<readonly 
   try {
     entries = await readdir(operationsDirectory(rootPath));
   } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "ENOENT"
-    ) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
       return [];
     }
     throw new ManifestError(operationsDirectory(rootPath), "cannot list operation journals", error);
@@ -174,14 +165,13 @@ export async function clearOperationJournal(rootPath: string, operationId: strin
   try {
     await unlink(operationJournalPath(rootPath, operationId));
   } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "ENOENT"
-    ) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
       return; // already cleared; idempotent
     }
-    throw new ManifestError(operationJournalPath(rootPath, operationId), "cannot clear journal", error);
+    throw new ManifestError(
+      operationJournalPath(rootPath, operationId),
+      "cannot clear journal",
+      error,
+    );
   }
 }

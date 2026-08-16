@@ -23,3 +23,11 @@ export class UpgradeRequiredError extends Error {
     this.name = "UpgradeRequiredError";
   }
 }
+
+/** A monotonic LocalStore counter cannot be incremented without losing precision. */
+export class StoreCounterExhaustedError extends Error {
+  constructor(readonly counter: "generation" | "effectiveRevision") {
+    super(`LocalStore ${counter} reached Number.MAX_SAFE_INTEGER and cannot advance`);
+    this.name = "StoreCounterExhaustedError";
+  }
+}

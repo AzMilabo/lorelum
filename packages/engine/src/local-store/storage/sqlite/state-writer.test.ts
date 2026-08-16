@@ -6,6 +6,7 @@ import { reactPack } from "@lorelum/format";
 import { createPackCandidate, reconcileEffectivePractices } from "../../model";
 
 import { migrateDatabase } from "./migrations";
+import { LOCAL_STORE_SCHEMA_VERSION } from "./migrations";
 import { readEffectivePracticeSnapshot } from "./snapshot-reader";
 import { writeDerivedState } from "./state-writer";
 
@@ -44,7 +45,7 @@ test("writer and reader round-trip derived state with deterministic source order
 
     const snapshot = readEffectivePracticeSnapshot(database);
     expect(snapshot.metadata).toEqual({
-      schemaVersion: 1,
+      schemaVersion: LOCAL_STORE_SCHEMA_VERSION,
       generation: 3,
       effectiveRevision: 7,
     });

@@ -15,7 +15,8 @@ import {
 import { writeDerivedState } from "../storage/sqlite/state-writer";
 
 import { PackNotInstalledError } from "./errors";
-import { activeSources, notifyRevision, withStoreMutation } from "./mutation";
+import { nextStoreCounter } from "./counters";
+import { activeSources, deliverRevisionNotifications, withStoreMutation } from "./mutation";
 import type { EffectiveRevisionHook, UninstallResult } from "./types";
 
 function withoutPack(
@@ -25,7 +26,7 @@ function withoutPack(
 ): InstalledPacksManifest {
   return Object.freeze({
     schemaVersion: manifest.schemaVersion,
-    generation: manifest.generation + 1,
+    generation: nextStoreCounter(manifest.generation, "generation"),
     effectiveRevision,
     packs: Object.freeze(manifest.packs.filter((pack) => pack.packName !== packName)),
   });
@@ -42,23 +43,23 @@ export async function uninstallPack(
   packName: string,
   hook: EffectiveRevisionHook | undefined,
 ): Promise<UninstallResult> {
-  return withStoreMutation(rootPath, async ({ database, recovery }) => {
+  const committed = await withStoreMutation(rootPath, async ({ database, recovery }) => {
     const active = recovery.manifest;
     const entry = active.packs.find((pack) => pack.packName === packName);
     if (entry === undefined) throw new PackNotInstalledError(packName);
 
     const metadata = readStoreMetadata(database);
     const effectivePractices =
-      metadata === undefined
-        ? []
-        : readEffectivePracticeSnapshot(database).effectivePractices;
+      metadata === undefined ? [] : readEffectivePracticeSnapshot(database).effectivePractices;
     const reconciled = removePackSources(activeSources(effectivePractices), packName);
 
     const advances = reconciled.advancesEffectiveRevision;
     const targetManifest = withoutPack(
       active,
       packName,
-      advances ? active.effectiveRevision + 1 : active.effectiveRevision,
+      advances
+        ? nextStoreCounter(active.effectiveRevision, "effectiveRevision")
+        : active.effectiveRevision,
     );
 
     const journal = createOperationJournalRecord("uninstall", active, targetManifest);
@@ -69,12 +70,11 @@ export async function uninstallPack(
       effectiveRevision: targetManifest.effectiveRevision,
       activePacks: targetManifest.packs,
       effectivePractices: reconciled.effectivePractices,
+      revisionNotification:
+        advances && hook !== undefined ? { delta: reconciled.delta } : undefined,
     });
 
     await clearOperationJournal(rootPath, journal.operationId);
-    const notificationPending = advances
-      ? await notifyRevision(hook, targetManifest.effectiveRevision, reconciled.delta)
-      : undefined;
 
     // Post-commit GC: the removed pack's artifact is no longer referenced.
     let cleanupPending = false;
@@ -93,7 +93,12 @@ export async function uninstallPack(
       delta: reconciled.delta,
       diagnostics: Object.freeze([]),
       cleanupPending,
-      notificationPending,
     });
   });
+  const notificationPending = await deliverRevisionNotifications(
+    rootPath,
+    hook,
+    committed.effectiveRevision,
+  );
+  return Object.freeze({ ...committed, notificationPending });
 }

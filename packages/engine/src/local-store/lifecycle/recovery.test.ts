@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { Database } from "bun:sqlite";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,9 +10,16 @@ import { createLocalStore, type StorageRoot } from "../index";
 import { StoreRecoveryRequiredError } from "../../local-store";
 import { createPackCandidate, type PackCandidate } from "../model";
 import { acquireMutationLock } from "../storage/mutation-lock";
-import { createOperationJournalRecord, writeOperationJournal } from "../storage/journal/operation-journal";
-import { readManifest } from "../storage/manifest/manifest-store";
+import {
+  clearOperationJournal,
+  createOperationJournalRecord,
+  listOperationJournals,
+  writeOperationJournal,
+} from "../storage/journal/operation-journal";
+import { readManifest, writeManifest } from "../storage/manifest/manifest-store";
 import { sqlitePath, openStoreDatabase } from "../storage/sqlite/database";
+import { LOCAL_STORE_SCHEMA_VERSION } from "../storage/sqlite/migrations";
+import { writeDerivedState } from "../storage/sqlite/state-writer";
 
 async function removeStoreRoot(rootPath: string): Promise<void> {
   for (let attempt = 0; attempt < 10; attempt++) {
@@ -110,9 +118,7 @@ test("cold open rejects SQLite whose tuple disagrees with the manifest", async (
     // Tamper SQLite metadata without a journal: manifest wins on recovery,
     // but the tuples disagree and no journal exists → recovery required.
     const database = await openStoreDatabase(root.rootPath);
-    database
-      .query("UPDATE local_store_metadata SET installed_packs_generation = 99")
-      .run();
+    database.query("UPDATE local_store_metadata SET installed_packs_generation = 99").run();
     database.close();
     await expect(store.open(root)).rejects.toBeInstanceOf(StoreRecoveryRequiredError);
   });
@@ -133,7 +139,10 @@ test("cold open rejects a tampered artifact digest", async () => {
       "practices",
       "platform/api.md",
     );
-    await writeFile(practicePath, "---\nid: platform.api\ntitle: T\nstage: api\ntech_stack: [typescript]\napplies_when: always\n---\nTampered.\n");
+    await writeFile(
+      practicePath,
+      "---\nid: platform.api\ntitle: T\nstage: api\ntech_stack: [typescript]\napplies_when: always\n---\nTampered.\n",
+    );
     await expect(store.open(root)).rejects.toThrow("digest mismatch");
   });
 });
@@ -189,9 +198,7 @@ test("the post-commit hook receives each new revision with its delta", async () 
       },
     });
     await store.install(root, candidate("platform", platform));
-    expect(notifications).toEqual([
-      { revision: 1, added: ["platform.api", "platform.auth"] },
-    ]);
+    expect(notifications).toEqual([{ revision: 1, added: ["platform.api", "platform.auth"] }]);
   });
 });
 
@@ -259,9 +266,9 @@ test("upgrade of a pack that was never installed throws PackNotInstalledError (r
   await withRoot(async (root) => {
     const store = createLocalStore();
     await store.install(root, candidate("platform", platform));
-    await expect(
-      store.upgrade(root, candidate("missing", { "missing.api": "x" })),
-    ).rejects.toThrow("not installed");
+    await expect(store.upgrade(root, candidate("missing", { "missing.api": "x" }))).rejects.toThrow(
+      "not installed",
+    );
   });
 });
 
@@ -279,8 +286,208 @@ test("cold open reclaims a stale mutation lock only after recovery passes (ADR 0
     const opened = await store.open(root);
     expect(opened.effectivePractices).toHaveLength(2);
     // The stale lock was removed as part of cold open.
-    await expect(
-      import("node:fs/promises").then((fs) => fs.access(lockPath)),
-    ).rejects.toThrow();
+    await expect(import("node:fs/promises").then((fs) => fs.access(lockPath))).rejects.toThrow();
+  });
+});
+
+test("cold open never converges a journal while its writer still owns the lock", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    await store.install(root, candidate("platform", platform));
+    const oldManifest = await readManifest(root.rootPath);
+    const oldOpen = await store.open(root);
+    const targetManifest = {
+      ...oldManifest,
+      generation: oldManifest.generation + 1,
+      effectiveRevision: oldManifest.effectiveRevision + 1,
+    };
+
+    const writerLock = await acquireMutationLock(root.rootPath);
+    const journal = createOperationJournalRecord("reindex", oldManifest, targetManifest);
+    await writeOperationJournal(root.rootPath, journal);
+    await writeManifest(root.rootPath, targetManifest);
+
+    const concurrentOpen = store.open(root);
+    await Bun.sleep(100);
+    expect(await listOperationJournals(root.rootPath)).toEqual([journal.operationId]);
+    expect((await readManifest(root.rootPath)).generation).toBe(targetManifest.generation);
+
+    const database = await openStoreDatabase(root.rootPath);
+    writeDerivedState(database, {
+      generation: targetManifest.generation,
+      effectiveRevision: targetManifest.effectiveRevision,
+      activePacks: targetManifest.packs,
+      effectivePractices: oldOpen.effectivePractices,
+    });
+    database.close();
+    await clearOperationJournal(root.rootPath, journal.operationId);
+    await writerLock.release();
+
+    await expect(concurrentOpen).resolves.toMatchObject({
+      generation: targetManifest.generation,
+      effectiveRevision: targetManifest.effectiveRevision,
+    });
+  });
+});
+
+test("reindex converges and removes a journal left by an interrupted mutation", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    await store.install(root, candidate("platform", platform));
+    const oldManifest = await readManifest(root.rootPath);
+    const interruptedTarget = {
+      ...oldManifest,
+      generation: oldManifest.generation + 1,
+      effectiveRevision: oldManifest.effectiveRevision + 1,
+    };
+    const journal = createOperationJournalRecord("reindex", oldManifest, interruptedTarget);
+    await writeOperationJournal(root.rootPath, journal);
+    await writeManifest(root.rootPath, interruptedTarget);
+
+    const reindexed = await store.reindex(root);
+    expect(await listOperationJournals(root.rootPath)).toEqual([]);
+    await expect(store.open(root)).resolves.toMatchObject({
+      generation: reindexed.generation,
+      effectiveRevision: reindexed.effectiveRevision,
+    });
+  });
+});
+
+test("a failed hook revision is retried before a later revision is delivered", async () => {
+  await withRoot(async (root) => {
+    const attempts: number[] = [];
+    const delivered: number[] = [];
+    let failFirstRevision = true;
+    const firstStore = createLocalStore({
+      onEffectiveRevisionAdvanced: (revision) => {
+        attempts.push(revision);
+        if (revision === 1 && failFirstRevision) {
+          failFirstRevision = false;
+          throw new Error("vector layer temporarily offline");
+        }
+        delivered.push(revision);
+      },
+    });
+
+    const first = await firstStore.install(root, candidate("platform", platform));
+    expect(first.notificationPending?.revision).toBe(1);
+    // A new facade proves ordering state is durable in SQLite rather than only
+    // retained in one createLocalStore closure.
+    const secondStore = createLocalStore({
+      onEffectiveRevisionAdvanced: (revision) => {
+        attempts.push(revision);
+        delivered.push(revision);
+      },
+    });
+    const second = await secondStore.install(root, candidate("web", { "web.css": "Use CSS.\n" }));
+    expect(second.notificationPending).toBeUndefined();
+    expect(attempts).toEqual([1, 1, 2]);
+    expect(delivered).toEqual([1, 2]);
+  });
+});
+
+test("reindex supersedes an old failed hook with a durable full refresh", async () => {
+  await withRoot(async (root) => {
+    const failingStore = createLocalStore({
+      onEffectiveRevisionAdvanced: () => {
+        throw new Error("vector layer offline");
+      },
+    });
+    const first = await failingStore.install(root, candidate("platform", platform));
+    expect(first.notificationPending?.revision).toBe(1);
+
+    const reindexed = await createLocalStore().reindex(root);
+    expect(reindexed.notificationPending?.revision).toBe(2);
+    expect(reindexed.delta.added).toEqual(["platform.api", "platform.auth"]);
+
+    const delivered: Array<{ revision: number; added: readonly string[] }> = [];
+    const recoveredStore = createLocalStore({
+      onEffectiveRevisionAdvanced: (revision, delta) => {
+        delivered.push({ revision, added: delta.added });
+      },
+    });
+    await recoveredStore.install(root, candidate("web", { "web.css": "Use CSS.\n" }));
+    expect(delivered).toEqual([
+      { revision: 2, added: ["platform.api", "platform.auth"] },
+      { revision: 3, added: ["web.css"] },
+    ]);
+  });
+});
+
+test("a hook may start another LocalStore mutation without self-deadlocking", async () => {
+  await withRoot(async (root) => {
+    const delivered: number[] = [];
+    let store: ReturnType<typeof createLocalStore>;
+    store = createLocalStore({
+      onEffectiveRevisionAdvanced: async (revision) => {
+        delivered.push(revision);
+        if (revision === 1) {
+          await store.install(root, candidate("web", { "web.css": "Use CSS.\n" }));
+        }
+      },
+    });
+
+    const installed = await store.install(root, candidate("platform", platform));
+    expect(installed.notificationPending).toBeUndefined();
+    expect(delivered).toEqual([1, 2]);
+    expect(
+      (await store.open(root)).effectivePractices.map((practice) => practice.practiceId),
+    ).toEqual(["platform.api", "platform.auth", "web.css"]);
+  });
+});
+
+test("cold open maps post-migration SQLite corruption to recovery-required", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    await store.install(root, candidate("platform", platform));
+    const database = await openStoreDatabase(root.rootPath);
+    database.exec("DROP TABLE effective_practices");
+    database.close();
+
+    await expect(store.open(root)).rejects.toBeInstanceOf(StoreRecoveryRequiredError);
+    const reindexed = await store.reindex(root);
+    await expect(store.open(root)).resolves.toMatchObject({
+      generation: reindexed.generation,
+      effectiveRevision: reindexed.effectiveRevision,
+    });
+  });
+});
+
+test("journal recovery maps a missing metadata table to recovery-required", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    await store.install(root, candidate("platform", platform));
+    const oldManifest = await readManifest(root.rootPath);
+    const targetManifest = {
+      ...oldManifest,
+      generation: oldManifest.generation + 1,
+    };
+    await writeOperationJournal(
+      root.rootPath,
+      createOperationJournalRecord("upgrade", oldManifest, targetManifest),
+    );
+    const database = await openStoreDatabase(root.rootPath);
+    database.exec("DROP TABLE local_store_metadata");
+    database.close();
+
+    await expect(store.open(root)).rejects.toBeInstanceOf(StoreRecoveryRequiredError);
+  });
+});
+
+test("reindex preserves a newer unsupported SQLite database", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    await store.install(root, candidate("platform", platform));
+    const raw = new Database(sqlitePath(root.rootPath));
+    raw.exec("PRAGMA user_version = " + (LOCAL_STORE_SCHEMA_VERSION + 1));
+    raw.close();
+
+    await expect(store.reindex(root)).rejects.toThrow("schema version is unsupported");
+
+    const reopened = new Database(sqlitePath(root.rootPath));
+    expect(reopened.query("PRAGMA user_version").get()).toEqual({
+      user_version: LOCAL_STORE_SCHEMA_VERSION + 1,
+    });
+    reopened.close();
   });
 });

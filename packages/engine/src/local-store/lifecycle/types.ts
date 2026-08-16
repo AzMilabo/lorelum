@@ -11,7 +11,7 @@ export interface MutationResultBase {
   diagnostics: readonly ValidationIssue[];
   /** True when post-commit artifact cleanup failed and is retryable later. */
   cleanupPending: boolean;
-  /** Set when the post-commit vector hook failed; the mutation itself succeeded. */
+  /** Oldest durable outbox row still awaiting vector-hook delivery. */
   notificationPending?: { revision: number; error: unknown } | undefined;
 }
 

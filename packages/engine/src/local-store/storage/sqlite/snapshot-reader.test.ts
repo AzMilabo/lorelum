@@ -94,7 +94,9 @@ test("cold open and full read baseline with 1k practices", () => {
 
     expect(snapshot.effectivePractices).toHaveLength(1_000);
     // First baseline: recorded, not asserted on a subjective threshold.
-    console.log(`[baseline] 1k practices: materialize ${elapsedMs.toFixed(1)}ms, heap +${(heapDelta / 1024 / 1024).toFixed(1)}MiB`);
+    console.log(
+      `[baseline] 1k practices: materialize ${elapsedMs.toFixed(1)}ms, heap +${(heapDelta / 1024 / 1024).toFixed(1)}MiB`,
+    );
   } finally {
     database.close();
   }
@@ -118,7 +120,9 @@ test("cold open and full read baseline with 5k practices", () => {
     // fast machine. The exact budget stays open; this only catches the shape
     // regression the baseline exists for.
     expect(elapsedMs).toBeLessThan(5_000);
-    console.log(`[baseline] 5k practices: materialize ${elapsedMs.toFixed(1)}ms, heap +${(heapDelta / 1024 / 1024).toFixed(1)}MiB`);
+    console.log(
+      `[baseline] 5k practices: materialize ${elapsedMs.toFixed(1)}ms, heap +${(heapDelta / 1024 / 1024).toFixed(1)}MiB`,
+    );
   } finally {
     database.close();
   }

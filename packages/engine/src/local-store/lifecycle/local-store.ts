@@ -52,10 +52,12 @@ export interface LocalStore {
 /**
  * The LocalStore public facade (ADR 0007 §13). Cross-medium commit ordering
  * lives only in lifecycle/; model/ stays pure and storage/ only reads and
- * writes media. The optional hook is invoked serially after each committed
- * mutation in monotonically increasing effectiveRevision order.
+ * writes media. The optional hook drains a durable outbox serially after each
+ * committed mutation in monotonically increasing effectiveRevision order.
  */
-export function createLocalStore(options: { onEffectiveRevisionAdvanced?: EffectiveRevisionHook } = {}): LocalStore {
+export function createLocalStore(
+  options: { onEffectiveRevisionAdvanced?: EffectiveRevisionHook } = {},
+): LocalStore {
   const hook = options.onEffectiveRevisionAdvanced;
   const store: LocalStore = {
     async open(root: StorageRoot): Promise<OpenResult> {

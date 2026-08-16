@@ -21,7 +21,11 @@ export type {
 
 export type { EffectiveRevisionHook } from "./lifecycle/types";
 
-export { PackNotInstalledError, UpgradeRequiredError } from "./lifecycle/errors";
+export {
+  PackNotInstalledError,
+  StoreCounterExhaustedError,
+  UpgradeRequiredError,
+} from "./lifecycle/errors";
 
 export {
   PackValidationError,
@@ -32,4 +36,9 @@ export {
 
 export { StoreBusyError, StoreRecoveryRequiredError } from "./storage/errors";
 
-export type { PackCandidate, EffectivePractice, RevisionDelta, PracticeSource } from "./model/types";
+export type {
+  PackCandidate,
+  EffectivePractice,
+  RevisionDelta,
+  PracticeSource,
+} from "./model/types";

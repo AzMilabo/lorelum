@@ -56,9 +56,7 @@ export function createProjection(
         )
         .sort((left, right) => compareCodeUnits(left.sourcePath, right.sourcePath)),
     ),
-    decisions: Object.freeze(
-      decisions.map((decision) => deepFreeze(structuredClone(decision))),
-    ),
+    decisions: Object.freeze(decisions.map((decision) => deepFreeze(structuredClone(decision)))),
   });
 }
 
