@@ -129,6 +129,23 @@ export async function readManifest(rootPath: string): Promise<InstalledPacksMani
   return parseManifest(text, path);
 }
 
+/** Read the manifest, or `undefined` when it has never been published (fresh store). */
+export async function tryReadManifest(
+  rootPath: string,
+): Promise<InstalledPacksManifest | undefined> {
+  const path = manifestPath(rootPath);
+  let text: string;
+  try {
+    text = await readFile(path, "utf8");
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
+      return undefined;
+    }
+    throw new ManifestError(path, "cannot be read", error);
+  }
+  return parseManifest(text, path);
+}
+
 /** Atomically publish the sole recovery-source manifest. */
 export async function writeManifest(
   rootPath: string,

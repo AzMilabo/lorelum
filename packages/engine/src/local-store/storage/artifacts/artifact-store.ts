@@ -81,16 +81,52 @@ export function artifactPath(rootPath: string, storageKey: string, artifactDiges
   return join(rootPath, "packs", storageKey, artifactDigest);
 }
 
+export interface ArtifactReference {
+  readonly storageKey: string;
+  readonly artifactDigest: string;
+}
+
+/** The lifecycle must provide the active references before replacing a corrupt target. */
+export interface ReplaceCorruptTargetAuthorization {
+  readonly activeReferences: readonly ArtifactReference[];
+}
+
+export interface PromoteArtifactOptions {
+  /**
+   * Replacing an existing target is opt-in. The active references are checked
+   * here (rather than trusting a boolean supplied by the lifecycle) so a
+   * referenced artifact can never be removed accidentally.
+   */
+  readonly replaceCorruptTarget?: ReplaceCorruptTargetAuthorization;
+}
+
+export interface PromoteArtifactResult {
+  readonly targetPath: string;
+  /** False when an already-valid target was reused; the caller owns cleanup. */
+  readonly stagedSnapshotConsumed: boolean;
+}
+
+function isArtifactReference(
+  reference: ArtifactReference,
+  storageKey: string,
+  artifactDigest: string,
+): boolean {
+  return reference.storageKey === storageKey && reference.artifactDigest === artifactDigest;
+}
+
 /**
  * Promote a staged snapshot into its immutable location. Existing artifacts are
- * accepted only after recomputing their complete digest.
+ * accepted only after recomputing their complete digest. A corrupt directory
+ * can only be replaced with explicit lifecycle authorization and only when the
+ * supplied active-manifest references prove that it is not currently active.
  */
 export async function promoteArtifact(
   rootPath: string,
   storageKey: string,
   artifactDigest: string,
   stagedSnapshotPath: string,
-): Promise<string> {
+  options: PromoteArtifactOptions = {},
+): Promise<PromoteArtifactResult> {
   const stagedDigest = await calculateArtifactDigest(stagedSnapshotPath);
   if (stagedDigest !== artifactDigest) {
     throw new ArtifactIntegrityError(
@@ -105,8 +141,50 @@ export async function promoteArtifact(
       throw new ArtifactIntegrityError(target, "target must not be a symbolic link");
     if (!existing.isDirectory())
       throw new ArtifactIntegrityError(target, "target is not a directory");
-    if ((await calculateArtifactDigest(target)) === artifactDigest) return target;
-    throw new ArtifactIntegrityError(target, "existing artifact digest differs");
+    let existingDigest: string | undefined;
+    try {
+      existingDigest = await calculateArtifactDigest(target);
+    } catch {
+      // A malformed existing directory is still safely replaceable when the
+      // lifecycle has explicitly authorized an unreferenced target.
+    }
+    if (existingDigest === artifactDigest) {
+      return Object.freeze({ targetPath: target, stagedSnapshotConsumed: false });
+    }
+    const authorization = options.replaceCorruptTarget;
+    if (authorization === undefined) {
+      throw new ArtifactIntegrityError(target, "existing artifact digest differs");
+    }
+    if (
+      authorization.activeReferences.some((reference) =>
+        isArtifactReference(reference, storageKey, artifactDigest),
+      )
+    ) {
+      throw new ArtifactIntegrityError(
+        target,
+        "cannot replace an artifact referenced by the active manifest",
+      );
+    }
+
+    // Quarantine the old directory before publishing the staged one. If the
+    // second rename fails, restore the old target so callers do not lose it.
+    const quarantine = target + ".corrupt-" + crypto.randomUUID();
+    await rename(target, quarantine);
+    try {
+      await rename(stagedSnapshotPath, target);
+    } catch (error) {
+      try {
+        await rename(quarantine, target);
+      } catch {
+        throw new ArtifactIntegrityError(
+          target,
+          "cannot restore the corrupt artifact after promotion failure",
+        );
+      }
+      throw error;
+    }
+    await rm(quarantine, { recursive: true, force: true });
+    return Object.freeze({ targetPath: target, stagedSnapshotConsumed: true });
   } catch (error) {
     if (
       !(typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT")
@@ -117,7 +195,7 @@ export async function promoteArtifact(
   }
   await mkdir(join(rootPath, "packs", storageKey), { recursive: true });
   await rename(stagedSnapshotPath, target);
-  return target;
+  return Object.freeze({ targetPath: target, stagedSnapshotConsumed: true });
 }
 
 /** Convenience for tests and future lifecycle staging; it never follows symlinks. */

@@ -1,4 +1,4 @@
-import type { Pack, Practice } from "@lorelum/format";
+import type { DecisionNode, Pack, Practice } from "@lorelum/format";
 
 /** Deeply frozen snapshot retained after canonicalization. */
 export type PracticeSnapshot = Readonly<
@@ -40,10 +40,16 @@ export interface EffectivePractice {
   sources: readonly PracticeSource[];
 }
 
-/** A format-valid Pack ready for the storage/lifecycle layer to install. */
+/**
+ * A format-valid Pack ready for the storage/lifecycle layer to install.
+ * `decisions` is the pack's decision graph (ADR 0003), carried so the rebuilt
+ * snapshot and sealed projection preserve it — a pack without `decisions.yaml`
+ * assembles an empty array (ADR 0007 §10).
+ */
 export interface PackCandidate {
   pack: PackSnapshot;
   sources: readonly PracticeSource[];
+  decisions: readonly DecisionNode[];
 }
 
 /** Changes to Effective Practices resulting from one source-set reconciliation. */
