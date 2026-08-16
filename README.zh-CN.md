@@ -1,6 +1,6 @@
 <p align="center">
   <h1 align="center">Lorelum</h1>
-  <p align="center">AI Agent 时代的工程知识基础设施。</p>
+  <p align="center">在正确的任务、正确的时刻，为 Agent 提供正确的工程 Practice。</p>
   <p align="center">
     <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
     <a href="https://github.com/lorelum/lorelum"><img alt="Status" src="https://img.shields.io/badge/status-早期开发中-orange"></a>
@@ -20,8 +20,8 @@
 
 你写了 `AGENTS.md`（或 `CLAUDE.md`、`.cursorrules`）。然后这些事就发生了：
 
-- **规则被静默忽略。** 前沿模型对 500 条规则的合规率只有约 68%——*你每多写一条规则，其它规则被遵守的概率都在下降。*<sup>[\[1\]](#fn-1)</sup> 没有任何提示，Agent 就这么悄悄偏离了。
-- **压缩（compaction）吞掉了规则。** 长会话触发上下文压缩 → 你会话开头写的 `AGENTS.md` 已经不在窗口里了。社区公认的唯一解法是重新 `@AGENTS.md`，把**全部**规则再灌一遍。
+- **规则被静默忽略。** 前沿模型对 500 条规则的合规率只有约 68%——_你每多写一条规则，其它规则被遵守的概率都在下降。_<sup>[\[1\]](#fn-1)</sup> 没有任何提示，Agent 就这么悄悄偏离了。
+- **压缩（compaction）吞掉的不只是规则。** 长会话触发上下文压缩 → 会话开头的 `AGENTS.md` 被挤出窗口。更危险的是，摘要可能记住了当前实现，却丢掉原始需求、验收条件、尚未确认的假设和证据边界——而这些才能判断实现是否真的正确。
 - **等发现时已经晚了。** Agent 是否已经偏离，你得不到任何信号——直到自己 review 代码时才发现违规。
 
 这是 AI 编码的**知识层缺位**：你的规则存在，却没能在 Agent **需要的那一刻**抵达它。
@@ -51,6 +51,13 @@
 
 Lorelum 把团队工程经验切成**离散、可检索、带触发条件的 *Practice***——在 AI **需要的时候**才精准注入，而不是一开始全量灌。
 
+检索可以同时使用两类线索：
+
+- **Agent 正在做什么：**实现认证流程、修改数据库 schema、编写组件测试。
+- **Agent 正处于什么时刻：**开始理解复杂需求、compaction 后恢复任务、准备修改失败测试，或准备宣布完成。
+
+调用方说明当前任务和时刻，Lorelum 负责检索并排序相关 Practice。语义上的关键时刻可由 Skill 引导 Agent 主动发起；compaction 这类宿主可观测事件，则可由 Plugin/Hook 稳定触发。Lorelum Core 本身不管理任务，也不自行推断这些事件。
+
 ```
    ┌─────────────┐   查询     ┌────────────────────┐   精准    ┌──────────────┐
    │   AI 工具   │ ────────▶ │      Lorelum       │ ────────▶ │  3 条相关的  │
@@ -60,7 +67,7 @@ Lorelum 把团队工程经验切成**离散、可检索、带触发条件的 *Pr
    └─────────────┘
 ```
 
-**Lorelum 不替代你的 `AGENTS.md`，而是让它保持鲜活。** 每次 Agent 需要其中的一块时，Lorelum 都把那一片精准切片重新注入。当 AI 开始实现认证模块时，Lorelum 只给它 auth 相关的 Practice，而不是把路由、测试、部署的规范也一起塞进来。
+**Lorelum 不替代你的 `AGENTS.md`，而是让它保持鲜活。** 每次 Agent 需要其中的一块时，Lorelum 都把那一片精准切片重新注入。当 Agent 开始实现认证模块时，Lorelum 只给它 auth 相关的 Practice，而不是把路由、测试、部署的规范也一起塞进来。当 Agent 即将做出高风险判断时，Lorelum 也可以重新提醒当下最容易被忘记的执行纪律，但它不会因此变成 workflow engine。
 
 ### Practice 长什么样
 
@@ -77,9 +84,10 @@ applies_when: 在 React SPA 中构建 API 层
 [具体指引：http client、base API、modules、DTO 边界。]
 
 ## 要避免的反模式
-- api.direct-axios-in-component   （在组件里直接调 axios）
-- api.local-storage-in-api-class  （在 API 类里持久化 token）
-- api.dto-used-as-ui-model        （DTO 直接当 UI 模型用）
+
+- api.direct-axios-in-component （在组件里直接调 axios）
+- api.local-storage-in-api-class （在 API 类里持久化 token）
+- api.dto-used-as-ui-model （DTO 直接当 UI 模型用）
 ```
 
 一个 **Knowledge Pack（知识包）** 把多条 Practice + 决策图谱（`decisions.yaml`）+ 模板 + 反模式打包，绑定到某个技术栈或团队标准。
@@ -99,8 +107,8 @@ applies_when: 在 React SPA 中构建 API 层
 function LoginPage() {
   const [email, setEmail] = useState("");
   async function handleLogin() {
-    const res = await axios.post("/api/login", { email });  // ❌ 组件里直接调 axios
-    localStorage.setItem("token", res.data.token);           // ❌ token 存进 localStorage
+    const res = await axios.post("/api/login", { email }); // ❌ 组件里直接调 axios
+    localStorage.setItem("token", res.data.token); // ❌ token 存进 localStorage
   }
 }
 ```
@@ -113,19 +121,20 @@ function LoginPage() {
 
 ```markdown
 ## 要避免的反模式
-- api.direct-axios-in-component   （在组件里直接调 axios）
-- api.local-storage-in-api-class  （在 API 类里持久化 token）
-- api.dto-used-as-ui-model        （DTO 直接当 UI 模型用）
+
+- api.direct-axios-in-component （在组件里直接调 axios）
+- api.local-storage-in-api-class （在 API 类里持久化 token）
+- api.dto-used-as-ui-model （DTO 直接当 UI 模型用）
 ```
 
-Agent 随即重写了自己的输出——*常新的、来自相关切片的，而非整套规则*：
+Agent 随即重写了自己的输出——_常新的、来自相关切片的，而非整套规则_：
 
 ```tsx
 // LoginPage.tsx —— 注入后 Agent 自我修正
 function LoginPage() {
-  const { login } = useAuthApi();   // ✅ 走分层 API client
+  const { login } = useAuthApi(); // ✅ 走分层 API client
   async function handleLogin() {
-    await login({ email });          // ✅ token 在 API 层内部处理
+    await login({ email }); // ✅ token 在 API 层内部处理
   }
 }
 ```
@@ -139,9 +148,90 @@ lore learn "HTTP client 里的 single-flight refresh token"
 
 这次修复从此成为全团队下次都能检索到的 Practice——不需要任何人重新粘贴 `AGENTS.md`。
 
+## 另一个端到端案例：定向测试通过，不等于完整功能完成
+
+> **Research 方向：**我们正在 [Issue #28](https://github.com/lorelum/lorelum/issues/28) 中验证这条链路。这个案例展示的是期望的使用体验和责任边界，不代表所有 AI 工具已经交付该能力。
+
+### 场景
+
+Agent 正在实现一个常见的账户设置功能。验收条件覆盖完整的用户能力：
+
+- 页面可以修改显示名称和时区；
+- API 会校验输入并检查权限；
+- 修改能够持久化，重新加载后仍然可见；
+- 允许修改和拒绝修改两条完整流程都符合预期。
+
+经过一段很长的会话后，context 发生了 compaction。摘要保留了最近的实现进展：表单已重构、定向组件测试已通过，下一步是报告结果。但它没有保留完整的验收范围，也没有保留哪些范围真正被验证过。
+
+### 没有按关键时刻检索——局部证据变成整体结论
+
+Agent 看到定向测试全部通过，于是报告：
+
+```text
+✅ 账户设置功能已经完成。测试全部通过，界面也已验证。
+```
+
+但这些证据只覆盖了表单组件，无法说明 API 权限、重新加载后的持久化结果、拒绝修改的路径，也无法说明完整用户流程。测试本身没有错，错在**完成声明超出了证据能够支持的范围**。
+
+### 有 Lorelum——先恢复事实，再查询当前时刻
+
+在期望的链路中，受支持的 Plugin/Hook 观察到 compaction 事件，先只向 Lorelum 查询恢复类 Practice。注入的指引会提醒 Agent：摘要不是事实来源，继续之前必须重新阅读持久化的 Spec、验收条件、计划和证据。
+
+Agent 重新建立对任务的理解后，发现目前只测试了 UI 切片。在报告完成之前，它使用普通的自然语言 query：
+
+```bash
+lore query "我正在实现账户设置。定向组件测试已通过，现在准备宣布整个功能完成。"
+```
+
+Lorelum 可以返回少量与当前时刻精准相关的 Practice，例如：
+
+```text
+recovery.re-ground-after-context-loss
+verification.match-claims-to-evidence
+delivery.separate-slice-from-capability
+```
+
+Agent 不再让事实迎合自己想要的结论，而是修正报告：
+
+```text
+已完成：账户设置表单及其组件测试。
+尚未验证：API 权限、重新加载后的持久化结果、拒绝修改的路径，
+以及端到端验收流程。目前还不能宣布整个功能已经完成。
+```
+
+### Lorelum 做了什么，没有做什么
+
+Lorelum 没有保存 Spec、检查代码仓库、运行测试，也没有判断功能是否通过验收。集成层识别出了相关事件；Lorelum 检索出了这个时刻需要的执行纪律；Agent 再回到项目的真实事实来源进行核对。
+
+这个模式也不只用于 compaction。当 Agent 准备修改失败测试、根据未确认假设继续实现、把任务移交给另一个 Agent，或准备把局部实现宣布为完整能力时，Skill 都可以提醒它发起查询。
+
+### 两阶段恢复链路
+
+Compaction 后，如果立即根据可能不完整的摘要猜测任务领域 Practice，反而可能让错误方案继续深入。更安全的链路是：
+
+```
+宿主报告发生 compaction
+        │
+        ▼
+Plugin / Hook 只向 Lorelum 查询恢复类 Practice
+        │
+        ▼
+Agent 重新阅读持久化的 Spec、验收条件、假设和证据
+        │
+        ▼
+Agent 带着重新建立的任务与时刻，执行普通 lore query
+        │
+        ▼
+Lorelum 返回相关的领域 Practice + 执行纪律 Practice
+```
+
+Plugin/Hook 知道 compaction 发生了，却不判断工作是否正确或已经完成。Lorelum 检索恢复纪律，却不保存 Spec，也不管理任务状态。Agent 先重建对事实的正确理解，再请求与任务相关的指引。
+
+这只是一个具体示例。更完整的方向是支持 Agentic Coding 全流程中的关键时刻——需求理解、规划、实现、测试、验证、交付、恢复和纠偏，而不是为 compaction 单独打一个补丁。
+
 ## 5 分钟了解
 
-*（CLI 处于 pre-alpha，以下命令展示的是设计中的交互形态。）*
+_（CLI 处于 pre-alpha，以下命令展示的是设计中的交互形态。）_
 
 ```bash
 # 安装一个社区知识包（本地模式，离线可用）
@@ -149,6 +239,9 @@ lore install react-fullstack
 
 # 问：我当前的任务该遵循哪些 Practice？
 lore query "带权限控制、表单、测试的设置页"
+
+# 同一个自然语言 query 也可以说明当前的关键时刻
+lore query "定向测试已经通过，我准备宣布整个设置页能力已完成"
 
 # 根据项目上下文，给出技术决策建议
 lore decide "React SPA，中等复杂度客户端状态，RBAC 路由，组件测试"
@@ -164,15 +257,15 @@ lore learn "HTTP client 里的 single-flight refresh token"
 
 ## 和现有方案有什么不同
 
-| | `AGENTS.md` / `.cursorrules` | Skills / 斜杠命令 | **Lorelum** |
-|---|---|---|---|
-| **供给方式** | 静态、全量灌入 | 手动触发 | **按需检索** |
-| **长会话衰减** | 会 | 不会（一次性） | 不会（每次查询都新鲜） |
-| **压缩后重注入** | 手动：重新粘贴全部规则 | 手动 | ✅ 自动、按任务切片 |
-| **支持上百条规则** | ❌ | 繁琐 | ✅ 为此而生 |
-| **承载团队决策** | 否 | 否 | ✅ `decisions.yaml` |
-| **工具中立** | 绑定单一工具 | 绑定单一工具 | ✅ MCP / CLI / Skill |
-| **反模式检查** | 否 | 否 | ✅ `lore check` |
+|                    | `AGENTS.md` / `.cursorrules` | Skills / 斜杠命令 | **Lorelum**                                                                  |
+| ------------------ | ---------------------------- | ----------------- | ---------------------------------------------------------------------------- |
+| **供给方式**       | 静态、全量灌入               | 手动触发          | **按需检索**                                                                 |
+| **长会话衰减**     | 会                           | 不会（一次性）    | 不会（每次查询都新鲜）                                                       |
+| **压缩后重注入**   | 手动：重新粘贴全部规则       | 手动              | 规划中：支持的 Plugin/Hook 自动触发恢复；其他工具通过 Skill / CLI / MCP 调用 |
+| **支持上百条规则** | ❌                           | 繁琐              | ✅ 为此而生                                                                  |
+| **承载团队决策**   | 否                           | 否                | ✅ `decisions.yaml`                                                          |
+| **工具中立**       | 绑定单一工具                 | 绑定单一工具      | ✅ MCP / CLI / Skill                                                         |
+| **反模式检查**     | 否                           | 否                | ✅ `lore check`                                                              |
 
 Lorelum 不是"更好的 .cursorrules"，而是位于你所用 AI 工具背后的**检索与决策层**。
 
@@ -181,12 +274,18 @@ Lorelum 不是"更好的 .cursorrules"，而是位于你所用 AI 工具背后�
 ```
 ┌──────────────────────────────────────────────────────────┐
 │        AI 工具层（Cursor / Claude Code / Codex / Windsurf）│
-└────────────┬─────────────────────────────────┬───────────┘
-             │ CLI                              │ MCP
-             ▼                                  ▼
+└─────────────────────────────┬────────────────────────────┘
+                             │
+                             ▼
+┌───────────────────────────────────────────────────────────┐
+│ 集成层：Skill / Plugin / Hook / CLI / MCP               │
+│ 发现或描述任务与时刻 · 调用 · 注入                     │
+└───────────────────────────────────────────────────────────┘
+                             │ 查询
+                             ▼
 ┌──────────────────────────────────────────────────────────┐
 │                    Lorelum 引擎                          │
-│     检索（语义 + 元数据 + 图谱）· decisions.yaml 决策     │
+│ 检索与排序（语义 + 元数据 + 图谱）· decisions             │
 └────────────┬─────────────────────────────────────────────┘
              │
    ┌─────────┴─────────┐
@@ -195,7 +294,10 @@ Lorelum 不是"更好的 .cursorrules"，而是位于你所用 AI 工具背后�
 （离线可用）        （实时、多用户）
 ```
 
+集成层负责**何时调用**以及**如何注入**；Lorelum Core 负责**检索什么**以及**如何排序**。这样可以把各个宿主工具特有的生命周期处理留在检索引擎之外。
+
 两种模式共用同一套命令：
+
 - **本地模式（默认）：** `lore install` 一个公开包，离线查询，零运维。像 npm 一样简单。
 - **端点模式：** 把 CLI 指向团队 / SaaS / 自托管端点，享受实时同步与多人协作。
 
@@ -227,12 +329,12 @@ Lorelum 不是"更好的 .cursorrules"，而是位于你所用 AI 工具背后�
 
 Lorelum 采用 **open-core** 模式：
 
-| 组件 | License |
-|---|---|
-| 核心引擎（CLI、本地检索、MCP、格式规范） | **Apache 2.0** |
-| 社区知识包内容 | **CC-BY-4.0** |
-| 端点服务内核（可自托管） | **AGPL-3.0** *（独立仓库，后期）* |
-| SaaS 平台与企业治理 | **专有** *（独立仓库，后期）* |
+| 组件                                     | License                           |
+| ---------------------------------------- | --------------------------------- |
+| 核心引擎（CLI、本地检索、MCP、格式规范） | **Apache 2.0**                    |
+| 社区知识包内容                           | **CC-BY-4.0**                     |
+| 端点服务内核（可自托管）                 | **AGPL-3.0** _（独立仓库，后期）_ |
+| SaaS 平台与企业治理                      | **专有** _（独立仓库，后期）_     |
 
 边界一句话：**能让开发者离线跑通完整流程的部分，永远开源。** 付费买的是托管运维、团队协作、企业合规，不是被阉割的功能。
 

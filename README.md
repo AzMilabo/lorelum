@@ -1,6 +1,6 @@
 <p align="center">
   <h1 align="center">Lorelum</h1>
-  <p align="center">Engineering knowledge infrastructure for AI coding agents.</p>
+  <p align="center">The right engineering Practice for the right AI coding task and moment.</p>
   <p align="center">
     <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
     <a href="https://github.com/lorelum/lorelum"><img alt="Status" src="https://img.shields.io/badge/status-early%20development-orange"></a>
@@ -20,11 +20,11 @@
 
 You wrote an `AGENTS.md` (or `CLAUDE.md`, `.cursorrules`). Then this happens:
 
-- **Your rules silently stop being followed.** Frontier models comply with only ~68% of a 500-rule ruleset — *every rule you add makes every other rule less likely to be followed.*<sup>[\[1\]](#fn-1)</sup> You don't get a warning; the agent just drifts.
-- **Compaction eats your rules.** A long session triggers context compaction → your early `AGENTS.md` is gone from the window. The community workaround is to re-paste `@AGENTS.md` and dump *all* the rules back in.
+- **Your rules silently stop being followed.** Frontier models comply with only ~68% of a 500-rule ruleset — _every rule you add makes every other rule less likely to be followed._<sup>[\[1\]](#fn-1)</sup> You don't get a warning; the agent just drifts.
+- **Compaction eats more than rules.** A long session triggers context compaction → your early `AGENTS.md` falls out of the window. More dangerously, the summary may preserve the current implementation while losing the original requirements, acceptance criteria, assumptions, and evidence boundaries that tell the agent whether that implementation is actually right.
 - **You only find out when it's already wrong.** There is no signal that the agent has drifted — until you review the code yourself and spot the violation.
 
-This is the **knowledge layer gap**: your rules exist, but they don't reliably reach the agent *at the moment it needs them*.
+This is the **knowledge layer gap**: your rules exist, but they don't reliably reach the agent _at the moment it needs them_.
 
 ## Why it happens
 
@@ -46,11 +46,18 @@ This is how your `AGENTS.md` actually reaches the agent today:
                                      code and find the violation
 ```
 
-The conventional approach ("paste all the rules into context") fights physical limits: attention decay across long sessions, context-window capacity, and the fact that *more rules lower per-rule compliance*.<sup>[\[2\]](#fn-2)</sup> Even a 1M-token window doesn't recall early instructions reliably after compaction. **More rules ≠ more control.** Throwing more context at the problem doesn't fix it.
+The conventional approach ("paste all the rules into context") fights physical limits: attention decay across long sessions, context-window capacity, and the fact that _more rules lower per-rule compliance_.<sup>[\[2\]](#fn-2)</sup> Even a 1M-token window doesn't recall early instructions reliably after compaction. **More rules ≠ more control.** Throwing more context at the problem doesn't fix it.
 
 ## How Lorelum solves it
 
-Lorelum turns team engineering experience into **discrete, retrievable, trigger-conditioned units called *Practices*** — and injects them into AI context **at the moment of need**, not all at once.
+Lorelum turns team engineering experience into **discrete, retrievable, trigger-conditioned units called _Practices_** — and injects them into AI context **at the moment of need**, not all at once.
+
+Retrieval can use two kinds of clues:
+
+- **What the agent is doing:** building an auth flow, changing a database schema, writing component tests.
+- **What moment the agent is in:** starting to understand a complex requirement, recovering after compaction, deciding whether to change a failing test, or preparing to claim completion.
+
+The caller describes the task and moment; Lorelum retrieves and ranks the relevant Practices. A Skill can guide the agent to trigger retrieval at semantic moments, while a Plugin/Hook can reliably trigger it for observable host events such as compaction. Lorelum Core does not manage the task or infer these events by itself.
 
 ```
    ┌─────────────┐   query    ┌────────────────────┐   precise   ┌──────────────┐
@@ -61,7 +68,7 @@ Lorelum turns team engineering experience into **discrete, retrievable, trigger-
    └─────────────┘            └────────────────────┘             └──────────────┘
 ```
 
-**Lorelum doesn't replace your `AGENTS.md` — it keeps it alive.** Every time the agent needs a piece of it, Lorelum re-injects that exact slice. When the agent starts implementing auth, Lorelum hands it the auth Practice — not the routing, testing, and deployment Practices too.
+**Lorelum doesn't replace your `AGENTS.md` — it keeps it alive.** Every time the agent needs a piece of it, Lorelum re-injects that exact slice. When the agent starts implementing auth, Lorelum hands it the auth Practice — not the routing, testing, and deployment Practices too. When the agent is about to make a high-risk judgment, Lorelum can also surface the execution discipline needed for that moment without becoming a workflow engine.
 
 ### What a Practice looks like
 
@@ -78,9 +85,10 @@ applies_when: building an API layer in a React SPA
 [Concrete guidance: http client, base API, modules, DTO boundary.]
 
 ## Anti-patterns to avoid
-- api.direct-axios-in-component   (call axios inside components)
-- api.local-storage-in-api-class  (persist tokens inside API class)
-- api.dto-used-as-ui-model        (reuse DTOs as UI state)
+
+- api.direct-axios-in-component (call axios inside components)
+- api.local-storage-in-api-class (persist tokens inside API class)
+- api.dto-used-as-ui-model (reuse DTOs as UI state)
 ```
 
 A **Knowledge Pack** bundles many Practices + a decision graph (`decisions.yaml`) + templates + anti-patterns, scoped to a stack or team standard.
@@ -91,7 +99,7 @@ Same task, same agent — once without Lorelum, once with.
 
 ### The setup
 
-A long session. Your `AGENTS.md` says *"layer the API; never call axios from a component."* But that was 40 messages ago, and the context was just compacted. The agent is now asked to build a login page.
+A long session. Your `AGENTS.md` says _"layer the API; never call axios from a component."_ But that was 40 messages ago, and the context was just compacted. The agent is now asked to build a login page.
 
 ### Without Lorelum — the agent drifts
 
@@ -100,8 +108,8 @@ A long session. Your `AGENTS.md` says *"layer the API; never call axios from a c
 function LoginPage() {
   const [email, setEmail] = useState("");
   async function handleLogin() {
-    const res = await axios.post("/api/login", { email });  // ❌ axios in component
-    localStorage.setItem("token", res.data.token);           // ❌ token in localStorage
+    const res = await axios.post("/api/login", { email }); // ❌ axios in component
+    localStorage.setItem("token", res.data.token); // ❌ token in localStorage
   }
 }
 ```
@@ -114,19 +122,20 @@ When the agent touches `src/features/auth/`, Lorelum retrieves the one Practice 
 
 ```markdown
 ## Anti-patterns to avoid
-- api.direct-axios-in-component   (call axios inside components)
-- api.local-storage-in-api-class  (persist tokens inside API class)
-- api.dto-used-as-ui-model        (reuse DTOs as UI state)
+
+- api.direct-axios-in-component (call axios inside components)
+- api.local-storage-in-api-class (persist tokens inside API class)
+- api.dto-used-as-ui-model (reuse DTOs as UI state)
 ```
 
-The agent rewrites its own output — *fresh, from the relevant slice, not the whole ruleset*:
+The agent rewrites its own output — _fresh, from the relevant slice, not the whole ruleset_:
 
 ```tsx
 // LoginPage.tsx — corrected by the agent after injection
 function LoginPage() {
-  const { login } = useAuthApi();   // ✅ through the layered API client
+  const { login } = useAuthApi(); // ✅ through the layered API client
   async function handleLogin() {
-    await login({ email });          // ✅ token handled inside the API layer
+    await login({ email }); // ✅ token handled inside the API layer
   }
 }
 ```
@@ -140,9 +149,90 @@ lore learn "single-flight refresh token in the HTTP client"
 
 That fix is now a Practice your whole team retrieves next time — without anyone re-pasting an `AGENTS.md`.
 
+## Another end-to-end example: a passing test is not the whole feature
+
+> **Research direction:** We are exploring this flow in [Issue #28](https://github.com/lorelum/lorelum/issues/28). The example shows the intended experience and responsibility boundary, not a capability already shipped in every AI tool.
+
+### The setup
+
+An agent is implementing a common account-settings feature. The acceptance criteria cover the whole user-visible capability:
+
+- the page edits a display name and time zone;
+- the API validates and authorizes the update;
+- the change persists and still appears after a reload; and
+- the complete flow works for both allowed and denied users.
+
+After a long session, context is compacted. The summary preserves the most recent work: the form was refactored, its focused component tests pass, and the next step is to report the result. It does not preserve the full acceptance scope or which parts of it have actually been verified.
+
+### Without task-and-moment retrieval — local evidence becomes a global claim
+
+The agent sees green focused tests and reports:
+
+```text
+✅ Account settings is complete. The tests pass and the UI has been verified.
+```
+
+But the evidence only covers the form component. It says nothing about API authorization, persistence after reload, the denied-user path, or the complete user flow. The tests are valid; the **claim is broader than the evidence**.
+
+### With Lorelum — recover first, then query the moment
+
+In the intended flow, a supported Plugin/Hook observes the compaction event and asks Lorelum only for recovery Practices. The injected guidance reminds the agent that the summary is not the source of truth and that it must re-read the durable spec, acceptance criteria, plan, and evidence before continuing.
+
+The agent re-establishes the task and discovers that only the UI slice has been tested. Before reporting completion, it makes a normal natural-language query:
+
+```bash
+lore query "I am implementing account settings. Focused component tests pass, and I am about to declare the whole feature complete."
+```
+
+Lorelum can return a small set of Practices for this exact moment, for example:
+
+```text
+recovery.re-ground-after-context-loss
+verification.match-claims-to-evidence
+delivery.separate-slice-from-capability
+```
+
+The agent corrects its report instead of changing the facts to fit the desired conclusion:
+
+```text
+Completed: the settings form and its component tests.
+Not yet verified: API authorization, persistence after reload, the denied-user path,
+and the end-to-end acceptance flow. I cannot claim the whole feature is complete yet.
+```
+
+### What Lorelum did — and did not do
+
+Lorelum did not store the spec, inspect the repository, run the tests, or decide that the feature was accepted. The integration recognized a relevant event; Lorelum retrieved the execution discipline needed at that moment; the agent then checked the project's real sources of truth.
+
+The same pattern applies beyond compaction. A Skill can prompt the query when the agent is about to change a failing test, act on an unconfirmed assumption, hand work to another agent, or claim that a partial implementation is complete.
+
+### The two-stage recovery path
+
+Immediately guessing task-specific Practices from a possibly incomplete compaction summary can reinforce the wrong implementation. The safer path is:
+
+```
+host reports compaction
+        │
+        ▼
+Plugin / Hook queries Lorelum for recovery Practices only
+        │
+        ▼
+agent re-reads the durable spec, acceptance criteria, assumptions, and evidence
+        │
+        ▼
+agent runs a normal lore query with the re-established task and moment
+        │
+        ▼
+Lorelum returns the relevant domain + execution Practices
+```
+
+The Plugin/Hook knows that compaction happened; it does not decide whether the work is correct or complete. Lorelum retrieves the recovery discipline; it does not store the spec or manage task state. The agent first re-establishes the facts, then asks for task-specific guidance.
+
+This is one example of a broader direction: supporting critical moments across the full Agentic Coding lifecycle — requirement understanding, planning, implementation, testing, verification, delivery, recovery, and correction — rather than building a special-case compaction feature.
+
 ## 5-minute tour
 
-*(CLI is pre-alpha — commands below show the intended UX.)*
+_(CLI is pre-alpha — commands below show the intended UX.)_
 
 ```bash
 # Install a community pack (local mode, works offline)
@@ -150,6 +240,9 @@ lore install react-fullstack
 
 # Ask: "what practices apply to my current task?"
 lore query "settings page with permission guard, form, and tests"
+
+# The same natural-language query can include a critical work moment
+lore query "the focused tests passed; I am about to claim the whole settings feature is complete"
 
 # Get a decision recommendation based on project context
 lore decide "React SPA, medium client state, RBAC routes, component tests"
@@ -165,15 +258,15 @@ Or wire it into your AI tool via MCP — Lorelum ships an MCP server that any MC
 
 ## How it's different
 
-| | `AGENTS.md` / `.cursorrules` | Skills / Slash commands | **Lorelum** |
-|---|---|---|---|
-| **Delivery** | Static, all-at-once | Manual trigger | **Retrieved on demand** |
-| **Decays over session** | Yes | No (one-shot) | No (fresh each query) |
-| **Re-injection after compaction** | Manual: re-paste all rules | Manual | ✅ Automatic, task-scoped |
-| **Scales to 100s of rules** | ❌ | Tedious | ✅ built for it |
-| **Captures team decisions** | No | No | ✅ `decisions.yaml` |
-| **Tool-agnostic** | Tool-specific | Tool-specific | ✅ MCP / CLI / Skill |
-| **Anti-pattern checks** | No | No | ✅ `lore check` |
+|                                   | `AGENTS.md` / `.cursorrules` | Skills / Slash commands | **Lorelum**                                                                                 |
+| --------------------------------- | ---------------------------- | ----------------------- | ------------------------------------------------------------------------------------------- |
+| **Delivery**                      | Static, all-at-once          | Manual trigger          | **Retrieved on demand**                                                                     |
+| **Decays over session**           | Yes                          | No (one-shot)           | No (fresh each query)                                                                       |
+| **Re-injection after compaction** | Manual: re-paste all rules   | Manual                  | Planned: supported Plugin/Hook triggers recovery automatically; otherwise Skill / CLI / MCP |
+| **Scales to 100s of rules**       | ❌                           | Tedious                 | ✅ built for it                                                                             |
+| **Captures team decisions**       | No                           | No                      | ✅ `decisions.yaml`                                                                         |
+| **Tool-agnostic**                 | Tool-specific                | Tool-specific           | ✅ MCP / CLI / Skill                                                                        |
+| **Anti-pattern checks**           | No                           | No                      | ✅ `lore check`                                                                             |
 
 Lorelum isn't a better `.cursorrules`. It's the **retrieval + decision layer** that sits behind whatever AI tool you use.
 
@@ -182,12 +275,18 @@ Lorelum isn't a better `.cursorrules`. It's the **retrieval + decision layer** t
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  AI tool layer  (Cursor / Claude Code / Codex / Windsurf) │
-└────────────┬─────────────────────────────────┬───────────┘
-             │ CLI                              │ MCP
-             ▼                                  ▼
+└─────────────────────────────┬────────────────────────────┘
+                             │
+                             ▼
+┌───────────────────────────────────────────────────────────┐
+│ Integration: Skill / Plugin / Hook / CLI / MCP             │
+│ detect or describe task + moment · invoke · inject         │
+└───────────────────────────────────────────────────────────┘
+                             │ query
+                             ▼
 ┌──────────────────────────────────────────────────────────┐
 │                  Lorelum engine                          │
-│   retrieval (embed + metadata + graph) · decisions.yaml  │
+│   retrieve + rank (embed + metadata + graph) · decisions │
 └────────────┬─────────────────────────────────────────────┘
              │
    ┌─────────┴─────────┐
@@ -196,7 +295,10 @@ local packs        endpoint (team / SaaS / self-hosted)
 (offline)          (real-time, multi-user)
 ```
 
+The integration layer owns **when to call** and **how to inject**. Lorelum Core owns **what to retrieve** and **how to rank it**. This keeps host-specific lifecycle handling out of the retrieval engine.
+
 Two modes share the same commands:
+
 - **Local mode (default):** `lore install` a public pack, query offline. Zero ops. Like npm.
 - **Endpoint mode:** point the CLI at a team/SaaS/self-hosted endpoint for real-time, multi-user knowledge.
 
@@ -228,12 +330,12 @@ We welcome contributors. Lorelum is **open-core** (see [license architecture](#l
 
 Lorelum is **open-core**:
 
-| Component | License |
-|---|---|
-| Core engine (CLI, local retrieval, MCP, format spec) | **Apache 2.0** |
-| Community knowledge packs | **CC-BY-4.0** |
-| Endpoint server kernel (self-hostable) | **AGPL-3.0** *(separate repo, later)* |
-| SaaS platform & enterprise governance | **Proprietary** *(separate repos, later)* |
+| Component                                            | License                                   |
+| ---------------------------------------------------- | ----------------------------------------- |
+| Core engine (CLI, local retrieval, MCP, format spec) | **Apache 2.0**                            |
+| Community knowledge packs                            | **CC-BY-4.0**                             |
+| Endpoint server kernel (self-hostable)               | **AGPL-3.0** _(separate repo, later)_     |
+| SaaS platform & enterprise governance                | **Proprietary** _(separate repos, later)_ |
 
 The boundary: **if it lets a developer run the full workflow offline on a personal laptop, it's open source.** The paid tiers buy managed ops, collaboration, and compliance — never gated features.
 
