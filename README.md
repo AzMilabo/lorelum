@@ -149,11 +149,66 @@ lore learn "single-flight refresh token in the HTTP client"
 
 That fix is now a Practice your whole team retrieves next time — without anyone re-pasting an `AGENTS.md`.
 
-## Recovering after context loss
+## Another end-to-end example: a passing test is not the whole feature
 
-> **Research direction:** We are exploring this flow in [Issue #28](https://github.com/lorelum/lorelum/issues/28). It describes the intended responsibility boundary, not a capability already shipped in every AI tool.
+> **Research direction:** We are exploring this flow in [Issue #28](https://github.com/lorelum/lorelum/issues/28). The example shows the intended experience and responsibility boundary, not a capability already shipped in every AI tool.
 
-After compaction, immediately guessing task-specific Practices from a possibly incomplete summary can reinforce the wrong implementation. The safer flow has two stages:
+### The setup
+
+An agent is implementing a common account-settings feature. The acceptance criteria cover the whole user-visible capability:
+
+- the page edits a display name and time zone;
+- the API validates and authorizes the update;
+- the change persists and still appears after a reload; and
+- the complete flow works for both allowed and denied users.
+
+After a long session, context is compacted. The summary preserves the most recent work: the form was refactored, its focused component tests pass, and the next step is to report the result. It does not preserve the full acceptance scope or which parts of it have actually been verified.
+
+### Without task-and-moment retrieval — local evidence becomes a global claim
+
+The agent sees green focused tests and reports:
+
+```text
+✅ Account settings is complete. The tests pass and the UI has been verified.
+```
+
+But the evidence only covers the form component. It says nothing about API authorization, persistence after reload, the denied-user path, or the complete user flow. The tests are valid; the **claim is broader than the evidence**.
+
+### With Lorelum — recover first, then query the moment
+
+In the intended flow, a supported Plugin/Hook observes the compaction event and asks Lorelum only for recovery Practices. The injected guidance reminds the agent that the summary is not the source of truth and that it must re-read the durable spec, acceptance criteria, plan, and evidence before continuing.
+
+The agent re-establishes the task and discovers that only the UI slice has been tested. Before reporting completion, it makes a normal natural-language query:
+
+```bash
+lore query "I am implementing account settings. Focused component tests pass, and I am about to declare the whole feature complete."
+```
+
+Lorelum can return a small set of Practices for this exact moment, for example:
+
+```text
+recovery.re-ground-after-context-loss
+verification.match-claims-to-evidence
+delivery.separate-slice-from-capability
+```
+
+The agent corrects its report instead of changing the facts to fit the desired conclusion:
+
+```text
+Completed: the settings form and its component tests.
+Not yet verified: API authorization, persistence after reload, the denied-user path,
+and the end-to-end acceptance flow. I cannot claim the whole feature is complete yet.
+```
+
+### What Lorelum did — and did not do
+
+Lorelum did not store the spec, inspect the repository, run the tests, or decide that the feature was accepted. The integration recognized a relevant event; Lorelum retrieved the execution discipline needed at that moment; the agent then checked the project's real sources of truth.
+
+The same pattern applies beyond compaction. A Skill can prompt the query when the agent is about to change a failing test, act on an unconfirmed assumption, hand work to another agent, or claim that a partial implementation is complete.
+
+### The two-stage recovery path
+
+Immediately guessing task-specific Practices from a possibly incomplete compaction summary can reinforce the wrong implementation. The safer path is:
 
 ```
 host reports compaction
