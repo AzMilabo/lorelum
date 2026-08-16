@@ -53,8 +53,8 @@ Lorelum 把团队工程经验切成**离散、可检索、带触发条件的 *Pr
 
 检索可以同时使用两类线索：
 
-- **Agent 正在做什么：**实现认证流程、修改数据库 schema、编写组件测试。
-- **Agent 正处于什么时刻：**开始理解复杂需求、compaction 后恢复任务、准备修改失败测试，或准备宣布完成。
+- **Agent 正在做什么：** 实现认证流程、修改数据库 schema、编写组件测试。
+- **Agent 正处于什么时刻：** 开始理解复杂需求、compaction 后恢复任务、准备修改失败测试，或准备宣布完成。
 
 调用方说明当前任务和时刻，Lorelum 负责检索并排序相关 Practice。语义上的关键时刻可由 Skill 引导 Agent 主动发起；compaction 这类宿主可观测事件，则可由 Plugin/Hook 稳定触发。Lorelum Core 本身不管理任务，也不自行推断这些事件。
 
@@ -150,7 +150,7 @@ lore learn "HTTP client 里的 single-flight refresh token"
 
 ## 另一个端到端案例：定向测试通过，不等于完整功能完成
 
-> **Research 方向：**我们正在 [Issue #28](https://github.com/lorelum/lorelum/issues/28) 中验证这条链路。这个案例展示的是期望的使用体验和责任边界，不代表所有 AI 工具已经交付该能力。
+> **Research 方向：** 我们正在 [Issue #28](https://github.com/lorelum/lorelum/issues/28) 中验证这条链路。这个案例展示的是期望的使用体验和责任边界，不代表所有 AI 工具已经交付该能力。
 
 ### 场景
 
