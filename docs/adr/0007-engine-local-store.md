@@ -1,7 +1,7 @@
 # ADR 0007: Engine LocalStore storage & lifecycle contract
 
 - **Date:** 2026-07-27
-- **Status:** Proposed
+- **Status:** Accepted
 - **Related:** ADR 0002 (`bun:sqlite` is the local store), ADR 0003 (Practice/Pack fields and validation the store consumes). Internal docs (Lorelum wiki, "技术规范" section): "定稿：本地 Practice 索引与存储 v1" and "实施计划（重写版）：@lorelum/engine LocalStore". The wiki docs are background and provenance only — this ADR is the authoritative contract (see Decision).
 
 ## Context
