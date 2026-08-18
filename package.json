@@ -2,7 +2,8 @@
   "name": "lorelum",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "type": "module",
   "scripts": {
