@@ -1,11 +1,11 @@
-export const appName = 'Tanstack Start';
+export const appName = 'Lorelum';
 export const docsRoute = '/docs';
 export const docsImageRoute = '/og/docs';
 
-// fill this with your actual GitHub info, for example:
+// Git hosting info used by the docs "edit this page" link.
 export const gitConfig = {
-  user: 'fuma-nama',
-  repo: 'fumadocs',
+  user: 'lorelum',
+  repo: 'lorelum',
   branch: 'main',
 };
 
