@@ -14,7 +14,7 @@ export const Route = createRootRoute({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'Fumadocs on TanStack Start',
+        title: 'Lorelum — the right Practice for the right task and moment',
       },
     ],
     links: [{ rel: 'stylesheet', href: appCss }],
