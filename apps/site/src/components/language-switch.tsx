@@ -1,6 +1,7 @@
 import { Link, useLocation, useParams } from '@tanstack/react-router';
 import { Languages } from 'lucide-react';
 import { i18n } from '@/lib/i18n';
+import { getStrings } from '@/lib/translations';
 
 /**
  * Minimal language switcher rendered in the docs/home nav.
@@ -12,6 +13,7 @@ import { i18n } from '@/lib/i18n';
 export function LanguageSwitch() {
   const { lang = i18n.defaultLanguage } = useParams({ strict: false });
   const { pathname } = useLocation();
+  const t = getStrings(lang);
   const other = i18n.languages.find((l) => l !== lang) ?? i18n.defaultLanguage;
 
   // `/lang/...` -> `/other/...`; unprefixed root path -> `/${other}`
@@ -23,7 +25,7 @@ export function LanguageSwitch() {
     <Link
       to={target}
       className="inline-flex items-center gap-1.5 rounded-lg p-1.5 text-sm text-fd-muted-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
-      aria-label={`Switch language to ${other}`}
+      aria-label={`${t.switchTo} ${other === 'zh' ? '中文' : 'English'}`}
     >
       <Languages className="size-4" />
       <span>{other === 'zh' ? '中文' : 'English'}</span>
