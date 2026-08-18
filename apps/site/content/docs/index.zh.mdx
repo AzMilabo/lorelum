@@ -1,0 +1,71 @@
+---
+title: 简介
+description: Lorelum 在正确的任务与关键时刻，为 AI 编码智能体检索正确的工程 Practice。
+icon: Rocket
+---
+
+Lorelum 把团队的工程经验沉淀为离散、可检索、按触发条件注入的 **Practice**，并在需要的那一刻注入到 AI 上下文。
+
+<Callout type="info">
+本页用于在 TanStack Start 上验证 Fumadocs 的中英双语能力：MDX 组件、Shiki 高亮、表格与搜索都应在同一个可静态渲染的应用中工作。
+</Callout>
+
+## 检索如何工作
+
+两类线索驱动检索：
+
+- **任务（Task）** —— 智能体当前正在做什么。
+- **时刻（Moment）** —— 智能体正处于开发生命周期的哪个阶段。
+
+<Tabs items={['任务', '时刻', '组合']}>
+  <Tab value="任务">
+    正在构建认证流程、修改数据库结构、编写组件测试。
+  </Tab>
+  <Tab value="时刻">
+    刚开始理解复杂需求、在上下文压缩后恢复、决定是否修改失败的测试。
+  </Tab>
+  <Tab value="组合">
+    调用方同时描述两者；Lorelum 对相关 Practice 进行排序。
+  </Tab>
+</Tabs>
+
+## 示例查询
+
+```text
+$ lore query "我正在实现权限管理，定向测试已通过，准备宣布整个能力完成。"
+```
+
+### TypeScript
+
+```ts
+import { retrieve } from '@lorelum/engine';
+
+const result = await retrieve({
+  task: 'building the RBAC admin panel',
+  moment: 'about to claim completion',
+});
+```
+
+### Shell
+
+```bash
+lore query "building the RBAC admin panel"
+```
+
+## 上线步骤
+
+<Steps>
+  <Step>通过 Bun 或 npm 安装 Lorelum。</Step>
+  <Step>为你的团队编写一组 Practices。</Step>
+  <Step>连接 Skill 或 Plugin/Hook 来触发检索。</Step>
+</Steps>
+
+## 功能矩阵
+
+| 功能          | 状态     |
+| ------------- | -------- |
+| MDX 组件      | ✅ 可用  |
+| Shiki 高亮    | ✅ 可用  |
+| 静态搜索      | ✅ 可用  |
+| i18n（中英）  | ✅ Spike  |
+| Cloudflare Pages | 🚧 Spike |
