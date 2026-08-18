@@ -1,7 +1,10 @@
-import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
+import { createRootRoute, HeadContent, Outlet, Scripts, useParams } from '@tanstack/react-router';
 import * as React from 'react';
 import appCss from '@/styles/app.css?url';
 import { RootProvider } from 'fumadocs-ui/provider/tanstack';
+import { i18nProvider, uiTranslations } from 'fumadocs-ui/i18n';
+import { i18n } from '@/lib/i18n';
+import { zhCN } from '@fumadocs/language/zh-cn';
 
 export const Route = createRootRoute({
   head: () => ({
@@ -22,16 +25,31 @@ export const Route = createRootRoute({
   component: RootComponent,
 });
 
+// Fumadocs UI strings per language; the Chinese pack localizes the search
+// trigger, sidebar and other built-in UI labels.
+const translations = i18n
+  .translations()
+  .extend(uiTranslations())
+  .preset('zh', zhCN());
+
 function RootComponent() {
+  return (
+    <RootDocument>
+      <Outlet />
+    </RootDocument>
+  );
+}
+
+function RootDocument({ children }: { children: React.ReactNode }) {
+  const { lang = i18n.defaultLanguage } = useParams({ strict: false });
+
   return (
     <html suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
       <body className="flex flex-col min-h-screen">
-        <RootProvider>
-          <Outlet />
-        </RootProvider>
+        <RootProvider i18n={i18nProvider(translations, lang)}>{children}</RootProvider>
         <Scripts />
       </body>
     </html>
