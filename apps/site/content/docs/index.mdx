@@ -1,31 +1,71 @@
 ---
-title: Hello World
-description: Your favourite docs framework.
+title: Introduction
+description: Lorelum retrieves the right engineering Practice for the right AI coding task and moment.
 icon: Rocket
 ---
 
-Hey there! Fumadocs is the docs framework that also works on Tanstack Start!
+Lorelum turns team engineering experience into discrete, retrievable, trigger-conditioned units called **Practices**, and injects them into AI context at the moment of need.
 
-## Heading
+<Callout type="info">
+This page exercises Fumadocs on TanStack Start: MDX components, Shiki highlighting, tables, and search must all work in one static-renderable app.
+</Callout>
 
-Hello World!
+## How retrieval works
 
-<Cards>
-  <Card title="Learn more about Tanstack Start" href="https://tanstack.com/start" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
-</Cards>
+Two kinds of clues drive retrieval:
 
-### CodeBlock
+- **Task** — what the agent is doing right now.
+- **Moment** — which part of the development lifecycle the agent is in.
 
-```ts
-console.log('Hello World');
+<Tabs items={['Task', 'Moment', 'Combined']}>
+  <Tab value="Task">
+    Building an auth flow, changing a database schema, writing component tests.
+  </Tab>
+  <Tab value="Moment">
+    Starting to understand a complex requirement, recovering after compaction, deciding whether to change a failing test.
+  </Tab>
+  <Tab value="Combined">
+    The caller describes both; Lorelum ranks the relevant Practices.
+  </Tab>
+</Tabs>
+
+## Example query
+
+```text
+$ lore query "I'm building the RBAC admin panel and I'm about to claim the whole capability is done."
 ```
 
-#### Table
+### TypeScript
 
-| Head                            | Description                         |
-| ------------------------------- | ----------------------------------- |
-| `hello`                         | Hello World                         |
-| very **important**              | Hey                                 |
-| _Surprisingly_                  | Fumadocs                            |
-| very long text that looks weird | hello world hello world hello world |
+```ts
+import { retrieve } from '@lorelum/engine';
+
+const result = await retrieve({
+  task: 'building the RBAC admin panel',
+  moment: 'about to claim completion',
+});
+```
+
+### Shell
+
+```bash
+lore query "building the RBAC admin panel"
+```
+
+## Steps to go live
+
+<Steps>
+  <Step>Install Lorelum via Bun or npm.</Step>
+  <Step>Write a pack of Practices for your team.</Step>
+  <Step>Connect a Skill or Plugin/Hook to trigger retrieval.</Step>
+</Steps>
+
+## Feature matrix
+
+| Feature          | Status   |
+| ---------------- | -------- |
+| MDX components   | ✅ Works |
+| Shiki highlight  | ✅ Works |
+| Static search    | ✅ Works |
+| i18n (en + zh)   | 🚧 Spike   |
+| Cloudflare Pages | 🚧 Spike   |
