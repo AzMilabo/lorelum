@@ -5,33 +5,31 @@ import { getStrings } from '@/lib/translations';
 /**
  * A fixed-height, typewriter terminal demo for the landing page.
  *
- * Unlike the previous version (which appended lines forever and pushed the
- * hero text around), this renders a stable 4-row window:
+ * The window is a stable block that never changes height:
  *
  *   1. the `lore query` command is typed character by character
  *   2. a short "retrieving" line with an animated ellipsis
- *   3. result lines slide in one at a time, the current one highlighted
+ *   3. result rows slide in one at a time as two-line cards (label + value)
  *   4. after a pause the window clears and replays from step 1
  *
- * The height never changes, so the landing hero stays put and the eye is
- * always drawn to the current line.
+ * Each result is rendered as its own two-line block so long Practice ids
+ * (e.g. `testing.tests-as-cheerleaders-for-implementation`) always render
+ * in full instead of being clipped by the window width.
  *
  * `locale` picks the localized prompts and window title.
  */
 
-interface DemoStep {
+interface DemoResult {
   /** Stable key so React can keep rows when text changes. */
   key: string;
-  /** Left-aligned prefix chip, e.g. `✓`, `…`. */
-  prefix?: string;
-  /** Muted label for the row. */
-  label?: string;
-  /** The main text of the row. */
+  /** Short muted label, e.g. "3 relevant Practices". */
+  label: string;
+  /** The full value shown on its own line, never truncated. */
   text: string;
 }
 
 const TYPE_SPEED = 28; // ms per character
-const STEP_DELAY = 650; // pause after a row completes
+const STEP_DELAY = 620; // pause after a row completes
 const REPLAY_DELAY = 1400; // pause after the last row before replaying
 
 export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
@@ -43,15 +41,10 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
   const [resultCount, setResultCount] = useState(0);
 
   const queryText = t.terminalQuery;
-  const results: DemoStep[] = [
-    { key: 'task', prefix: '✓', label: t.terminalTaskPrompt, text: t.terminalTask },
-    {
-      key: 'practice',
-      prefix: '✓',
-      label: t.terminalPracticesPrompt,
-      text: t.terminalPracticesText,
-    },
-    { key: 'anti', prefix: '✓', label: t.terminalAntiPrompt, text: t.terminalAntiText },
+  const results: DemoResult[] = [
+    { key: 'task', label: t.terminalTaskPrompt, text: t.terminalTask },
+    { key: 'practice', label: t.terminalPracticesPrompt, text: t.terminalPracticesText },
+    { key: 'anti', label: t.terminalAntiPrompt, text: t.terminalAntiText },
   ];
 
   // Phase 1: type out the query character by character.
@@ -61,7 +54,6 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
       const id = setTimeout(() => setTypedChars((c) => c + 1), TYPE_SPEED);
       return () => clearTimeout(id);
     }
-    // done typing → brief pause, then move to retrieving
     const id = setTimeout(() => setPhase('retrieving'), STEP_DELAY);
     return () => clearTimeout(id);
   }, [phase, typedChars, queryText.length]);
@@ -69,7 +61,7 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
   // Phase 2: show a "retrieving" line briefly.
   useEffect(() => {
     if (phase !== 'retrieving') return;
-    const id = setTimeout(() => setPhase('results'), 900);
+    const id = setTimeout(() => setPhase('results'), 850);
     return () => clearTimeout(id);
   }, [phase]);
 
@@ -77,10 +69,9 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
   useEffect(() => {
     if (phase !== 'results') return;
     if (resultCount < results.length) {
-      const id = setTimeout(() => setResultCount((c) => c + 1), 900);
+      const id = setTimeout(() => setResultCount((c) => c + 1), 950);
       return () => clearTimeout(id);
     }
-    // all results shown → pause, then reset & replay
     const id = setTimeout(() => setPhase('paused'), REPLAY_DELAY);
     return () => clearTimeout(id);
   }, [phase, resultCount, results.length]);
@@ -95,6 +86,9 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
 
   const typingText = queryText.slice(0, typedChars);
   const showCursor = phase === 'typing' || phase === 'retrieving';
+  const showRetrieving =
+    phase === 'retrieving' || (phase === 'typing' && typedChars === queryText.length);
+  const resultBlocks = phase !== 'typing' ? results.slice(0, resultCount) : [];
 
   return (
     <div className="mx-auto mt-10 w-full max-w-2xl text-left">
@@ -112,8 +106,15 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
           </span>
         </div>
 
-        {/* Fixed-height terminal body (4 rows) so the hero never shifts. */}
-        <div className="h-[9.5rem] px-5 py-4 font-mono text-sm leading-7">
+        {/*
+          Fixed-height terminal body.
+
+          Stable content rows (query + retrieving) = 2.
+          Up to 3 result cards; each card = label row + value row + vertical padding.
+          We reserve height for 3 cards so the window never grows/shrinks while
+          results stream in.
+        */}
+        <div className="h-[17rem] px-5 py-4 font-mono text-sm leading-7">
           {/* Row 1: the typed query */}
           <div className="flex items-baseline gap-2">
             <span className="text-fd-muted-foreground">$</span>
@@ -123,34 +124,41 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
             )}
           </div>
 
-          {/* Row 2: retrieving indicator (only during typing/retrieving) */}
-          {(phase === 'retrieving' || (phase === 'typing' && typedChars === queryText.length)) && (
+          {/* Row 2: retrieving indicator */}
+          {showRetrieving && (
             <div className="flex items-center gap-2 text-fd-muted-foreground">
               <span className="animate-pulse">…</span>
               <span>{t.terminalRetrieving}</span>
             </div>
           )}
 
-          {/* Rows 3+: revealed results, newest highlighted */}
-          {phase !== 'typing' &&
-            results.slice(0, resultCount).map((r, i) => {
-              const isNewest = i === resultCount - 1 && phase === 'results';
-              return (
+          {/* Result cards: label (with check) + full value on its own line */}
+          {resultBlocks.map((r, i) => {
+            const current = phase === 'results' && i === resultCount - 1;
+            return (
+              <div
+                key={r.key}
+                className={cn(
+                  '-mx-2 mt-1 rounded-lg border px-2 py-1 transition-colors',
+                  current
+                    ? 'border-fd-primary/30 bg-fd-primary/10'
+                    : 'border-transparent',
+                )}
+              >
                 <div
-                  key={r.key}
                   className={cn(
-                    'flex items-start gap-2 rounded-md px-2 py-0.5 -mx-2 transition-colors',
-                    isNewest && 'bg-fd-primary/10 text-fd-foreground',
+                    'flex items-center gap-2 text-xs',
+                    current ? 'text-fd-primary' : 'text-fd-muted-foreground',
                   )}
                 >
-                  <span className={cn('mt-0.5', isNewest ? 'text-fd-primary' : 'text-fd-muted-foreground')}>
-                    {r.prefix}
-                  </span>
-                  <span className="text-fd-muted-foreground">{r.label}</span>
-                  <span className="truncate text-fd-foreground/80">{r.text}</span>
+                  <span className="font-medium">✓</span>
+                  <span>{r.label}</span>
                 </div>
-              );
-            })}
+                {/* Value line: full width, word-wrap so long ids never clip */}
+                <div className="pl-5 text-fd-foreground/85">{r.text}</div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
