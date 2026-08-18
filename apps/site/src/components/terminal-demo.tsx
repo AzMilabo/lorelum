@@ -1,45 +1,32 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/cn';
+import { getStrings } from '@/lib/translations';
 
 /**
  * Steps rendered as a typing terminal demo on the landing page.
  *
  * TanStack Start hydrates this component on the client, so the typing
  * animation only runs after hydration (no SSR/LCP cost from the loop).
+ * `locale` picks the localized prompts and window title.
  */
-const STEPS: Array<{ label: string; prompt: string; text: string }> = [
-  {
-    label: 'Query',
-    prompt: '$ lore query',
-    text: 'agent-query',
-  },
-  {
-    label: 'Task',
-    prompt: 'task: building the RBAC admin panel',
-    text: 'moment: about to claim the whole capability is done',
-  },
-  {
-    label: 'Retrieved',
-    prompt: '3 relevant Practices',
-    text: 'verification.match-claims-to-evidence',
-  },
-  {
-    label: 'Retrieved',
-    prompt: '2 anti-patterns',
-    text: 'testing.tests-as-cheerleaders-for-implementation',
-  },
-];
-
-export function TerminalDemo() {
+export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
+  const t = getStrings(locale);
   const [step, setStep] = useState(0);
+
+  const steps = [
+    { label: 'query', prompt: t.terminalQuery, text: 'agent-query' },
+    { label: 'task', prompt: t.terminalTaskPrompt, text: t.terminalTask },
+    { label: 'practices', prompt: t.terminalPracticesPrompt, text: t.terminalPracticesText },
+    { label: 'anti', prompt: t.terminalAntiPrompt, text: t.terminalAntiText },
+  ];
 
   useEffect(() => {
     // Advance one step every 1.2s; wrap around so the demo stays lively.
-    const id = setInterval(() => setStep((s) => (s + 1) % STEPS.length), 1200);
+    const id = setInterval(() => setStep((s) => (s + 1) % steps.length), 1200);
     return () => clearInterval(id);
-  }, []);
+  }, [steps.length]);
 
-  const visible = STEPS.slice(0, step + 1);
+  const visible = steps.slice(0, step + 1);
 
   return (
     <div className="mx-auto mt-10 w-full max-w-2xl text-left">
@@ -49,7 +36,9 @@ export function TerminalDemo() {
           <span className="size-3 rounded-full bg-red-400/80" />
           <span className="size-3 rounded-full bg-yellow-400/80" />
           <span className="size-3 rounded-full bg-green-400/80" />
-          <span className="ml-3 font-mono text-xs text-fd-muted-foreground">lore — interactive</span>
+          <span className="ml-3 font-mono text-xs text-fd-muted-foreground">
+            {t.terminalWindowTitle}
+          </span>
         </div>
 
         {/* Typed output */}
@@ -67,9 +56,7 @@ export function TerminalDemo() {
         </div>
       </div>
 
-      <p className="mt-3 text-center text-xs text-fd-muted-foreground">
-        A client-hydrated terminal demo — the query loop runs only after React hydrates.
-      </p>
+      <p className="mt-3 text-center text-xs text-fd-muted-foreground">{t.terminalCaption}</p>
     </div>
   );
 }
