@@ -32,6 +32,11 @@ const translations = i18n
   .extend(uiTranslations())
   .preset('zh', zhCN());
 
+const documentTitles: Record<string, string> = {
+  en: 'Lorelum — the right Practice for the right task and moment',
+  zh: 'Lorelum —— 在正确的任务与关键时刻，检索正确的工程 Practice',
+};
+
 function RootComponent() {
   return (
     <RootDocument>
@@ -42,6 +47,11 @@ function RootComponent() {
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   const { lang = i18n.defaultLanguage } = useParams({ strict: false });
+
+  // Keep the browser tab title localized (SSR keeps the English default).
+  React.useEffect(() => {
+    document.title = documentTitles[lang] ?? documentTitles[i18n.defaultLanguage];
+  }, [lang]);
 
   return (
     <html suppressHydrationWarning>
