@@ -13,7 +13,10 @@
     "fmt": "oxfmt --write .",
     "fmt:check": "oxfmt --check .",
     "typecheck": "bun run --filter '*' typecheck",
-    "build:cli": "bun build --compile packages/cli/src/main.ts --outfile dist/lore"
+    "build:cli": "bun build --compile packages/cli/src/main.ts --outfile dist/lore",
+    "build:site": "bun run --filter @lorelum/site build",
+    "deploy:site": "cd apps/site && npx wrangler deploy",
+    "versions:site": "cd apps/site && npx wrangler versions upload"
   },
   "devDependencies": {
     "@types/bun": "1.3.8",
