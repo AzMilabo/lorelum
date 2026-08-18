@@ -13,6 +13,7 @@ export interface LandingStrings {
   readDocs: string;
   terminalCaption: string;
   terminalWindowTitle: string;
+  terminalRetrieving: string;
   terminalQuery: string;
   terminalTaskPrompt: string;
   terminalTask: string;
@@ -32,6 +33,7 @@ const en: LandingStrings = {
   terminalCaption:
     'A client-hydrated terminal demo — the query loop runs only after React hydrates.',
   terminalWindowTitle: 'lore — interactive',
+  terminalRetrieving: 'retrieving Practices…',
   terminalQuery: '$ lore query',
   terminalTaskPrompt: 'task: building the RBAC admin panel',
   terminalTask: 'moment: about to claim the whole capability is done',
@@ -51,6 +53,7 @@ const zh: LandingStrings = {
   readDocs: '阅读文档',
   terminalCaption: '客户端水合终端演示 —— 查询循环仅在 React 水合后运行。',
   terminalWindowTitle: 'lore — 交互演示',
+  terminalRetrieving: '正在检索 Practices…',
   terminalQuery: '$ lore query',
   terminalTaskPrompt: '任务：正在实现 RBAC 管理后台',
   terminalTask: '时刻：准备宣布整个能力已完成',
