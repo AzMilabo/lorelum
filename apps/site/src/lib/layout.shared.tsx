@@ -20,6 +20,10 @@ export function baseOptions(locale: string = i18n.defaultLanguage): BaseLayoutPr
     locale === i18n.defaultLanguage ? '' : ` · ${localeNames[locale] ?? locale}`;
 
   return {
+    // Disable Fumadocs' built-in language select: we render our own
+    // `LanguageSwitch` in the nav, so showing both would duplicate the
+    // control on every page.
+    i18n: false,
     nav: {
       title: `${appName}${suffix}`,
       // Language switcher sits at the end of the nav, next to the theme toggle.
@@ -28,3 +32,4 @@ export function baseOptions(locale: string = i18n.defaultLanguage): BaseLayoutPr
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
   };
 }
+
