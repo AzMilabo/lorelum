@@ -18,6 +18,7 @@ export interface LandingStrings {
   heroTitleGradient: string;
   heroTitleAfter: string;
   heroSub: string;
+  heroTrust: string;
   ctaDocs: string;
   ctaGithub: string;
   // Terminal showcase
@@ -66,6 +67,17 @@ export interface LandingStrings {
   ecosystemHeading: string;
   ecosystemSub: string;
   ecosystemItems: string[];
+  // FAQ
+  faqEyebrow: string;
+  faqHeading: string;
+  faq1q: string;
+  faq1a: string;
+  faq2q: string;
+  faq2a: string;
+  faq3q: string;
+  faq3a: string;
+  faq4q: string;
+  faq4a: string;
   // CTA + footer
   ctaHeading: string;
   ctaSub: string;
@@ -89,6 +101,7 @@ const en: LandingStrings = {
   heroTitleAfter: ', at the right moment.',
   heroSub:
     'Lorelum retrieves your team\u2019s engineering Practices and injects them into AI context exactly when they\u2019re needed \u2014 so agents follow your rules, not drift from them.',
+  heroTrust: 'Apache-2.0 · Local-first · No cloud required',
   ctaDocs: 'Read the docs',
   ctaGithub: 'Star on GitHub',
   // Terminal showcase
@@ -158,6 +171,21 @@ const en: LandingStrings = {
     'Continue',
     'Aider',
   ],
+  // FAQ
+  faqEyebrow: 'FAQ',
+  faqHeading: 'Questions teams ask before switching',
+  faq1q: 'Is Lorelum free?',
+  faq1a:
+    'Yes — the core is Apache-2.0 open source, including the Practice/pack format, the CLI and the local MCP server.',
+  faq2q: 'How is this different from writing better prompts?',
+  faq2a:
+    'Prompts tell an agent what to do once. Lorelum keeps your engineering Practices structured and retrievable, and injects the right one exactly when the task needs it.',
+  faq3q: 'Does it work with my coding agent?',
+  faq3a:
+    'Any agent that reads AGENTS.md-style files works with Lorelum out of the box — via the CLI or the local MCP server.',
+  faq4q: 'Where does my knowledge live?',
+  faq4a:
+    'On your machine. Lorelum is local-first: no cloud upload, no vendor lock-in.',
   // CTA + footer
   ctaHeading: 'Stop hoping your rules survive the session.',
   ctaSub: 'Give your agents the right Practice at the right moment.',
@@ -182,6 +210,7 @@ const zh: LandingStrings = {
   heroTitleAfter: '，出现在正确的时刻。',
   heroSub:
     'Lorelum 在智能体最需要的时刻，把团队沉淀的工程 Practice 注入它的上下文——让 AI 遵循你的规则，而不是渐渐偏离。',
+  heroTrust: 'Apache-2.0 · 本地优先 · 无需云端',
   ctaDocs: '阅读文档',
   ctaGithub: 'GitHub Star',
   // Terminal showcase
@@ -241,6 +270,19 @@ const zh: LandingStrings = {
     'Continue',
     'Aider',
   ],
+  // FAQ
+  faqEyebrow: '常见问题',
+  faqHeading: '团队在切换前最常问的问题',
+  faq1q: 'Lorelum 免费吗？',
+  faq1a: '是的——核心完全 Apache-2.0 开源，包括 Practice/pack 格式、CLI 和本地 MCP 服务器。',
+  faq2q: '这和写更好的提示词有什么区别？',
+  faq2a:
+    '提示词只告诉智能体一次该做什么。Lorelum 让你的工程 Practice 保持结构化、可检索，并在任务最需要时精确注入正确的那条。',
+  faq3q: '能和我的编码智能体一起用吗？',
+  faq3a:
+    '任何读取 AGENTS.md 这类文件的智能体都可以直接使用——通过 CLI 或本地 MCP 服务器。',
+  faq4q: '我的知识存在哪里？',
+  faq4a: '在你的机器上。Lorelum 本地优先：不上传云端，无厂商锁定。',
   // CTA + footer
   ctaHeading: '别再把规则交给运气。',
   ctaSub: '在正确的时刻，把正确的 Practice 交给你的智能体。',
@@ -260,5 +302,6 @@ const dictionaries: Record<string, LandingStrings> = { en, zh };
 export function getStrings(locale: string): LandingStrings {
   return dictionaries[locale] ?? en;
 }
+
 
 

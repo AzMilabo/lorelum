@@ -1,6 +1,7 @@
 import { AuroraBackground } from './aurora-background';
 import { Cta } from './cta';
 import { Ecosystem } from './ecosystem';
+import { Faq } from './faq';
 import { Features } from './features';
 import { Hero } from './hero';
 import { Problem } from './problem';
@@ -13,13 +14,14 @@ import { Stats } from './stats';
  */
 export function LandingPage({ lang }: { lang: string }) {
   return (
-    <div className="relative flex flex-1 flex-col">
+    <div className="relative flex flex-1 flex-col dark:bg-[#03040a]">
       <AuroraBackground />
       <Hero lang={lang} />
       <Problem lang={lang} />
       <Features lang={lang} />
       <Stats lang={lang} />
       <Ecosystem lang={lang} />
+      <Faq lang={lang} />
       <Cta lang={lang} />
       <SiteFooter lang={lang} />
     </div>

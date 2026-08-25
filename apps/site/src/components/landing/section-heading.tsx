@@ -10,17 +10,19 @@ export function SectionHeading({
   sub?: string;
 }) {
   return (
-    <Reveal className="mx-auto max-w-2xl text-center">
+    <Reveal className="mx-auto max-w-3xl text-center">
       {eyebrow ? (
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-fd-muted-foreground">
+        <p className="bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400 bg-clip-text font-display text-xs font-semibold uppercase tracking-[0.25em] text-transparent">
           {eyebrow}
         </p>
       ) : null}
-      <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+      <h2 className="mt-4 text-balance font-display text-4xl font-medium tracking-tight sm:text-5xl">
         {title}
       </h2>
       {sub ? (
-        <p className="mt-4 text-balance text-base text-fd-muted-foreground">{sub}</p>
+        <p className="mt-5 text-balance text-base text-fd-muted-foreground sm:text-lg">
+          {sub}
+        </p>
       ) : null}
     </Reveal>
   );
