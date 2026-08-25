@@ -12,7 +12,7 @@ export function Cta({ lang }: { lang: string }) {
   return (
     <section className="relative mx-auto w-full max-w-6xl overflow-x-clip px-4 py-24 sm:py-32">
       <Reveal>
-        <div className="landing-ring glass relative rounded-3xl px-6 py-20 text-center sm:px-12 sm:py-24">
+        <div className="glass relative rounded-3xl px-6 py-20 text-center sm:px-12 sm:py-24">
           <div
             aria-hidden
             className="absolute inset-0 -z-10 rounded-3xl bg-gradient-to-br from-indigo-500/20 via-transparent to-cyan-400/20"
@@ -50,3 +50,4 @@ export function Cta({ lang }: { lang: string }) {
     </section>
   );
 }
+
