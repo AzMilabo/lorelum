@@ -140,9 +140,12 @@ export default function Aurora(props: AuroraProps) {
     let renderer: Renderer;
     try {
       renderer = new Renderer({
+        // Cap DPR and skip MSAA: the aurora is a soft blurred glow, so full
+        // resolution + antialias only wastes GPU time on large screens.
+        dpr: Math.min(window.devicePixelRatio || 1, 1.5),
         alpha: true,
         premultipliedAlpha: true,
-        antialias: true,
+        antialias: false,
       });
     } catch {
       return;
@@ -193,7 +196,6 @@ export default function Aurora(props: AuroraProps) {
 
     let animateId = 0;
     const update = (t: number) => {
-      animateId = requestAnimationFrame(update);
       const { time = t * 0.01, speed = 1.0 } = propsRef.current;
       if (program) {
         program.uniforms.uTime.value = time * speed * 0.1;
@@ -206,13 +208,23 @@ export default function Aurora(props: AuroraProps) {
         });
         renderer.render({ scene: mesh });
       }
+      animateId = requestAnimationFrame(update);
     };
+    // Stop burning GPU when the tab is hidden; resume on visibility.
+    const handleVisibility = () => {
+      cancelAnimationFrame(animateId);
+      if (!document.hidden) {
+        animateId = requestAnimationFrame(update);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
     animateId = requestAnimationFrame(update);
 
     resize();
 
     return () => {
       cancelAnimationFrame(animateId);
+      document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('resize', resize);
       if (ctn && gl.canvas.parentNode === ctn) {
         ctn.removeChild(gl.canvas);
@@ -223,5 +235,6 @@ export default function Aurora(props: AuroraProps) {
 
   return <div ref={ctnDom} className="w-full h-full" />;
 }
+
 
 

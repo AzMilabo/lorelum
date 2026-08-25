@@ -51,7 +51,7 @@ export function AuroraBackground() {
 
   return (
     <>
-      <div aria-hidden className="landing-aurora">
+      <div aria-hidden className={'landing-aurora' + (mountWebGL ? ' is-webgl' : '')}>
         <span className="blob blob-1" />
         <span className="blob blob-2" />
         <span className="blob blob-3" />
@@ -68,3 +68,4 @@ export function AuroraBackground() {
     </>
   );
 }
+
