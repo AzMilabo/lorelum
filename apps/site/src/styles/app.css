@@ -8,11 +8,10 @@
  * so our landing styles follow the in-app theme switch.
  */
 @custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
 }
-
-
 
 html {
   scrollbar-gutter: stable;
@@ -23,190 +22,72 @@ html > body[data-scroll-locked] {
   --removed-body-scroll-bar-size: 0px !important;
 }
 
-/* ---------- Landing background layers (back to front) ---------- */
+/* ---------- Landing background (static art, zero per-frame cost) ---------- */
 
-/* Rotating light beams (pure CSS, no blur filter => cheap). */
-@keyframes landing-beams-rotate-a {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes landing-beams-rotate-b {
-  to {
-    transform: rotate(-360deg);
-  }
-}
-
-.landing-beams {
-  position: fixed;
-  inset: 0;
-  z-index: -11;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.landing-beams::before,
-.landing-beams::after {
-  content: '';
-  position: absolute;
-  inset: -60%;
-  will-change: transform;
-}
-
-.landing-beams::before {
-  background: repeating-conic-gradient(
-    from 0deg at 50% 12%,
-    rgba(129, 140, 248, 0.14) 0deg 4deg,
-    transparent 4deg 13deg
-  );
-  -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 10%, transparent 72%);
-  mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 10%, transparent 72%);
-  animation: landing-beams-rotate-a 70s linear infinite;
-}
-
-.landing-beams::after {
-  background: repeating-conic-gradient(
-    from 25deg at 50% 12%,
-    rgba(34, 211, 238, 0.12) 0deg 3deg,
-    transparent 3deg 12deg
-  );
-  -webkit-mask-image: radial-gradient(ellipse 60% 45% at 50% 0%, #000 5%, transparent 68%);
-  mask-image: radial-gradient(ellipse 60% 45% at 50% 0%, #000 5%, transparent 68%);
-  animation: landing-beams-rotate-b 95s linear infinite;
-}
-
-/* Aurora gradient blobs. Soft radial gradients only (no blur filter). */
-@keyframes landing-aurora-drift-1 {
-  0% {
-    transform: translate3d(-12%, -6%, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(10%, 8%, 0) scale(1.18);
-  }
-  100% {
-    transform: translate3d(-12%, -6%, 0) scale(1);
-  }
-}
-
-@keyframes landing-aurora-drift-2 {
-  0% {
-    transform: translate3d(8%, 10%, 0) scale(1.05);
-  }
-  50% {
-    transform: translate3d(-12%, -4%, 0) scale(0.92);
-  }
-  100% {
-    transform: translate3d(8%, 10%, 0) scale(1.05);
-  }
-}
-
-@keyframes landing-aurora-drift-3 {
-  0% {
-    transform: translate3d(0%, 0%, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(6%, -8%, 0) scale(1.12);
-  }
-  100% {
-    transform: translate3d(0%, 0%, 0) scale(1);
-  }
-}
-
-@keyframes landing-aurora-drift-4 {
-  0% {
-    transform: translate3d(-6%, 4%, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(8%, -6%, 0) scale(1.15);
-  }
-  100% {
-    transform: translate3d(-6%, 4%, 0) scale(1);
-  }
-}
-
-.landing-aurora {
+.landing-bg {
   position: fixed;
   inset: 0;
   z-index: -10;
   pointer-events: none;
-  overflow: hidden;
+  background-image: radial-gradient(
+      55% 45% at 18% -5%,
+      rgba(79, 70, 229, 0.4) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      45% 40% at 88% 5%,
+      rgba(168, 85, 247, 0.32) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      50% 45% at 50% 105%,
+      rgba(34, 211, 238, 0.24) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      35% 30% at 100% 92%,
+      rgba(236, 72, 153, 0.18) 0%,
+      transparent 60%
+    );
 }
 
-.landing-aurora .blob {
-  position: absolute;
-  border-radius: 9999px;
-  will-change: transform;
+:root:not(.dark) .landing-bg {
+  background-image: radial-gradient(
+      55% 45% at 18% -5%,
+      rgba(199, 210, 254, 0.75) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      45% 40% at 88% 5%,
+      rgba(233, 213, 255, 0.75) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      50% 45% at 50% 105%,
+      rgba(165, 243, 252, 0.65) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      35% 30% at 100% 92%,
+      rgba(251, 207, 232, 0.55) 0%,
+      transparent 60%
+    );
 }
 
-/* Dark: vivid glows that add up where they overlap (screen blend). */
-.dark .landing-aurora .blob {
-  opacity: 0.7;
-  mix-blend-mode: screen;
-}
-
-.dark .landing-aurora .blob-1 {
-  width: 72vmax;
-  height: 72vmax;
-  left: -24%;
-  top: -30%;
-  background: radial-gradient(circle at 35% 35%, #4f46e5 0%, rgba(79, 70, 229, 0) 66%);
-  animation: landing-aurora-drift-1 26s ease-in-out infinite;
-}
-
-.dark .landing-aurora .blob-2 {
-  width: 64vmax;
-  height: 64vmax;
-  right: -22%;
-  top: 4%;
-  background: radial-gradient(circle at 60% 40%, #a855f7 0%, rgba(168, 85, 247, 0) 66%);
-  animation: landing-aurora-drift-2 32s ease-in-out infinite;
-}
-
-.dark .landing-aurora .blob-3 {
-  width: 58vmax;
-  height: 58vmax;
-  left: 22%;
-  bottom: -34%;
-  background: radial-gradient(circle at 50% 50%, #22d3ee 0%, rgba(34, 211, 238, 0) 66%);
-  animation: landing-aurora-drift-3 38s ease-in-out infinite;
-}
-
-.dark .landing-aurora .blob-4 {
-  width: 50vmax;
-  height: 50vmax;
-  right: 8%;
-  bottom: -22%;
-  background: radial-gradient(circle at 50% 50%, #ec4899 0%, rgba(236, 72, 153, 0) 66%);
-  animation: landing-aurora-drift-4 44s ease-in-out infinite;
-}
-
-/* Light theme: softer pastel glows that keep text legible. */
-:root:not(.dark) .landing-aurora .blob {
-  opacity: 0.85;
-}
-
-:root:not(.dark) .landing-aurora .blob-1 {
-  background: radial-gradient(circle at 35% 35%, #c7d2fe 0%, rgba(199, 210, 254, 0) 66%);
-}
-
-:root:not(.dark) .landing-aurora .blob-2 {
-  background: radial-gradient(circle at 60% 40%, #e9d5ff 0%, rgba(233, 213, 255, 0) 66%);
-}
-
-:root:not(.dark) .landing-aurora .blob-3 {
-  background: radial-gradient(circle at 50% 50%, #a5f3fc 0%, rgba(165, 243, 252, 0) 66%);
-}
-
-:root:not(.dark) .landing-aurora .blob-4 {
-  background: radial-gradient(circle at 50% 50%, #fbcfe8 0%, rgba(251, 207, 232, 0) 66%);
-}
-
-/* When the WebGL aurora is active it replaces the CSS blobs: stop their
-   animation and fade them out to avoid double GPU cost. */
-.landing-aurora.is-webgl .blob {
-  animation: none;
-  opacity: 0;
+/* Faint static light-beam texture (rasterized once, not animated). */
+.landing-beams {
+  position: fixed;
+  inset: 0;
+  z-index: -9;
+  pointer-events: none;
+  opacity: 0.55;
+  background-image: repeating-conic-gradient(
+    from 0deg at 50% 12%,
+    rgba(129, 140, 248, 0.1) 0deg 4deg,
+    transparent 4deg 14deg
+  );
+  -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 10%, transparent 72%);
+  mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 10%, transparent 72%);
 }
 
 /* Vignette: keeps hero text readable over the glows. */
@@ -222,7 +103,7 @@ html > body[data-scroll-locked] {
   );
 }
 
-/* Focal glows behind the hero copy and the terminal demo. */
+/* Focal glows behind the hero copy and the terminal demo (static). */
 .landing-hero-glow {
   position: absolute;
   left: 50%;
@@ -234,14 +115,10 @@ html > body[data-scroll-locked] {
   z-index: -1;
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(99, 102, 241, 0.4) 0%,
-    rgba(168, 85, 247, 0.22) 38%,
+    rgba(99, 102, 241, 0.32) 0%,
+    rgba(168, 85, 247, 0.18) 38%,
     transparent 70%
   );
-}
-
-.dark .landing-hero-glow {
-  mix-blend-mode: screen;
 }
 
 .landing-terminal-glow {
@@ -255,47 +132,29 @@ html > body[data-scroll-locked] {
   z-index: -1;
   background: radial-gradient(
     ellipse 50% 50% at 50% 50%,
-    rgba(34, 211, 238, 0.28) 0%,
-    rgba(168, 85, 247, 0.16) 45%,
+    rgba(34, 211, 238, 0.22) 0%,
+    rgba(168, 85, 247, 0.12) 45%,
     transparent 72%
   );
 }
 
-.dark .landing-terminal-glow {
-  mix-blend-mode: screen;
-}
-
-/* Animated gradient ring (mask-based 1px border, no blur, transform-only). */
-.landing-ring {
-  position: relative;
-}
-
-.landing-ring::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: conic-gradient(
-    from 0deg,
-    #6366f1,
-    #a855f7,
-    #22d3ee,
-    #ec4899,
-    #6366f1
-  );
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  animation: landing-ring-spin 8s linear infinite;
-  pointer-events: none;
-}
-
-@keyframes landing-ring-spin {
-  to {
-    transform: rotate(360deg);
+/* Animated gradient text (single element, CSS-only, GPU-friendly). */
+@keyframes landing-gradient-shift {
+  0% {
+    background-position: 0% 50%;
   }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.landing-gradient-text {
+  background-image: linear-gradient(90deg, #818cf8, #e879f9, #22d3ee, #818cf8);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: landing-gradient-shift 6s linear infinite;
 }
 
 /* Spotlight color for cards, tuned per theme. */
@@ -335,17 +194,12 @@ html > body[data-scroll-locked] {
 /* ---------- Reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .landing-aurora .blob,
-  .landing-beams::before,
-  .landing-beams::after,
-  .landing-ring::before {
+  .landing-gradient-text {
     animation: none;
   }
-  .landing-vignette,
   .landing-noise,
   .landing-hero-glow,
   .landing-terminal-glow {
     display: none;
   }
 }
-
