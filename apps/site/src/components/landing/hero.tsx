@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { ArrowRight, Star } from 'lucide-react';
 import BlurText from '@/components/react-bits/blur-text';
-import GradientText from '@/components/react-bits/gradient-text';
 import Magnet from '@/components/react-bits/magnet';
 import { gitConfig } from '@/lib/shared';
 import { getStrings } from '@/lib/translations';
@@ -25,9 +24,7 @@ export function Hero({ lang }: { lang: string }) {
 
       <h1 className="mt-8 max-w-4xl text-balance font-display text-[clamp(2.75rem,8vw,6.25rem)] font-medium leading-[1.02] tracking-[-0.03em]">
         {t.heroTitleBefore}
-        <GradientText colors={['#818cf8', '#e879f9', '#22d3ee']} animationSpeed={5}>
-          {t.heroTitleGradient}
-        </GradientText>
+        <span className="landing-gradient-text">{t.heroTitleGradient}</span>
         {t.heroTitleAfter}
       </h1>
 
@@ -73,3 +70,4 @@ export function Hero({ lang }: { lang: string }) {
     </section>
   );
 }
+

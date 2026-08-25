@@ -11,7 +11,6 @@ license header; this file records provenance for review.
 
 | Component | Registry id | Runtime dependency |
 | --- | --- | --- |
-| Aurora | `Aurora-TS-TW` | `ogl` |
 | BlurText | `BlurText-TS-TW` | `motion` |
 | CountUp | `CountUp-TS-TW` | `motion` |
 | GradientText | `GradientText-TS-TW` | `motion` |
@@ -26,3 +25,5 @@ Notes:
 - The MIT + Commons Clause license permits free and commercial use, but restricts
   selling the software itself. Lorelum's core remains Apache-2.0; these files keep
   their own license headers.
+- The landing background is pure CSS (no WebGL runtime dependency), so `ogl` is not
+  a project dependency.
