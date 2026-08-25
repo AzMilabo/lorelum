@@ -91,8 +91,8 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
   const resultBlocks = phase !== 'typing' ? results.slice(0, resultCount) : [];
 
   return (
-    <div className="mx-auto mt-10 w-full max-w-2xl text-left">
-      <div className="overflow-hidden rounded-2xl border border-fd-border bg-gradient-to-b from-fd-secondary/80 to-fd-secondary/40 shadow-xl shadow-fd-primary/5">
+    <div className="w-full text-left">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-b from-fd-secondary/80 to-fd-secondary/40 shadow-xl shadow-fd-primary/5">
         {/* Window chrome */}
         <div className="flex items-center gap-1.5 border-b border-fd-border/70 bg-fd-background/60 px-4 py-2.5 backdrop-blur">
           <span className="size-2.5 rounded-full bg-[#ff5f57]" />
@@ -166,3 +166,4 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
     </div>
   );
 }
+

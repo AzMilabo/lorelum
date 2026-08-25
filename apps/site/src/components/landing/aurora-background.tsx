@@ -3,7 +3,7 @@ import { shouldUseWebglAurora } from './aurora-gate';
 
 const Aurora = lazy(() => import('@/components/react-bits/aurora'));
 
-const AURORA_COLORS = ['#4f46e5', '#8b5cf6', '#22d3ee'];
+const AURORA_COLORS = ['#4f46e5', '#a855f7', '#06b6d4'];
 
 /**
  * Full-page aurora backdrop for the landing page.
@@ -51,15 +51,17 @@ export function AuroraBackground() {
 
   return (
     <>
+      <div aria-hidden className="landing-beams" />
       <div aria-hidden className={'landing-aurora' + (mountWebGL ? ' is-webgl' : '')}>
         <span className="blob blob-1" />
         <span className="blob blob-2" />
         <span className="blob blob-3" />
+        <span className="blob blob-4" />
       </div>
       {mountWebGL && (
         <div aria-hidden className="pointer-events-none fixed inset-0 z-[-9]">
           <Suspense fallback={null}>
-            <Aurora colorStops={AURORA_COLORS} amplitude={1.1} blend={0.6} />
+            <Aurora colorStops={AURORA_COLORS} amplitude={1.5} blend={0.65} />
           </Suspense>
         </div>
       )}
@@ -68,4 +70,5 @@ export function AuroraBackground() {
     </>
   );
 }
+
 

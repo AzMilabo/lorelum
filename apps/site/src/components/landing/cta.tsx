@@ -10,28 +10,31 @@ export function Cta({ lang }: { lang: string }) {
   const githubUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
 
   return (
-    <section className="relative mx-auto w-full max-w-5xl px-4 py-20">
+    <section className="relative mx-auto w-full max-w-5xl overflow-x-clip px-4 py-20">
       <Reveal>
-        <div className="glass relative overflow-hidden rounded-3xl px-6 py-14 text-center sm:px-12">
-          <div className="absolute inset-0 -z-10 bg-gradient-to-br from-indigo-500/15 via-transparent to-cyan-400/15" />
+        <div className="landing-ring glass relative rounded-3xl px-6 py-14 text-center sm:px-12">
+          <div
+            aria-hidden
+            className="absolute inset-0 -z-10 rounded-3xl bg-gradient-to-br from-indigo-500/20 via-transparent to-cyan-400/20"
+          />
           <h2 className="mx-auto max-w-xl text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
             {t.ctaHeading}
           </h2>
           <p className="mx-auto mt-4 max-w-md text-balance text-fd-muted-foreground">
             {t.ctaSub}
           </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Magnet magnetStrength={6} padding={60} wrapperClassName="block">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
+            <Magnet magnetStrength={24} padding={80} wrapperClassName="block shrink-0">
               <Link
                 to="/$lang/docs/$"
                 params={{ lang, _splat: '' }}
-                className="group inline-flex items-center gap-2 rounded-xl bg-fd-primary px-5 py-2.5 text-sm font-medium text-fd-primary-foreground shadow-lg shadow-fd-primary/20 transition-shadow hover:shadow-fd-primary/40"
+                className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:shadow-xl hover:shadow-violet-500/40 hover:brightness-110"
               >
                 {t.ctaDocs}
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </Magnet>
-            <Magnet magnetStrength={6} padding={60} wrapperClassName="block">
+            <Magnet magnetStrength={24} padding={80} wrapperClassName="block shrink-0">
               <a
                 href={githubUrl}
                 target="_blank"
@@ -47,3 +50,4 @@ export function Cta({ lang }: { lang: string }) {
     </section>
   );
 }
+
