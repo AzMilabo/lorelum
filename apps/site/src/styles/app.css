@@ -2,6 +2,13 @@
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
 
+/*
+ * Tailwind v4 defaults the `dark:` variant to `prefers-color-scheme`, but
+ * Fumadocs toggles a `.dark` class on <html>. Re-bind `dark:` to the class
+ * so our landing styles follow the in-app theme switch.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 html {
   scrollbar-gutter: stable;
 }
@@ -10,3 +17,160 @@ html > body[data-scroll-locked] {
   margin-right: 0px !important;
   --removed-body-scroll-bar-size: 0px !important;
 }
+
+/* ---------- Landing: Aurora gradient background (CSS fallback, SSR-safe) ---------- */
+
+@keyframes landing-aurora-drift-1 {
+  0% {
+    transform: translate3d(-12%, -6%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(10%, 8%, 0) scale(1.18);
+  }
+  100% {
+    transform: translate3d(-12%, -6%, 0) scale(1);
+  }
+}
+
+@keyframes landing-aurora-drift-2 {
+  0% {
+    transform: translate3d(8%, 10%, 0) scale(1.05);
+  }
+  50% {
+    transform: translate3d(-12%, -4%, 0) scale(0.92);
+  }
+  100% {
+    transform: translate3d(8%, 10%, 0) scale(1.05);
+  }
+}
+
+@keyframes landing-aurora-drift-3 {
+  0% {
+    transform: translate3d(0%, 0%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(6%, -8%, 0) scale(1.12);
+  }
+  100% {
+    transform: translate3d(0%, 0%, 0) scale(1);
+  }
+}
+
+.landing-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.landing-aurora .blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(110px);
+  will-change: transform;
+  opacity: 0.55;
+}
+
+.landing-aurora .blob-1 {
+  width: 70vmax;
+  height: 70vmax;
+  left: -22%;
+  top: -28%;
+  background: radial-gradient(circle at 35% 35%, #4f46e5 0%, rgba(79, 70, 229, 0) 65%);
+  animation: landing-aurora-drift-1 28s ease-in-out infinite;
+}
+
+.landing-aurora .blob-2 {
+  width: 62vmax;
+  height: 62vmax;
+  right: -20%;
+  top: 6%;
+  background: radial-gradient(circle at 60% 40%, #8b5cf6 0%, rgba(139, 92, 246, 0) 65%);
+  animation: landing-aurora-drift-2 34s ease-in-out infinite;
+}
+
+.landing-aurora .blob-3 {
+  width: 56vmax;
+  height: 56vmax;
+  left: 24%;
+  bottom: -32%;
+  background: radial-gradient(circle at 50% 50%, #22d3ee 0%, rgba(34, 211, 238, 0) 65%);
+  animation: landing-aurora-drift-3 40s ease-in-out infinite;
+}
+
+/* Light theme: softer pastel glows that keep text legible. */
+:root:not(.dark) .landing-aurora .blob-1 {
+  background: radial-gradient(circle at 35% 35%, #c7d2fe 0%, rgba(199, 210, 254, 0) 65%);
+  opacity: 0.8;
+}
+
+:root:not(.dark) .landing-aurora .blob-2 {
+  background: radial-gradient(circle at 60% 40%, #e9d5ff 0%, rgba(233, 213, 255, 0) 65%);
+  opacity: 0.8;
+}
+
+:root:not(.dark) .landing-aurora .blob-3 {
+  background: radial-gradient(circle at 50% 50%, #a5f3fc 0%, rgba(165, 243, 252, 0) 65%);
+  opacity: 0.8;
+}
+
+/* Vignette: keeps hero text readable over the glows. */
+.landing-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: -8;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 90% 70% at 50% 0%,
+    transparent 30%,
+    var(--color-fd-background) 100%
+  );
+}
+
+/* Spotlight color for cards, tuned per theme. */
+:root {
+  --landing-spotlight: rgba(79, 70, 229, 0.16);
+}
+.dark {
+  --landing-spotlight: rgba(255, 255, 255, 0.22);
+}
+
+/* ---------- Landing: glass surface ---------- */
+
+.glass {
+  border: 1px solid var(--color-fd-border);
+  background: color-mix(in oklab, var(--color-fd-card) 72%, transparent);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+
+/* ---------- Landing: film grain overlay (zero-dep SVG noise) ---------- */
+
+.landing-noise {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- Selection ---------- */
+
+::selection {
+  background: color-mix(in oklab, var(--color-fd-primary) 22%, transparent);
+}
+
+/* ---------- Reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-aurora .blob {
+    animation: none;
+  }
+  .landing-vignette,
+  .landing-noise {
+    display: none;
+  }
+}
+
