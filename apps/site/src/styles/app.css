@@ -8,6 +8,11 @@
  * so our landing styles follow the in-app theme switch.
  */
 @custom-variant dark (&:where(.dark, .dark *));
+@theme {
+  --font-display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+}
+
+
 
 html {
   scrollbar-gutter: stable;
@@ -343,3 +348,4 @@ html > body[data-scroll-locked] {
     display: none;
   }
 }
+

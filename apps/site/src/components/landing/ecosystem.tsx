@@ -7,16 +7,16 @@ export function Ecosystem({ lang }: { lang: string }) {
   const t = getStrings(lang);
   const logos: LogoItem[] = t.ecosystemItems.map((name) => ({
     node: (
-      <span className="whitespace-nowrap px-6 font-mono text-base text-fd-muted-foreground">
+      <span className="whitespace-nowrap px-8 font-mono text-base text-fd-muted-foreground">
         {name}
       </span>
     ),
   }));
 
   return (
-    <section className="relative mx-auto w-full max-w-6xl px-4 py-20">
+    <section className="relative mx-auto w-full max-w-6xl px-4 py-24 sm:py-32">
       <SectionHeading eyebrow={t.ecosystemEyebrow} title={t.ecosystemHeading} sub={t.ecosystemSub} />
-      <Reveal delay={0.1} className="mt-10">
+      <Reveal delay={0.1} className="mt-14">
         <LogoLoop
           logos={logos}
           speed={24}
@@ -30,4 +30,3 @@ export function Ecosystem({ lang }: { lang: string }) {
     </section>
   );
 }
-

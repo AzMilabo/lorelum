@@ -13,15 +13,22 @@ export function Problem({ lang }: { lang: string }) {
   ];
 
   return (
-    <section className="relative mx-auto w-full max-w-6xl px-4 py-20">
+    <section className="relative mx-auto w-full max-w-6xl px-4 py-24 sm:py-32">
       <SectionHeading eyebrow={t.problemEyebrow} title={t.problemHeading} sub={t.problemSub} />
-      <div className="mt-12 grid gap-5 md:grid-cols-3">
+      <div className="mt-14 grid gap-5 md:grid-cols-3">
         {items.map((item, i) => (
           <Reveal key={item.title} delay={i * 0.08} className="h-full">
             <SpotlightCard className="h-full">
-              <item.icon className="size-6 text-fd-muted-foreground" />
-              <h3 className="mt-4 text-lg font-semibold tracking-tight">{item.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-fd-muted-foreground">
+              <div className="flex items-center justify-between">
+                <span className="font-display text-sm font-semibold tracking-widest text-indigo-400">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <item.icon className="size-5 text-fd-muted-foreground" />
+              </div>
+              <h3 className="mt-6 font-display text-xl font-medium tracking-tight">
+                {item.title}
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-fd-muted-foreground">
                 {item.body}
               </p>
             </SpotlightCard>
@@ -31,4 +38,3 @@ export function Problem({ lang }: { lang: string }) {
     </section>
   );
 }
-
