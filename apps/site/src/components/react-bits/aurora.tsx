@@ -2,6 +2,7 @@
  * Vendored from React Bits (https://reactbits.dev) — Aurora (TypeScript + Tailwind variant).
  * Source: https://reactbits.dev/r/Aurora-TS-TW
  * License: MIT + Commons Clause (see https://reactbits.dev/LICENSE.md).
+ * Adapted: guarded WebGL creation so unsupported environments fall back to CSS.
  * See apps/site/THIRD_PARTY_NOTICE.md.
  */
 import { useEffect, useRef } from 'react';
@@ -132,11 +133,20 @@ export default function Aurora(props: AuroraProps) {
     const ctn = ctnDom.current;
     if (!ctn) return;
 
-    const renderer = new Renderer({
-      alpha: true,
-      premultipliedAlpha: true,
-      antialias: true
-    });
+    // Some embedded webviews and software renderers lack WebGL. Fall back to
+    // the CSS aurora instead of throwing during the effect.
+    const probe = document.createElement('canvas');
+    if (!(probe.getContext('webgl2') || probe.getContext('webgl'))) return;
+    let renderer: Renderer;
+    try {
+      renderer = new Renderer({
+        alpha: true,
+        premultipliedAlpha: true,
+        antialias: true,
+      });
+    } catch {
+      return;
+    }
     const gl = renderer.gl;
     gl.clearColor(0, 0, 0, 0);
     gl.enable(gl.BLEND);
@@ -213,4 +223,5 @@ export default function Aurora(props: AuroraProps) {
 
   return <div ref={ctnDom} className="w-full h-full" />;
 }
+
 
