@@ -12,7 +12,13 @@ export function TerminalShowcase({ lang }: { lang: string }) {
         </h2>
         <p className="mt-2 text-sm text-fd-muted-foreground">{t.terminalSectionSub}</p>
       </div>
-      <TerminalDemo locale={lang} />
+      <div className="relative mx-auto mt-10 max-w-2xl overflow-x-clip">
+        <div aria-hidden className="landing-terminal-glow" />
+        <div className="landing-ring rounded-2xl p-px">
+          <TerminalDemo locale={lang} />
+        </div>
+      </div>
     </Reveal>
   );
 }
+

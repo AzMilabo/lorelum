@@ -34,6 +34,7 @@ export interface LandingStrings {
   terminalAntiPrompt: string;
   terminalAntiText: string;
   // Problem
+  problemEyebrow: string;
   problemHeading: string;
   problemSub: string;
   problem1Title: string;
@@ -43,6 +44,7 @@ export interface LandingStrings {
   problem3Title: string;
   problem3Body: string;
   // Features
+  featuresEyebrow: string;
   featuresHeading: string;
   featuresSub: string;
   feature1Title: string;
@@ -54,11 +56,13 @@ export interface LandingStrings {
   feature4Title: string;
   feature4Body: string;
   // Stats
+  statsEyebrow: string;
   statsHeading: string;
   stats1Label: string;
   stats2Label: string;
   stats3Label: string;
   // Ecosystem
+  ecosystemEyebrow: string;
   ecosystemHeading: string;
   ecosystemSub: string;
   ecosystemItems: string[];
@@ -103,6 +107,7 @@ const en: LandingStrings = {
   terminalAntiPrompt: '2 anti-patterns',
   terminalAntiText: 'testing.tests-as-cheerleaders-for-implementation',
   // Problem
+  problemEyebrow: 'The problem',
   problemHeading: "Rules that don't reach the agent don't exist.",
   problemSub:
     'Your AGENTS.md may be perfectly written \u2014 and still never make it into the context that matters.',
@@ -116,6 +121,7 @@ const en: LandingStrings = {
   problem3Body:
     'There\u2019s no warning when the agent drifts \u2014 you only find out at review time, after the damage is done.',
   // Features
+  featuresEyebrow: 'Why Lorelum',
   featuresHeading: 'Built for the moment of truth',
   featuresSub:
     'Structured engineering knowledge, retrieved and injected at the instant it matters.',
@@ -132,11 +138,13 @@ const en: LandingStrings = {
   feature4Body:
     'A public Practice/pack spec and shareable knowledge packs \u2014 Apache-2.0, no lock-in.',
   // Stats
+  statsEyebrow: 'By the numbers',
   statsHeading: 'Lorelum at a glance',
   stats1Label: 'public spec',
   stats2Label: 'ways to use \u2014 CLI + MCP',
   stats3Label: 'open source (Apache-2.0)',
   // Ecosystem
+  ecosystemEyebrow: 'Ecosystem',
   ecosystemHeading: 'Works where your agents live',
   ecosystemSub:
     'One source of truth for the rules your coding agents are already reading.',
@@ -190,6 +198,7 @@ const zh: LandingStrings = {
   terminalAntiPrompt: '2 条反模式',
   terminalAntiText: 'testing.tests-as-cheerleaders-for-implementation',
   // Problem
+  problemEyebrow: '问题',
   problemHeading: '到不了智能体手里的规则，等于不存在。',
   problemSub: '你的 AGENTS.md 可能写得无可挑剔——却始终进不了真正重要的上下文。',
   problem1Title: '规则越多，越不被遵守',
@@ -201,6 +210,7 @@ const zh: LandingStrings = {
   problem3Title: '等到发现时，已经错了',
   problem3Body: '智能体偏离时没有任何预警——等你审查代码时才发现，而伤害已经造成。',
   // Features
+  featuresEyebrow: '为什么选择 Lorelum',
   featuresHeading: '为关键时刻而生',
   featuresSub: '结构化的工程知识，在最重要的瞬间被检索并注入。',
   feature1Title: '是 Practice，不是提示词',
@@ -212,11 +222,13 @@ const zh: LandingStrings = {
   feature4Title: '开放格式与知识包',
   feature4Body: '公开的 Practice/pack 规范与可共享的知识包——Apache-2.0，无锁定。',
   // Stats
+  statsEyebrow: '数据一览',
   statsHeading: 'Lorelum 一览',
   stats1Label: '份公开规范',
   stats2Label: '种使用方式 —— CLI + MCP',
   stats3Label: '开源（Apache-2.0）',
   // Ecosystem
+  ecosystemEyebrow: '生态',
   ecosystemHeading: '在你智能体所在之处工作',
   ecosystemSub: '为你的编码智能体正在阅读的规则，提供唯一的事实来源。',
   ecosystemItems: [
@@ -248,3 +260,5 @@ const dictionaries: Record<string, LandingStrings> = { en, zh };
 export function getStrings(locale: string): LandingStrings {
   return dictionaries[locale] ?? en;
 }
+
+

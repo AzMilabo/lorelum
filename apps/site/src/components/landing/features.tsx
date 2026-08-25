@@ -15,7 +15,7 @@ export function Features({ lang }: { lang: string }) {
 
   return (
     <section className="relative mx-auto w-full max-w-6xl px-4 py-20">
-      <SectionHeading title={t.featuresHeading} sub={t.featuresSub} />
+      <SectionHeading eyebrow={t.featuresEyebrow} title={t.featuresHeading} sub={t.featuresSub} />
       <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((item, i) => (
           <Reveal key={item.title} delay={i * 0.07} className="h-full">
@@ -32,3 +32,4 @@ export function Features({ lang }: { lang: string }) {
     </section>
   );
 }
+
