@@ -20,7 +20,19 @@ export const Route = createRootRoute({
         title: 'Lorelum — the right Practice for the right task and moment',
       },
     ],
-    links: [{ rel: 'stylesheet', href: appCss }],
+    links: [
+      { rel: 'stylesheet', href: appCss },
+      { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+      {
+        rel: 'preconnect',
+        href: 'https://fonts.gstatic.com',
+        crossOrigin: 'anonymous',
+      },
+      {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&display=swap',
+      },
+    ],
   }),
   component: RootComponent,
 });
@@ -65,3 +77,4 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     </html>
   );
 }
+
