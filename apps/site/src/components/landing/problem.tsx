@@ -14,7 +14,7 @@ export function Problem({ lang }: { lang: string }) {
 
   return (
     <section className="relative mx-auto w-full max-w-6xl px-4 py-20">
-      <SectionHeading title={t.problemHeading} sub={t.problemSub} />
+      <SectionHeading eyebrow={t.problemEyebrow} title={t.problemHeading} sub={t.problemSub} />
       <div className="mt-12 grid gap-5 md:grid-cols-3">
         {items.map((item, i) => (
           <Reveal key={item.title} delay={i * 0.08} className="h-full">
@@ -31,3 +31,4 @@ export function Problem({ lang }: { lang: string }) {
     </section>
   );
 }
+
