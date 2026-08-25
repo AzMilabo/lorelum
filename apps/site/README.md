@@ -24,10 +24,12 @@ bun run --filter @lorelum/site build      # static + Cloudflare Worker output in
 Content is wired to Fumadocs via `src/lib/source.ts`; i18n config lives in
 `src/lib/i18n.ts`.
 
-## Deployment (Cloudflare Pages)
+## Deployment
 
-The site builds with the official `@cloudflare/vite-plugin` (SSR Worker
-mode). `wrangler.jsonc` points `main` at `@tanstack/react-start/server-entry`.
+The site is deployed to **Cloudflare Workers** (project `lorelum`) with
+Git-integrated **Workers Builds** plus manual `wrangler deploy` direct
+uploads. `wrangler.jsonc` points `main` at
+`@tanstack/react-start/server-entry`.
 
 Local verification:
 
@@ -36,9 +38,13 @@ bun run --filter @lorelum/site build
 cd apps/site && npx wrangler dev --port 8788
 ```
 
-Push the `dist/` directory to Cloudflare Pages, or wire a Git integration
-(GitHub repo → Cloudflare Pages) with build command `bun run --filter
-@lorelum/site build` and output directory `dist`.
+Deploy:
 
-See `docs/research/tanstack-fumadocs-spike.md` for the spike conclusion and
-risks.
+```bash
+bun run build:site && bun run deploy:site   # manual direct upload, no Workers Builds quota
+git push origin main                        # or: Workers Builds auto-build on main
+```
+
+See `docs/site-deploy.md` for the full deployment workflow (branch control,
+quotas, release), and `docs/research/tanstack-fumadocs-spike.md` for the
+spike conclusion and risks.
