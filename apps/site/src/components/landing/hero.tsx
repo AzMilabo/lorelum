@@ -4,6 +4,7 @@ import BlurText from '@/components/react-bits/blur-text';
 import Magnet from '@/components/react-bits/magnet';
 import { gitConfig } from '@/lib/shared';
 import { getStrings } from '@/lib/translations';
+import { HeroGlow } from './hero-glow';
 import { Reveal } from './reveal';
 import { TerminalShowcase } from './terminal-showcase';
 
@@ -13,11 +14,11 @@ export function Hero({ lang }: { lang: string }) {
 
   return (
     <section className="relative isolate mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center overflow-x-clip px-4 pb-28 pt-20 text-center sm:pt-28">
-      <div aria-hidden className="landing-hero-glow" />
+      <HeroGlow />
 
       <Reveal>
         <span className="inline-flex items-center gap-2 rounded-full border border-fd-border/60 bg-fd-card/50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-fd-muted-foreground backdrop-blur">
-          <span className="size-1.5 rounded-full bg-gradient-to-r from-indigo-400 to-cyan-400 shadow-[0_0_8px_rgba(99,102,241,0.9)]" />
+          <span className="landing-badge-dot size-1.5 rounded-full bg-gradient-to-r from-indigo-400 to-cyan-400 shadow-[0_0_8px_rgba(99,102,241,0.9)]" />
           {t.heroBadge}
         </span>
       </Reveal>
@@ -70,4 +71,3 @@ export function Hero({ lang }: { lang: string }) {
     </section>
   );
 }
-
