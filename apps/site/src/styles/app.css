@@ -29,6 +29,18 @@ html > body[data-scroll-locked] {
   inset: 0;
   z-index: -10;
   pointer-events: none;
+  overflow: hidden;
+}
+
+/*
+ * The gradient mesh lives on an oversized layer that drifts very slowly.
+ * It is a transform-only animation (no repaint): the compositor moves a
+ * pre-rasterized surface, so scroll and interaction stay cheap.
+ */
+.landing-bg::before {
+  content: '';
+  position: absolute;
+  inset: -14%;
   background-image: radial-gradient(
       55% 45% at 18% -5%,
       rgba(79, 70, 229, 0.4) 0%,
@@ -49,9 +61,11 @@ html > body[data-scroll-locked] {
       rgba(236, 72, 153, 0.18) 0%,
       transparent 60%
     );
+  will-change: transform;
+  animation: landing-bg-drift 56s ease-in-out infinite alternate;
 }
 
-:root:not(.dark) .landing-bg {
+:root:not(.dark) .landing-bg::before {
   background-image: radial-gradient(
       55% 45% at 18% -5%,
       rgba(199, 210, 254, 0.75) 0%,
@@ -74,7 +88,17 @@ html > body[data-scroll-locked] {
     );
 }
 
-/* Faint static light-beam texture (rasterized once, not animated). */
+@keyframes landing-bg-drift {
+  0% {
+    transform: translate3d(-2%, -1.25%, 0) scale(1.05);
+  }
+  100% {
+    transform: translate3d(2%, 1.5%, 0) scale(1.07);
+  }
+}
+
+/* Faint static light-beam texture (rasterized once, not animated).
+   A slower, counter-drifting transform adds depth without extra cost. */
 .landing-beams {
   position: fixed;
   inset: 0;
@@ -88,6 +112,17 @@ html > body[data-scroll-locked] {
   );
   -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 10%, transparent 72%);
   mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 10%, transparent 72%);
+  will-change: transform;
+  animation: landing-beams-drift 78s ease-in-out infinite alternate;
+}
+
+@keyframes landing-beams-drift {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(-0.6deg);
+  }
+  100% {
+    transform: translate3d(1.5%, -1%, 0) rotate(0.6deg);
+  }
 }
 
 /* Vignette: keeps hero text readable over the glows. */
@@ -103,16 +138,20 @@ html > body[data-scroll-locked] {
   );
 }
 
-/* Focal glows behind the hero copy and the terminal demo (static). */
+/* Focal glow behind the hero copy (static). `left/top + negative margins`
+   center it so a motion-driven `transform` can be used for mouse parallax
+   without fighting the centering translate. */
 .landing-hero-glow {
   position: absolute;
   left: 50%;
   top: 34%;
   width: 64rem;
   height: 64rem;
-  transform: translate(-50%, -50%);
+  margin-left: -32rem;
+  margin-top: -32rem;
   pointer-events: none;
   z-index: -1;
+  will-change: transform;
   background: radial-gradient(
     circle at 50% 50%,
     rgba(99, 102, 241, 0.32) 0%,
@@ -191,10 +230,32 @@ html > body[data-scroll-locked] {
   background: color-mix(in oklab, var(--color-fd-primary) 22%, transparent);
 }
 
+/* Pulsing "live" dot on the hero badge (3s breathing, opacity + glow only). */
+@keyframes landing-badge-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.9);
+  }
+  50% {
+    opacity: 0.35;
+    box-shadow: 0 0 2px rgba(99, 102, 241, 0.3);
+  }
+}
+
+.landing-badge-dot {
+  animation: landing-badge-pulse 3s ease-in-out infinite;
+}
+
 /* ---------- Reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .landing-gradient-text {
+  .landing-gradient-text,
+  .landing-badge-dot {
+    animation: none;
+  }
+  .landing-bg::before,
+  .landing-beams {
     animation: none;
   }
   .landing-noise,
