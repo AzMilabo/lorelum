@@ -1,27 +1,31 @@
-import { motion } from 'motion/react';
-import type { ReactNode } from 'react';
+import { motion, useScroll, useTransform } from 'motion/react';
+import { useRef, type ReactNode } from 'react';
 
 /**
- * Scroll-reveal wrapper built on motion's `whileInView` (no gsap needed).
- * Animates children in once when they enter the viewport.
+ * Scroll-linked reveal wrapper.
+ *
+ * Unlike a one-shot `whileInView`, opacity/translate are driven by the
+ * scroll progress through the element, so the entrance feels continuous and
+ * reverses smoothly when scrolling back up — the "Antigravity" hand feel.
+ * Animates transform + opacity only (compositor-friendly).
  */
 export function Reveal({
   children,
-  delay = 0,
   className,
 }: {
   children: ReactNode;
-  delay?: number;
   className?: string;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ['start 0.95', 'start 0.35'],
+  });
+  const opacity = useTransform(scrollYProgress, [0, 1], [0, 1]);
+  const y = useTransform(scrollYProgress, [0, 1], [24, 0]);
+
   return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-80px' }}
-      transition={{ duration: 0.6, delay, ease: [0.16, 1, 0.3, 1] }}
-    >
+    <motion.div ref={ref} className={className} style={{ opacity, y }}>
       {children}
     </motion.div>
   );
