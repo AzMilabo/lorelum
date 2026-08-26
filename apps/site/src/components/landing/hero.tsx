@@ -37,14 +37,13 @@ export function Hero({ lang }: { lang: string }) {
       />
 
       <Reveal
-        delay={0.15}
         className="mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-3"
       >
         <Magnet magnetStrength={24} padding={80} wrapperClassName="block shrink-0">
           <Link
             to="/$lang/docs/$"
             params={{ lang, _splat: '' }}
-            className="group inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:shadow-xl hover:shadow-violet-500/40 hover:brightness-110"
+            className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white transition-transform duration-200 hover:-translate-y-0.5"
           >
             {t.ctaDocs}
             <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
@@ -55,7 +54,7 @@ export function Hero({ lang }: { lang: string }) {
             href={githubUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border border-fd-border bg-fd-card/50 px-6 py-3 text-sm font-medium text-fd-foreground backdrop-blur transition-colors hover:bg-fd-accent"
+            className="inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-card/50 px-6 py-3 text-sm font-medium text-fd-foreground backdrop-blur transition-colors hover:bg-fd-accent"
           >
             <Star className="size-4" />
             {t.ctaGithub}
@@ -63,7 +62,7 @@ export function Hero({ lang }: { lang: string }) {
         </Magnet>
       </Reveal>
 
-      <Reveal delay={0.25}>
+      <Reveal>
         <p className="mt-5 text-xs tracking-wide text-fd-muted-foreground/70">{t.heroTrust}</p>
       </Reveal>
 

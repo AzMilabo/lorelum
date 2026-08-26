@@ -16,7 +16,7 @@ export function Ecosystem({ lang }: { lang: string }) {
   return (
     <section className="relative mx-auto w-full max-w-6xl px-4 py-24 sm:py-32">
       <SectionHeading eyebrow={t.ecosystemEyebrow} title={t.ecosystemHeading} sub={t.ecosystemSub} />
-      <Reveal delay={0.1} className="mt-14">
+      <Reveal className="mt-14">
         <LogoLoop
           logos={logos}
           speed={24}
