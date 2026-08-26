@@ -10,7 +10,7 @@ export const Route = createFileRoute('/')({
 
 function Home() {
   return (
-    <HomeLayout {...baseOptions()}>
+    <HomeLayout {...baseOptions(i18n.defaultLanguage, { withSearch: false })}>
       <LandingPage lang={i18n.defaultLanguage} />
     </HomeLayout>
   );

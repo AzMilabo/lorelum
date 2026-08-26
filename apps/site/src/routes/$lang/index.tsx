@@ -10,7 +10,7 @@ export const Route = createFileRoute('/$lang/')({
 function Home() {
   const { lang } = Route.useParams();
   return (
-    <HomeLayout {...baseOptions(lang)}>
+    <HomeLayout {...baseOptions(lang, { withSearch: false })}>
       <LandingPage lang={lang} />
     </HomeLayout>
   );
