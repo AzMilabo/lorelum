@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { ArrowRight, Star } from 'lucide-react';
 import BlurText from '@/components/react-bits/blur-text';
-import Magnet from '@/components/react-bits/magnet';
 import { gitConfig } from '@/lib/shared';
 import { getStrings } from '@/lib/translations';
 import { HeroGlow } from './hero-glow';
@@ -36,30 +35,24 @@ export function Hero({ lang }: { lang: string }) {
         className="mx-auto mt-7 max-w-2xl text-balance text-base leading-relaxed text-fd-muted-foreground sm:text-lg"
       />
 
-      <Reveal
-        className="mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-3"
-      >
-        <Magnet magnetStrength={24} padding={80} wrapperClassName="block shrink-0">
-          <Link
-            to="/$lang/docs/$"
-            params={{ lang, _splat: '' }}
-            className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white transition-transform duration-200 hover:-translate-y-0.5"
-          >
-            {t.ctaDocs}
-            <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-          </Link>
-        </Magnet>
-        <Magnet magnetStrength={24} padding={80} wrapperClassName="block shrink-0">
-          <a
-            href={githubUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-card/50 px-6 py-3 text-sm font-medium text-fd-foreground backdrop-blur transition-colors hover:bg-fd-accent"
-          >
-            <Star className="size-4" />
-            {t.ctaGithub}
-          </a>
-        </Magnet>
+      <Reveal className="mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
+        <Link
+          to="/$lang/docs/$"
+          params={{ lang, _splat: '' }}
+          className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white transition-transform duration-200 hover:-translate-y-0.5"
+        >
+          {t.ctaDocs}
+          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+        <a
+          href={githubUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-card/50 px-6 py-3 text-sm font-medium text-fd-foreground backdrop-blur transition-colors hover:bg-fd-accent"
+        >
+          <Star className="size-4" />
+          {t.ctaGithub}
+        </a>
       </Reveal>
 
       <Reveal>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { getStrings } from '@/lib/translations';
 
@@ -17,6 +17,10 @@ import { getStrings } from '@/lib/translations';
  * in full instead of being clipped by the window width.
  *
  * `locale` picks the localized prompts and window title.
+ *
+ * Performance: typing advances two characters per tick (halving React
+ * renders at the same effective speed), and the whole loop pauses whenever
+ * the demo scrolls out of view, so it never costs frames in the background.
  */
 
 interface DemoResult {
@@ -28,7 +32,7 @@ interface DemoResult {
   text: string;
 }
 
-const TYPE_SPEED = 28; // ms per character
+const TYPE_SPEED = 48; // ms per 2-character tick (~24ms/char effective)
 const STEP_DELAY = 620; // pause after a row completes
 const REPLAY_DELAY = 1400; // pause after the last row before replaying
 
@@ -39,6 +43,21 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
   const [phase, setPhase] = useState<'typing' | 'retrieving' | 'results' | 'paused'>('typing');
   const [typedChars, setTypedChars] = useState(0);
   const [resultCount, setResultCount] = useState(0);
+  const [visible, setVisible] = useState(true);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Pause the whole demo when it scrolls out of view (and on reduced motion
+  // it stays frozen on the first frame via the `motion-reduce` classes).
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      ([entry]) => setVisible(entry.isIntersecting),
+      { threshold: 0.05 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   const queryText = t.terminalQuery;
   const results: DemoResult[] = [
@@ -47,42 +66,45 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
     { key: 'anti', label: t.terminalAntiPrompt, text: t.terminalAntiText },
   ];
 
-  // Phase 1: type out the query character by character.
+  // Phase 1: type out the query two characters per tick.
   useEffect(() => {
-    if (phase !== 'typing') return;
+    if (!visible || phase !== 'typing') return;
     if (typedChars < queryText.length) {
-      const id = setTimeout(() => setTypedChars((c) => c + 1), TYPE_SPEED);
+      const id = setTimeout(
+        () => setTypedChars((c) => Math.min(c + 2, queryText.length)),
+        TYPE_SPEED,
+      );
       return () => clearTimeout(id);
     }
     const id = setTimeout(() => setPhase('retrieving'), STEP_DELAY);
     return () => clearTimeout(id);
-  }, [phase, typedChars, queryText.length]);
+  }, [visible, phase, typedChars, queryText.length]);
 
   // Phase 2: show a "retrieving" line briefly.
   useEffect(() => {
-    if (phase !== 'retrieving') return;
+    if (!visible || phase !== 'retrieving') return;
     const id = setTimeout(() => setPhase('results'), 850);
     return () => clearTimeout(id);
-  }, [phase]);
+  }, [visible, phase]);
 
   // Phase 3: reveal result rows one at a time.
   useEffect(() => {
-    if (phase !== 'results') return;
+    if (!visible || phase !== 'results') return;
     if (resultCount < results.length) {
       const id = setTimeout(() => setResultCount((c) => c + 1), 950);
       return () => clearTimeout(id);
     }
     const id = setTimeout(() => setPhase('paused'), REPLAY_DELAY);
     return () => clearTimeout(id);
-  }, [phase, resultCount, results.length]);
+  }, [visible, phase, resultCount, results.length]);
 
   // Phase 4: reset everything and replay.
   useEffect(() => {
-    if (phase !== 'paused') return;
+    if (!visible || phase !== 'paused') return;
     setTypedChars(0);
     setResultCount(0);
     setPhase('typing');
-  }, [phase]);
+  }, [visible, phase]);
 
   const typingText = queryText.slice(0, typedChars);
   const showCursor = phase === 'typing' || phase === 'retrieving';
@@ -91,7 +113,7 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
   const resultBlocks = phase !== 'typing' ? results.slice(0, resultCount) : [];
 
   return (
-    <div className="w-full text-left">
+    <div ref={rootRef} className="w-full text-left">
       <div className="overflow-hidden rounded-2xl bg-gradient-to-b from-fd-secondary/80 to-fd-secondary/40 shadow-xl shadow-fd-primary/5">
         {/* Window chrome */}
         <div className="flex items-center gap-1.5 border-b border-fd-border/70 bg-fd-background/60 px-4 py-2.5 backdrop-blur">
@@ -120,14 +142,14 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
             <span className="text-fd-muted-foreground">$</span>
             <span className="text-fd-foreground">{typingText}</span>
             {showCursor && (
-              <span className="inline-block h-4 w-2 animate-pulse bg-fd-primary align-middle" />
+              <span className="inline-block h-4 w-2 animate-pulse bg-fd-primary align-middle motion-reduce:animate-none" />
             )}
           </div>
 
           {/* Row 2: retrieving indicator */}
           {showRetrieving && (
             <div className="flex items-center gap-2 text-fd-muted-foreground">
-              <span className="animate-pulse">…</span>
+              <span className="animate-pulse motion-reduce:animate-none">…</span>
               <span>{t.terminalRetrieving}</span>
             </div>
           )}
@@ -166,4 +188,3 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
     </div>
   );
 }
-

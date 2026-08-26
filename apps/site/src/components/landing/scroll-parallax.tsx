@@ -1,13 +1,14 @@
-import { motion, useScroll, useTransform } from 'motion/react';
-import { useRef, type ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { cn } from '@/lib/cn';
 
 /**
- * Scroll-linked vertical parallax wrapper (transform-only).
+ * Scroll-linked vertical parallax wrapper — pure CSS, zero JS.
  *
- * Translates children from `from` to `to` px as the element travels from the
- * bottom edge of the viewport to the top — a subtle depth cue in the
- * Antigravity style. No scroll listeners of its own; motion's `useScroll`
- * observes the element via IntersectionObserver and updates on rAF.
+ * Translates children from `from` to `to` px as the element travels through
+ * the viewport. Driven by a native CSS scroll-driven animation
+ * (`animation-timeline: view()`), so the browser compositor owns the motion
+ * and there is no per-frame JavaScript. Progressively enhanced: browsers
+ * without `view()` timelines see the element unmoved.
  */
 export function ScrollParallax({
   children,
@@ -20,16 +21,14 @@ export function ScrollParallax({
   from?: number;
   to?: number;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start end', 'end start'],
-  });
-  const y = useTransform(scrollYProgress, [0, 1], [from, to]);
+  const style = {
+    '--landing-parallax-from': `${from}px`,
+    '--landing-parallax-to': `${to}px`,
+  } as CSSProperties;
 
   return (
-    <motion.div ref={ref} className={className} style={{ y }}>
+    <div className={cn('landing-parallax', className)} style={style}>
       {children}
-    </motion.div>
+    </div>
   );
 }
