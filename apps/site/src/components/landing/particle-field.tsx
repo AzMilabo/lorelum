@@ -9,6 +9,10 @@ import { getCanvasScale, getParticleCount } from './particle-budget';
  * visible, the backing store is capped at 1.5x DPR, and everything is
  * disabled for `prefers-reduced-motion`. Colors follow the Fumadocs theme
  * (bright on dark, faint on light) and update live when the theme flips.
+ *
+ * Hot path tuned for the compositor: each particle's `rgb(...)` fill style
+ * is precomputed once and alpha is applied via `globalAlpha` (a plain
+ * number write) instead of building an `rgba(...)` string every frame.
  */
 interface Particle {
   x: number;
@@ -21,7 +25,7 @@ interface Particle {
   phase: number;
   /** Twinkle speed in radians/second. */
   speed: number;
-  /** "r,g,b" triplet, alpha applied per frame. */
+  /** Precomputed `rgb(r,g,b)` fill style, alpha applied via globalAlpha. */
   rgb: string;
 }
 
@@ -44,7 +48,7 @@ function createParticles(count: number, w: number, h: number, dark: boolean): Pa
     alpha: rand(alphaRange[0], alphaRange[1]),
     phase: Math.random() * Math.PI * 2,
     speed: rand(0.4, 1.1),
-    rgb: rgbs[Math.floor(Math.random() * rgbs.length)],
+    rgb: `rgb(${rgbs[Math.floor(Math.random() * rgbs.length)]})`,
   }));
 }
 
@@ -96,11 +100,13 @@ export function ParticleField() {
         if (p.y < -12) p.y = h + 12;
         else if (p.y > h + 12) p.y = -12;
         const twinkle = 0.55 + 0.45 * Math.sin(t * p.speed + p.phase);
-        ctx.fillStyle = `rgba(${p.rgb},${(p.alpha * twinkle).toFixed(3)})`;
+        ctx.globalAlpha = p.alpha * twinkle;
+        ctx.fillStyle = p.rgb;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ctx.fill();
       }
+      ctx.globalAlpha = 1;
       raf = requestAnimationFrame(tick);
     };
 

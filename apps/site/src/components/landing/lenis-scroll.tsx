@@ -10,6 +10,12 @@ import { shouldInitLenis } from './lenis-gate';
  * disabled for `prefers-reduced-motion` users, and it unmounts — destroying
  * the instance — when the user navigates to a docs page, so docs keep their
  * native, precise scrolling.
+ *
+ * Tuned for a silk feel: `wheelMultiplier` 0.85 stops a big swipe from
+ * overshooting into a long sticky tail, and `lerp` 0.1 settles promptly
+ * without the first-frame lunge that used to feel rough. All scroll-linked
+ * reveals/parallax are native CSS scroll-driven animations, so nothing
+ * fights Lenis on the main thread.
  */
 export function LenisScroll({ children }: { children: ReactNode }) {
   const [enabled, setEnabled] = useState(true);
@@ -26,6 +32,7 @@ export function LenisScroll({ children }: { children: ReactNode }) {
       root
       options={{
         lerp: 0.1,
+        wheelMultiplier: 0.85,
         smoothWheel: true,
         autoRaf: true,
       }}
