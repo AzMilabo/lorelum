@@ -12,10 +12,10 @@ export function Cta({ lang }: { lang: string }) {
   return (
     <section className="relative mx-auto w-full max-w-6xl overflow-x-clip px-4 py-24 sm:py-32">
       <Reveal>
-        <div className="glass relative rounded-3xl px-6 py-20 text-center sm:px-12 sm:py-24">
+        <div className="glass relative rounded-2xl px-6 py-20 text-center sm:px-12 sm:py-24">
           <div
             aria-hidden
-            className="absolute inset-0 -z-10 rounded-3xl bg-gradient-to-br from-indigo-500/20 via-transparent to-cyan-400/20"
+            className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-br from-indigo-500/20 via-transparent to-cyan-400/20"
           />
           <h2 className="mx-auto max-w-2xl text-balance font-display text-4xl font-medium tracking-tight sm:text-6xl">
             {t.ctaHeading}
@@ -28,7 +28,7 @@ export function Cta({ lang }: { lang: string }) {
               <Link
                 to="/$lang/docs/$"
                 params={{ lang, _splat: '' }}
-                className="group inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:shadow-xl hover:shadow-violet-500/40 hover:brightness-110"
+                className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white transition-transform duration-200 hover:-translate-y-0.5"
               >
                 {t.ctaDocs}
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
@@ -39,7 +39,7 @@ export function Cta({ lang }: { lang: string }) {
                 href={githubUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg border border-fd-border bg-fd-card/50 px-6 py-3 text-sm font-medium text-fd-foreground backdrop-blur transition-colors hover:bg-fd-accent"
+                className="inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-card/50 px-6 py-3 text-sm font-medium text-fd-foreground backdrop-blur transition-colors hover:bg-fd-accent"
               >
                 {t.ctaGithub}
               </a>
@@ -50,4 +50,3 @@ export function Cta({ lang }: { lang: string }) {
     </section>
   );
 }
-
