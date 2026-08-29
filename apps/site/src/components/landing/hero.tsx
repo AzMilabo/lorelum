@@ -1,6 +1,5 @@
 import { Link } from '@tanstack/react-router';
 import { ArrowRight, Star } from 'lucide-react';
-import BlurText from '@/components/react-bits/blur-text';
 import { gitConfig } from '@/lib/shared';
 import { getStrings } from '@/lib/translations';
 import { HeroGlow } from './hero-glow';
@@ -28,12 +27,9 @@ export function Hero({ lang }: { lang: string }) {
         {t.heroTitleAfter}
       </h1>
 
-      <BlurText
-        text={t.heroSub}
-        animateBy="words"
-        delay={70}
-        className="mx-auto mt-7 max-w-2xl text-balance text-base leading-relaxed text-fd-muted-foreground sm:text-lg"
-      />
+      <p className="landing-hero-sub mx-auto mt-7 max-w-2xl text-balance text-base leading-relaxed text-fd-muted-foreground sm:text-lg">
+        {t.heroSub}
+      </p>
 
       <Reveal className="mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
         <Link

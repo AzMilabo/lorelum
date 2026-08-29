@@ -97,33 +97,6 @@ html > body[data-scroll-locked] {
   }
 }
 
-/* Faint static light-beam texture (rasterized once, not animated).
-   A slower, counter-drifting transform adds depth without extra cost. */
-.landing-beams {
-  position: fixed;
-  inset: 0;
-  z-index: -9;
-  pointer-events: none;
-  opacity: 0.55;
-  background-image: repeating-conic-gradient(
-    from 0deg at 50% 12%,
-    rgba(129, 140, 248, 0.1) 0deg 4deg,
-    transparent 4deg 14deg
-  );
-  -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 10%, transparent 72%);
-  mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 10%, transparent 72%);
-  will-change: transform;
-  animation: landing-beams-drift 78s ease-in-out infinite alternate;
-}
-
-@keyframes landing-beams-drift {
-  0% {
-    transform: translate3d(0, 0, 0) rotate(-0.6deg);
-  }
-  100% {
-    transform: translate3d(1.5%, -1%, 0) rotate(0.6deg);
-  }
-}
 
 /* Vignette: keeps hero text readable over the glows. */
 .landing-vignette {
@@ -208,20 +181,9 @@ html > body[data-scroll-locked] {
 
 .glass {
   border: 1px solid var(--color-fd-border);
-  background: color-mix(in oklab, var(--color-fd-card) 72%, transparent);
-  backdrop-filter: blur(18px) saturate(1.2);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
-}
-
-/* ---------- Landing: film grain overlay (zero-dep SVG noise) ---------- */
-
-.landing-noise {
-  position: fixed;
-  inset: 0;
-  z-index: 45;
-  pointer-events: none;
-  opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background: color-mix(in oklab, var(--color-fd-card) 80%, transparent);
+  backdrop-filter: blur(10px) saturate(1.15);
+  -webkit-backdrop-filter: blur(10px) saturate(1.15);
 }
 
 /* ---------- Selection ---------- */
@@ -247,18 +209,34 @@ html > body[data-scroll-locked] {
   animation: landing-badge-pulse 3s ease-in-out infinite;
 }
 
+/* Hero subtitle: calm one-shot fade-in (transform/opacity only — no blur
+   filter, so the load animation never paints per frame). */
+@keyframes landing-hero-sub-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.landing-hero-sub {
+  animation: landing-hero-sub-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.15s;
+}
 /* ---------- Reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
   .landing-gradient-text,
-  .landing-badge-dot {
+  .landing-badge-dot,
+  .landing-hero-sub {
     animation: none;
   }
-  .landing-bg::before,
-  .landing-beams {
+  .landing-bg::before {
     animation: none;
   }
-  .landing-noise,
   .landing-hero-glow,
   .landing-terminal-glow {
     display: none;
@@ -275,7 +253,7 @@ html > body[data-scroll-locked] {
   .landing-reveal {
     animation: landing-reveal-in linear both;
     animation-timeline: view();
-    animation-range: entry 0% entry 42%;
+    animation-range: entry 0% entry 38%;
   }
 
   .landing-parallax {
@@ -288,7 +266,7 @@ html > body[data-scroll-locked] {
 @keyframes landing-reveal-in {
   from {
     opacity: 0;
-    transform: translateY(24px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -327,4 +305,9 @@ html > body[data-scroll-locked] {
 .landing-hero-glow {
   animation: landing-hero-drift 26s ease-in-out infinite alternate;
 }
+
+
+
+
+
 
