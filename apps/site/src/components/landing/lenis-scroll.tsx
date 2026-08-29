@@ -11,11 +11,11 @@ import { shouldInitLenis } from './lenis-gate';
  * the instance — when the user navigates to a docs page, so docs keep their
  * native, precise scrolling.
  *
- * Tuned for a silk feel: `wheelMultiplier` 0.85 stops a big swipe from
- * overshooting into a long sticky tail, and `lerp` 0.1 settles promptly
- * without the first-frame lunge that used to feel rough. All scroll-linked
- * reveals/parallax are native CSS scroll-driven animations, so nothing
- * fights Lenis on the main thread.
+ * `lerp` 0.09 sits at the silk sweet spot: gentler than the 0.1 that lunged
+ * on the first frame, snappier than the 0.075 that dragged. Full wheel
+ * travel (multiplier 1) keeps the page responsive like Antigravity. All
+ * scroll-linked reveals/parallax are native CSS scroll-driven animations,
+ * so nothing fights Lenis on the main thread.
  */
 export function LenisScroll({ children }: { children: ReactNode }) {
   const [enabled, setEnabled] = useState(true);
@@ -31,8 +31,8 @@ export function LenisScroll({ children }: { children: ReactNode }) {
     <ReactLenis
       root
       options={{
-        lerp: 0.1,
-        wheelMultiplier: 0.85,
+        lerp: 0.09,
+        wheelMultiplier: 1,
         smoothWheel: true,
         autoRaf: true,
       }}
