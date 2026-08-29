@@ -17,7 +17,9 @@ export function TerminalShowcase({ lang }: { lang: string }) {
         <ScrollParallax from={30} to={-30} className="pointer-events-none absolute inset-0">
           <div aria-hidden className="landing-terminal-glow" />
         </ScrollParallax>
-        <TerminalDemo locale={lang} />
+        <div className="landing-float">
+          <TerminalDemo locale={lang} />
+        </div>
       </div>
     </Reveal>
   );
