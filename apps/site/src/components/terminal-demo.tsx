@@ -18,9 +18,10 @@ import { getStrings } from '@/lib/translations';
  *
  * `locale` picks the localized prompts and window title.
  *
- * Performance: typing advances two characters per tick (halving React
- * renders at the same effective speed), and the whole loop pauses whenever
- * the demo scrolls out of view, so it never costs frames in the background.
+ * Performance: typing writes straight to the DOM via a ref (no React
+ * renders during the typewriter phase), the whole loop pauses whenever the
+ * demo scrolls out of view, and only the occasional phase/result changes
+ * re-render — so it never adds main-thread work while the user scrolls.
  */
 
 interface DemoResult {
@@ -41,13 +42,13 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
 
   // phase: 'typing' | 'retrieving' | 'results' | 'paused'
   const [phase, setPhase] = useState<'typing' | 'retrieving' | 'results' | 'paused'>('typing');
-  const [typedChars, setTypedChars] = useState(0);
+  const [typedDone, setTypedDone] = useState(false);
   const [resultCount, setResultCount] = useState(0);
   const [visible, setVisible] = useState(true);
   const rootRef = useRef<HTMLDivElement>(null);
+  const queryRef = useRef<HTMLSpanElement>(null);
 
-  // Pause the whole demo when it scrolls out of view (and on reduced motion
-  // it stays frozen on the first frame via the `motion-reduce` classes).
+  // Pause the whole demo when it scrolls out of view.
   useEffect(() => {
     const el = rootRef.current;
     if (!el || typeof IntersectionObserver === 'undefined') return;
@@ -66,50 +67,62 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
     { key: 'anti', label: t.terminalAntiPrompt, text: t.terminalAntiText },
   ];
 
-  // Phase 1: type out the query two characters per tick.
+  // Phase 1: type the query into the DOM directly — no React renders here.
   useEffect(() => {
     if (!visible || phase !== 'typing') return;
-    if (typedChars < queryText.length) {
-      const id = setTimeout(
-        () => setTypedChars((c) => Math.min(c + 2, queryText.length)),
-        TYPE_SPEED,
-      );
-      return () => clearTimeout(id);
-    }
-    const id = setTimeout(() => setPhase('retrieving'), STEP_DELAY);
-    return () => clearTimeout(id);
-  }, [visible, phase, typedChars, queryText.length]);
+    const el = queryRef.current;
+    if (!el) return;
+    let count = 0;
+    let timer = 0;
+    const tick = () => {
+      count = Math.min(count + 2, queryText.length);
+      el.textContent = queryText.slice(0, count);
+      if (count >= queryText.length) {
+        setTypedDone(true);
+      } else {
+        timer = window.setTimeout(tick, TYPE_SPEED);
+      }
+    };
+    timer = window.setTimeout(tick, TYPE_SPEED);
+    return () => window.clearTimeout(timer);
+  }, [visible, phase, queryText.length]);
+
+  // Phase 1b: brief pause once fully typed, then show the "retrieving" line.
+  useEffect(() => {
+    if (!visible || phase !== 'typing' || !typedDone) return;
+    const id = window.setTimeout(() => setPhase('retrieving'), STEP_DELAY);
+    return () => window.clearTimeout(id);
+  }, [visible, phase, typedDone]);
 
   // Phase 2: show a "retrieving" line briefly.
   useEffect(() => {
     if (!visible || phase !== 'retrieving') return;
-    const id = setTimeout(() => setPhase('results'), 850);
-    return () => clearTimeout(id);
+    const id = window.setTimeout(() => setPhase('results'), 850);
+    return () => window.clearTimeout(id);
   }, [visible, phase]);
 
   // Phase 3: reveal result rows one at a time.
   useEffect(() => {
     if (!visible || phase !== 'results') return;
     if (resultCount < results.length) {
-      const id = setTimeout(() => setResultCount((c) => c + 1), 950);
-      return () => clearTimeout(id);
+      const id = window.setTimeout(() => setResultCount((c) => c + 1), 950);
+      return () => window.clearTimeout(id);
     }
-    const id = setTimeout(() => setPhase('paused'), REPLAY_DELAY);
-    return () => clearTimeout(id);
+    const id = window.setTimeout(() => setPhase('paused'), REPLAY_DELAY);
+    return () => window.clearTimeout(id);
   }, [visible, phase, resultCount, results.length]);
 
   // Phase 4: reset everything and replay.
   useEffect(() => {
     if (!visible || phase !== 'paused') return;
-    setTypedChars(0);
+    setTypedDone(false);
     setResultCount(0);
+    if (queryRef.current) queryRef.current.textContent = '';
     setPhase('typing');
   }, [visible, phase]);
 
-  const typingText = queryText.slice(0, typedChars);
   const showCursor = phase === 'typing' || phase === 'retrieving';
-  const showRetrieving =
-    phase === 'retrieving' || (phase === 'typing' && typedChars === queryText.length);
+  const showRetrieving = phase === 'retrieving' || (phase === 'typing' && typedDone);
   const resultBlocks = phase !== 'typing' ? results.slice(0, resultCount) : [];
 
   return (
@@ -140,7 +153,7 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
           {/* Row 1: the typed query */}
           <div className="flex items-baseline gap-2">
             <span className="text-fd-muted-foreground">$</span>
-            <span className="text-fd-foreground">{typingText}</span>
+            <span ref={queryRef} className="text-fd-foreground" />
             {showCursor && (
               <span className="inline-block h-4 w-2 animate-pulse bg-fd-primary align-middle motion-reduce:animate-none" />
             )}
