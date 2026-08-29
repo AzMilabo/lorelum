@@ -363,34 +363,36 @@ html > body[data-scroll-locked] {
   }
 }
 
-/* ---------- Scroll-linked reveal & parallax (native, zero JS) ----------
- * Uses CSS scroll-driven animations (animation-timeline: view()) where
- * supported — the browser compositor drives these directly, so scrolling
- * stays silky-smooth with no rAF/JS cost. Progressively enhanced: browsers
- * without view() timelines simply see the content (nothing is hidden). */
+/* ---------- Scroll-in reveal (IntersectionObserver + CSS transition) ----------
+ * The `Reveal` component adds `.is-visible` when the element enters the
+ * viewport (one-shot observer, disconnects after firing). The transition is
+ * stronger than a plain fade: 28px travel + a touch of scale with a springy
+ * ease, so every section visibly "lands" as you scroll. Works in every
+ * browser (no `animation-timeline` dependency) and costs no per-frame JS. */
+
+.landing-reveal {
+  opacity: 0;
+  transform: translateY(var(--reveal-y, 28px)) scale(var(--reveal-scale, 0.98));
+  transition:
+    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.landing-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* ---------- Scroll-linked parallax (native, zero JS) ----------
+ * Reserved for inner visual layers (hero/terminal glows). Driven by the CSS
+ * `animation-timeline: view()` where supported — the compositor owns the
+ * motion. Progressively enhanced: no view() support simply means no parallax. */
 
 @supports (animation-timeline: view()) {
-  .landing-reveal {
-    animation: landing-reveal-in linear both;
-    animation-timeline: view();
-    animation-range: entry 0% entry 38%;
-  }
-
   .landing-parallax {
     animation: landing-parallax-y linear both;
     animation-timeline: view();
     animation-range: entry 0% cover 100%;
-  }
-}
-
-@keyframes landing-reveal-in {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -404,10 +406,13 @@ html > body[data-scroll-locked] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .landing-reveal,
+  .landing-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
   .landing-parallax {
     animation: none;
-    opacity: 1;
     transform: none;
   }
 }
@@ -452,4 +457,5 @@ html > body[data-scroll-locked] {
     transform: translate3d(12px, 8px, 0) scale(1.08);
   }
 }
+
 

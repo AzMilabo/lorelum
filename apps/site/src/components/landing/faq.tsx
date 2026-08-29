@@ -16,8 +16,8 @@ export function Faq({ lang }: { lang: string }) {
     <section className="relative mx-auto w-full max-w-3xl px-4 py-24 sm:py-32">
       <SectionHeading eyebrow={t.faqEyebrow} title={t.faqHeading} />
       <div className="mt-12 text-left">
-        {faqs.map((faq) => (
-          <Reveal key={faq.q}>
+        {faqs.map((faq, i) => (
+          <Reveal key={faq.q} delay={i * 80}>
             <details className="group border-b border-fd-border/60 py-5">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-display text-lg font-medium tracking-tight [&::-webkit-details-marker]:hidden">
                 {faq.q}
