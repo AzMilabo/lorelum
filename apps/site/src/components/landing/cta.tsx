@@ -15,7 +15,7 @@ export function Cta({ lang }: { lang: string }) {
 
   return (
     <section className="relative mx-auto w-full max-w-6xl overflow-x-clip px-4 py-24 sm:py-32">
-      <Reveal>
+      <Reveal y={40} scale={0.96}>
         <div className="landing-conic-border">
           <div className="landing-conic-inner relative overflow-hidden px-6 py-20 text-center sm:px-12 sm:py-24">
             <div

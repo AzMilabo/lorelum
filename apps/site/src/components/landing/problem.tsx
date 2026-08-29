@@ -2,6 +2,7 @@ import { Archive, EyeOff, ShieldAlert } from 'lucide-react';
 import SpotlightCard from '@/components/react-bits/spotlight-card';
 import { getStrings } from '@/lib/translations';
 import { Reveal } from './reveal';
+import { ScrollParallax } from './scroll-parallax';
 import { SectionHeading } from './section-heading';
 
 /**
@@ -12,6 +13,7 @@ import { SectionHeading } from './section-heading';
  */
 export function Problem({ lang }: { lang: string }) {
   const t = getStrings(lang);
+  const drift = [26, 12, 20]; // per-column parallax amplitude
   const items = [
     { icon: ShieldAlert, title: t.problem1Title, body: t.problem1Body },
     { icon: Archive, title: t.problem2Title, body: t.problem2Body },
@@ -25,8 +27,9 @@ export function Problem({ lang }: { lang: string }) {
         {items.map((item, i) => {
           const Icon = item.icon;
           return (
-            <Reveal key={item.title} className="h-full">
-              <SpotlightCard className="group h-full bg-fd-card/40">
+            <Reveal key={item.title} className="h-full" delay={i * 100}>
+              <ScrollParallax from={drift[i]} to={-drift[i]} className="h-full">
+                <SpotlightCard className="group h-full bg-fd-card/40">
                 <div className="flex items-center justify-between">
                   <span className="font-display text-sm font-semibold tracking-widest text-indigo-400">
                     {String(i + 1).padStart(2, '0')}
@@ -37,7 +40,8 @@ export function Problem({ lang }: { lang: string }) {
                 </div>
                 <h3 className="mt-6 font-display text-xl font-medium tracking-tight">{item.title}</h3>
                 <p className="mt-3 text-sm leading-relaxed text-fd-muted-foreground">{item.body}</p>
-              </SpotlightCard>
+                </SpotlightCard>
+              </ScrollParallax>
             </Reveal>
           );
         })}
