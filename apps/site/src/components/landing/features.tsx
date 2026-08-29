@@ -2,6 +2,7 @@ import { FileText, Package, Server, Zap } from 'lucide-react';
 import SpotlightCard from '@/components/react-bits/spotlight-card';
 import { getStrings } from '@/lib/translations';
 import { Reveal } from './reveal';
+import { ScrollParallax } from './scroll-parallax';
 import { SectionHeading } from './section-heading';
 
 /**
@@ -11,6 +12,7 @@ import { SectionHeading } from './section-heading';
  */
 export function Features({ lang }: { lang: string }) {
   const t = getStrings(lang);
+  const drift = [24, 12, 16, 28]; // per-card parallax amplitude
   const items = [
     { icon: FileText, title: t.feature1Title, body: t.feature1Body, wide: true },
     { icon: Zap, title: t.feature2Title, body: t.feature2Body, wide: false },
@@ -28,8 +30,10 @@ export function Features({ lang }: { lang: string }) {
             <Reveal
               key={item.title}
               className={item.wide ? 'lg:col-span-2' : 'lg:col-span-1'}
+              delay={i * 110}
             >
-              <SpotlightCard className="group h-full">
+              <ScrollParallax from={drift[i % 4]} to={-drift[i % 4]} className="h-full">
+                <SpotlightCard className="group h-full">
                 <div className={item.wide ? 'flex h-full flex-col gap-5 sm:flex-row sm:items-start' : ''}>
                   <div className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 via-violet-500/20 to-cyan-400/20 text-fd-foreground ring-1 ring-fd-border/60 transition-transform duration-300 group-hover:scale-110">
                     <Icon className="size-5 text-indigo-400" />
@@ -46,7 +50,8 @@ export function Features({ lang }: { lang: string }) {
                     </p>
                   </div>
                 </div>
-              </SpotlightCard>
+                </SpotlightCard>
+              </ScrollParallax>
             </Reveal>
           );
         })}
