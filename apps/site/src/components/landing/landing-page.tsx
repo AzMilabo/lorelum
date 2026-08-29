@@ -1,4 +1,5 @@
 import { AuroraBackground } from './aurora-background';
+import { CursorGlow } from './cursor-glow';
 import { Cta } from './cta';
 import { Ecosystem } from './ecosystem';
 import { Faq } from './faq';
@@ -21,6 +22,7 @@ export function LandingPage({ lang }: { lang: string }) {
     <LenisScroll>
       <div className="relative flex flex-1 flex-col dark:bg-[#03040a]">
         <AuroraBackground />
+        <CursorGlow />
         <Hero lang={lang} />
         <Problem lang={lang} />
         <Features lang={lang} />
