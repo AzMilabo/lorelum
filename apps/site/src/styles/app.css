@@ -459,3 +459,196 @@ html > body[data-scroll-locked] {
 }
 
 
+
+/* ---------- Word-by-word heading reveal (SplitReveal) ---------- */
+
+.landing-split-word {
+  transform: translateY(115%);
+  opacity: 0;
+  transition:
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.45s ease;
+}
+
+.landing-split.is-visible .landing-split-word {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* ---------- Page-level cursor glow (ambient light follows the pointer) ----------
+ * One fixed element, position driven by a spring (transform-only), so the
+ * whole page feels alive under the cursor. Screen blend lights the dark
+ * theme; a soft tint on light. Disabled for touch / reduced motion by the
+ * component. */
+
+.landing-cursor-glow {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 46rem;
+  height: 46rem;
+  margin-left: -23rem;
+  margin-top: -23rem;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 3;
+  background: radial-gradient(
+    circle,
+    rgba(99, 102, 241, 0.16) 0%,
+    rgba(168, 85, 247, 0.1) 34%,
+    rgba(34, 211, 238, 0.05) 55%,
+    transparent 70%
+  );
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+
+:root:not(.dark) .landing-cursor-glow {
+  background: radial-gradient(
+    circle,
+    rgba(99, 102, 241, 0.14) 0%,
+    rgba(168, 85, 247, 0.08) 40%,
+    transparent 70%
+  );
+  mix-blend-mode: normal;
+}
+
+/* ---------- Ambient floating orbs (pure CSS, transform-only) ---------- */
+
+.landing-orb {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  will-change: transform;
+  filter: blur(70px);
+}
+
+.landing-orb-1 {
+  width: 34rem;
+  height: 34rem;
+  left: -6rem;
+  top: 12%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.34), transparent 70%);
+  animation: landing-orb-a 26s ease-in-out infinite alternate;
+}
+
+.landing-orb-2 {
+  width: 28rem;
+  height: 28rem;
+  right: -4rem;
+  top: 30%;
+  background: radial-gradient(circle, rgba(217, 70, 239, 0.28), transparent 70%);
+  animation: landing-orb-b 32s ease-in-out infinite alternate;
+}
+
+.landing-orb-3 {
+  width: 24rem;
+  height: 24rem;
+  left: 28%;
+  bottom: -6rem;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.24), transparent 70%);
+  animation: landing-orb-c 22s ease-in-out infinite alternate;
+}
+
+@keyframes landing-orb-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(6rem, 3rem, 0) scale(1.18); }
+}
+@keyframes landing-orb-b {
+  from { transform: translate3d(0, 0, 0) scale(1.05); }
+  to { transform: translate3d(-5rem, -4rem, 0) scale(0.92); }
+}
+@keyframes landing-orb-c {
+  from { transform: translate3d(0, 0, 0) scale(0.95); }
+  to { transform: translate3d(4rem, -3rem, 0) scale(1.15); }
+}
+
+:root:not(.dark) .landing-orb-1 { background: radial-gradient(circle, rgba(99, 102, 241, 0.22), transparent 70%); }
+:root:not(.dark) .landing-orb-2 { background: radial-gradient(circle, rgba(217, 70, 239, 0.18), transparent 70%); }
+:root:not(.dark) .landing-orb-3 { background: radial-gradient(circle, rgba(34, 211, 238, 0.16), transparent 70%); }
+
+/* ---------- Hero scroll exit (content drifts away at different rates) ----------
+ * The title block fades + rises as the hero scrolls out; the terminal lingers
+ * slightly longer. Progressive enhancement via CSS view() timeline. */
+
+@supports (animation-timeline: view()) {
+  .landing-hero-scroll {
+    animation: landing-hero-exit linear both;
+    animation-timeline: view();
+    animation-range: exit 0% exit 55%;
+  }
+  .landing-hero-scroll-slow {
+    animation: landing-hero-exit-slow linear both;
+    animation-timeline: view();
+    animation-range: exit 0% exit 78%;
+  }
+}
+
+@keyframes landing-hero-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-46px); }
+}
+@keyframes landing-hero-exit-slow {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0.15; transform: translateY(-18px); }
+}
+
+/* ---------- Eyebrow shimmer ---------- */
+
+@keyframes landing-shimmer-shift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.landing-shimmer-text {
+  background-size: 200% auto;
+  animation: landing-shimmer-shift 6s linear infinite;
+}
+
+/* Reduced-motion additions */
+@media (prefers-reduced-motion: reduce) {
+  .landing-split-word {
+    transform: none;
+    opacity: 1;
+    transition: none;
+  }
+  .landing-cursor-glow,
+  .landing-orb {
+    display: none;
+  }
+  .landing-hero-scroll,
+  .landing-hero-scroll-slow {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .landing-shimmer-text {
+    animation: none;
+  }
+}
+
+/* ---------- Button shine sweep (hover) ---------- */
+
+.landing-btn-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 60%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.group:hover .landing-btn-shine {
+  transform: translateX(120%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-btn-shine {
+    display: none;
+  }
+}
