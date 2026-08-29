@@ -97,7 +97,6 @@ html > body[data-scroll-locked] {
   }
 }
 
-
 /* Vignette: keeps hero text readable over the glows. */
 .landing-vignette {
   position: fixed;
@@ -209,8 +208,45 @@ html > body[data-scroll-locked] {
   animation: landing-badge-pulse 3s ease-in-out infinite;
 }
 
-/* Hero subtitle: calm one-shot fade-in (transform/opacity only — no blur
-   filter, so the load animation never paints per frame). */
+/* ---------- Hero load choreography (one-shot, compositor-friendly) ----------
+ * `landing-line` masks the two H1 lines in from the bottom (clip-path +
+ * translateY — transform is compositor-owned; the clip-path only repaints
+ * during the ~0.9s entrance). `landing-hero-item` fades the rest of the
+ * hero up in order. Delays are applied inline per element.
+ */
+@keyframes landing-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    clip-path: inset(0 0 0% 0);
+  }
+}
+
+.landing-line {
+  animation: landing-line-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes landing-hero-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.landing-hero-item {
+  animation: landing-hero-item-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Hero subtitle: calm one-shot fade-in (transform/opacity only). */
 @keyframes landing-hero-sub-in {
   from {
     opacity: 0;
@@ -224,14 +260,95 @@ html > body[data-scroll-locked] {
 
 .landing-hero-sub {
   animation: landing-hero-sub-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: 0.15s;
+  animation-delay: 0.24s;
 }
+
+/* Gentle levitation for the terminal demo — transform only, compositor-owned. */
+@keyframes landing-float {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-10px);
+  }
+}
+
+.landing-float {
+  animation: landing-float 7s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+/* ---------- CTA: rotating conic border ----------
+ * A conic gradient painted on the 1.5px border ring, rotated via the
+ * registered `--landing-conic-angle` custom property. Only the ring layer
+ * repaints (a small area), so it stays cheap. Browsers without `@property`
+ * simply see a static gradient border (progressive enhancement).
+ */
+@property --landing-conic-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.landing-conic-border {
+  position: relative;
+  border-radius: 1.5rem;
+  padding: 1.5px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.landing-conic-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+      from var(--landing-conic-angle) at 50% 50%,
+      rgba(99, 102, 241, 0) 0deg,
+      rgba(99, 102, 241, 0.9) 45deg,
+      rgba(168, 85, 247, 0.95) 90deg,
+      rgba(34, 211, 238, 0.9) 135deg,
+      rgba(99, 102, 241, 0) 200deg,
+      rgba(99, 102, 241, 0) 360deg
+    )
+    border-box;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: landing-conic-spin 7s linear infinite;
+}
+
+@keyframes landing-conic-spin {
+  to {
+    --landing-conic-angle: 360deg;
+  }
+}
+
+.landing-conic-inner {
+  position: relative;
+  border-radius: calc(1.5rem - 1.5px);
+  background: color-mix(in oklab, var(--color-fd-card) 90%, transparent);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+}
+
 /* ---------- Reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
   .landing-gradient-text,
   .landing-badge-dot,
-  .landing-hero-sub {
+  .landing-hero-sub,
+  .landing-line,
+  .landing-hero-item,
+  .landing-float,
+  .landing-conic-border::before {
     animation: none;
   }
   .landing-bg::before {
@@ -240,6 +357,9 @@ html > body[data-scroll-locked] {
   .landing-hero-glow,
   .landing-terminal-glow {
     display: none;
+  }
+  .landing-cta-glow {
+    animation: none;
   }
 }
 
@@ -305,9 +425,31 @@ html > body[data-scroll-locked] {
 .landing-hero-glow {
   animation: landing-hero-drift 26s ease-in-out infinite alternate;
 }
+/* Inner aurora glow for the CTA panel — slow transform drift, compositor-only. */
+.landing-cta-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56rem;
+  height: 40rem;
+  margin-left: -28rem;
+  margin-top: -20rem;
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    rgba(99, 102, 241, 0.28) 0%,
+    rgba(168, 85, 247, 0.16) 40%,
+    transparent 70%
+  );
+  animation: landing-cta-drift 18s ease-in-out infinite alternate;
+  will-change: transform;
+}
 
-
-
-
-
+@keyframes landing-cta-drift {
+  from {
+    transform: translate3d(-12px, -8px, 0) scale(1);
+  }
+  to {
+    transform: translate3d(12px, 8px, 0) scale(1.08);
+  }
+}
 

@@ -11,6 +11,7 @@ license header; this file records provenance for review.
 
 | Component | Registry id | Runtime dependency |
 | --- | --- | --- |
+| Aurora | `Aurora-TS-TW` | `ogl` |
 | BlurText | `BlurText-TS-TW` | `motion` |
 | CountUp | `CountUp-TS-TW` | `motion` |
 | GradientText | `GradientText-TS-TW` | `motion` |
@@ -25,5 +26,8 @@ Notes:
 - The MIT + Commons Clause license permits free and commercial use, but restricts
   selling the software itself. Lorelum's core remains Apache-2.0; these files keep
   their own license headers.
-- The landing background is pure CSS (no WebGL runtime dependency), so `ogl` is not
-  a project dependency.
+- `Aurora` (WebGL fragment shader) is the single GPU-heavy layer. It is lazy-loaded
+  (`React.lazy`, separate async chunk), gated to dark theme + desktop pointer +
+  `prefers-reduced-motion: off`, resolution/DPR-capped, and its rAF loop pauses when
+  the hero is offscreen or the tab is hidden. It pulls in the `ogl` runtime
+  dependency (MIT).

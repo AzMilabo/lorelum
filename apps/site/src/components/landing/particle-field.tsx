@@ -10,6 +10,10 @@ import { getCanvasScale, getParticleCount } from './particle-budget';
  * disabled for `prefers-reduced-motion`. Colors follow the Fumadocs theme
  * (bright on dark, faint on light) and update live when the theme flips.
  *
+ * The whole field leans gently away from the cursor — a single smoothed
+ * translate applied before drawing (no per-particle math), which adds the
+ * "alive" depth feel at nearly zero extra cost.
+ *
  * Hot path tuned for the compositor: each particle's `rgb(...)` fill style
  * is precomputed once and alpha is applied via `globalAlpha` (a plain
  * number write) instead of building an `rgba(...)` string every frame.
@@ -31,6 +35,9 @@ interface Particle {
 
 const DARK_RGBS = ['255,255,255', '129,140,248', '34,211,238', '232,121,249'];
 const LIGHT_RGBS = ['79,70,229', '14,116,144', '147,51,234'];
+
+/** Max cursor-parallax offset in CSS px (mouse sits at the center by default). */
+const MAX_PARALLAX = 18;
 
 function rand(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -67,6 +74,12 @@ export function ParticleField() {
     let running = true;
     let particles: Particle[] = [];
 
+    // Cursor parallax: smoothed offset in CSS px, read only inside the loop.
+    let tx = 0;
+    let ty = 0;
+    let ox = 0;
+    let oy = 0;
+
     const isDark = () => document.documentElement.classList.contains('dark');
 
     const resize = () => {
@@ -85,12 +98,24 @@ export function ParticleField() {
       particles = createParticles(count, w, h, isDark());
     };
 
+    const onPointerMove = (e: PointerEvent) => {
+      tx = ((e.clientX / window.innerWidth) - 0.5) * 2 * MAX_PARALLAX;
+      ty = ((e.clientY / window.innerHeight) - 0.5) * 2 * MAX_PARALLAX;
+    };
+
     const tick = () => {
       if (!running) return;
       const t = performance.now() / 1000;
       const w = window.innerWidth;
       const h = window.innerHeight;
+
+      // Ease the parallax toward the target (one pair of lerps per frame).
+      ox += (tx - ox) * 0.04;
+      oy += (ty - oy) * 0.04;
       ctx.clearRect(0, 0, w, h);
+      ctx.save();
+      ctx.translate(ox, oy);
+
       for (const p of particles) {
         p.x += p.vx;
         p.y += p.vy;
@@ -106,6 +131,7 @@ export function ParticleField() {
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ctx.fill();
       }
+      ctx.restore();
       ctx.globalAlpha = 1;
       raf = requestAnimationFrame(tick);
     };
@@ -140,12 +166,14 @@ export function ParticleField() {
     start();
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('resize', onResize);
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
 
     return () => {
       running = false;
       stop();
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('pointermove', onPointerMove);
       observer.disconnect();
     };
   }, []);
