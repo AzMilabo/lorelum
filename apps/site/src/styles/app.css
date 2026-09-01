@@ -11,6 +11,10 @@
 
 @theme {
   --font-display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* "run/success/live" accent — breaks the indigo-only palette with the
+   * "code dark, run green" cue the product's terminal demo leans on. */
+  --color-run: #34d399;
 }
 
 html {
@@ -43,22 +47,22 @@ html > body[data-scroll-locked] {
   inset: -14%;
   background-image: radial-gradient(
       55% 45% at 18% -5%,
-      rgba(79, 70, 229, 0.4) 0%,
+      rgba(79, 70, 229, 0.36) 0%,
       transparent 62%
     ),
     radial-gradient(
       45% 40% at 88% 5%,
-      rgba(168, 85, 247, 0.32) 0%,
+      rgba(45, 212, 191, 0.24) 0%,
       transparent 60%
     ),
     radial-gradient(
       50% 45% at 50% 105%,
-      rgba(34, 211, 238, 0.24) 0%,
+      rgba(168, 85, 247, 0.2) 0%,
       transparent 62%
     ),
     radial-gradient(
       35% 30% at 100% 92%,
-      rgba(236, 72, 153, 0.18) 0%,
+      rgba(52, 211, 153, 0.16) 0%,
       transparent 60%
     );
   will-change: transform;
@@ -68,22 +72,22 @@ html > body[data-scroll-locked] {
 :root:not(.dark) .landing-bg::before {
   background-image: radial-gradient(
       55% 45% at 18% -5%,
-      rgba(199, 210, 254, 0.75) 0%,
+      rgba(199, 210, 254, 0.7) 0%,
       transparent 62%
     ),
     radial-gradient(
       45% 40% at 88% 5%,
-      rgba(233, 213, 255, 0.75) 0%,
+      rgba(153, 246, 228, 0.6) 0%,
       transparent 60%
     ),
     radial-gradient(
       50% 45% at 50% 105%,
-      rgba(165, 243, 252, 0.65) 0%,
+      rgba(233, 213, 255, 0.6) 0%,
       transparent 62%
     ),
     radial-gradient(
       35% 30% at 100% 92%,
-      rgba(251, 207, 232, 0.55) 0%,
+      rgba(167, 243, 208, 0.5) 0%,
       transparent 60%
     );
 }
@@ -213,16 +217,28 @@ html > body[data-scroll-locked] {
   background: color-mix(in oklab, var(--color-fd-primary) 22%, transparent);
 }
 
+/* Visible focus rings on every interactive element (2px, offset so it clears
+   the pill radius). Uses the theme primary so it reads in both modes. */
+:where(a, button, summary, [role='button'], [role='link']):focus-visible {
+  outline: 2px solid var(--color-fd-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+summary {
+  cursor: pointer;
+}
+
 /* Pulsing "live" dot on the hero badge (3s breathing, opacity + glow only). */
 @keyframes landing-badge-pulse {
   0%,
   100% {
     opacity: 1;
-    box-shadow: 0 0 10px rgba(99, 102, 241, 0.9);
+    box-shadow: 0 0 10px rgba(52, 211, 153, 0.9);
   }
   50% {
     opacity: 0.35;
-    box-shadow: 0 0 2px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 0 2px rgba(52, 211, 153, 0.3);
   }
 }
 
@@ -559,7 +575,7 @@ html > body[data-scroll-locked] {
   height: 28rem;
   right: -4rem;
   top: 30%;
-  background: radial-gradient(circle, rgba(217, 70, 239, 0.28), transparent 70%);
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.26), transparent 70%);
   animation: landing-orb-b 32s ease-in-out infinite alternate;
 }
 
@@ -568,7 +584,7 @@ html > body[data-scroll-locked] {
   height: 24rem;
   left: 28%;
   bottom: -6rem;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.24), transparent 70%);
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.22), transparent 70%);
   animation: landing-orb-c 22s ease-in-out infinite alternate;
 }
 
@@ -585,9 +601,9 @@ html > body[data-scroll-locked] {
   to { transform: translate3d(4rem, -3rem, 0) scale(1.15); }
 }
 
-:root:not(.dark) .landing-orb-1 { background: radial-gradient(circle, rgba(99, 102, 241, 0.22), transparent 70%); }
-:root:not(.dark) .landing-orb-2 { background: radial-gradient(circle, rgba(217, 70, 239, 0.18), transparent 70%); }
-:root:not(.dark) .landing-orb-3 { background: radial-gradient(circle, rgba(34, 211, 238, 0.16), transparent 70%); }
+:root:not(.dark) .landing-orb-1 { background: radial-gradient(circle, rgba(99, 102, 241, 0.2), transparent 70%); }
+:root:not(.dark) .landing-orb-2 { background: radial-gradient(circle, rgba(45, 212, 191, 0.18), transparent 70%); }
+:root:not(.dark) .landing-orb-3 { background: radial-gradient(circle, rgba(52, 211, 153, 0.16), transparent 70%); }
 
 /* ---------- Hero scroll exit (content drifts away at different rates) ----------
  * The title block fades + rises as the hero scrolls out; the terminal lingers

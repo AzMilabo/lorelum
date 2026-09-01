@@ -14,6 +14,12 @@ import { SectionHeading } from './section-heading';
 export function Problem({ lang }: { lang: string }) {
   const t = getStrings(lang);
   const drift = [26, 12, 20]; // per-column parallax amplitude
+  // Problem reads as warning, so the accent tube runs warm (amber/rose/orange).
+  const tints = [
+    { text: 'text-amber-400', grad: 'from-amber-500/15 via-orange-500/15 to-rose-400/15' },
+    { text: 'text-rose-400', grad: 'from-rose-500/15 via-red-500/15 to-orange-400/15' },
+    { text: 'text-orange-400', grad: 'from-orange-500/15 via-amber-400/15 to-yellow-400/15' },
+  ];
   const items = [
     { icon: ShieldAlert, title: t.problem1Title, body: t.problem1Body },
     { icon: Archive, title: t.problem2Title, body: t.problem2Body },
@@ -26,21 +32,22 @@ export function Problem({ lang }: { lang: string }) {
       <div className="mt-14 grid gap-5 md:grid-cols-3">
         {items.map((item, i) => {
           const Icon = item.icon;
+          const tint = tints[i % tints.length];
           return (
             <Reveal key={item.title} className="h-full" delay={i * 100}>
               <ScrollParallax from={drift[i]} to={-drift[i]} className="h-full">
                 <SpotlightCard className="group h-full bg-fd-card/40">
                 <div className="flex items-center justify-between">
-                  <span className="font-display text-sm font-semibold tracking-widest text-indigo-400">
+                  <span className={`font-mono text-sm font-medium tracking-[0.18em] ${tint.text}`}>
                     {String(i + 1).padStart(2, '0')}
                   </span>
                   <div
-                    className="landing-icon inline-flex size-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500/15 via-violet-500/15 to-cyan-400/15 text-fd-muted-foreground ring-1 ring-fd-border/50"
+                    className={`landing-icon inline-flex size-9 items-center justify-center rounded-lg bg-gradient-to-br ${tint.grad} text-fd-muted-foreground ring-1 ring-fd-border/50`}
                     style={{ animationDelay: `${i * 100}ms` }}
                   >
                     <span aria-hidden className="landing-icon-halo" />
                     <Icon
-                      className="landing-icon-glyph size-4"
+                      className={`landing-icon-glyph size-4 ${tint.text}`}
                       style={{ animationDelay: `${i * 100}ms` }}
                     />
                   </div>
