@@ -5,18 +5,17 @@ import { shouldEnableCursorEffects } from './motion-gate';
 const INTERACTIVE = 'a, button, [data-cursor], input, textarea, [role="button"]';
 
 /**
- * Antigravity-style custom cursor — a precise dot plus a trailing ring.
+ * Antigravity-style cursor follower — a trailing ring around the pointer.
  *
- * The dot tracks the pointer almost instantly (`quickTo` ~0.1s) while the ring
- * trails on a springier `quickTo` (~0.35s), and the ring scales up over
- * interactive elements (`back.out(1.7)`). Hiding the native cursor is what
- * makes it feel bespoke, but it's only enabled for fine pointers with motion
- * allowed, and it adds no listeners/DOM when disabled. On reduced-motion or
- * touch the native cursor is untouched.
+ * The native cursor is deliberately kept: hiding it risks a moment with no
+ * visible pointer (or a barely-seen dot), which reads as "broken". Instead the
+ * ring trails the pointer on a springy `quickTo` (~0.35s) and swells over
+ * interactive elements (`back.out(1.7)`), so the page still feels alive while
+ * the user always has the real cursor. Enabled only for fine pointers with
+ * motion allowed; touch and reduced-motion users get none of the overlay.
  */
 export function CustomCursor() {
   const [enabled, setEnabled] = useState(false);
-  const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,29 +24,22 @@ export function CustomCursor() {
     if (!shouldEnableCursorEffects({ finePointer: fine, reducedMotion: reduced })) return;
     registerGsapPlugins();
 
-    const dot = dotRef.current;
     const ring = ringRef.current;
-    if (!dot || !ring) return;
+    if (!ring) return;
     setEnabled(true);
 
     const q: {
-      dx: ((v: number) => void) | null;
-      dy: ((v: number) => void) | null;
       rx: ((v: number) => void) | null;
       ry: ((v: number) => void) | null;
-    } = { dx: null, dy: null, rx: null, ry: null };
+    } = { rx: null, ry: null };
 
     const ctx = gsap.context(() => {
-      gsap.set([dot, ring], { xPercent: -50, yPercent: -50, x: -100, y: -100, force3D: true });
-      q.dx = gsap.quickTo(dot, 'x', { duration: 0.1, ease: 'power2.out' });
-      q.dy = gsap.quickTo(dot, 'y', { duration: 0.1, ease: 'power2.out' });
+      gsap.set(ring, { xPercent: -50, yPercent: -50, x: -100, y: -100, force3D: true });
       q.rx = gsap.quickTo(ring, 'x', { duration: 0.35, ease: 'power2.out' });
       q.ry = gsap.quickTo(ring, 'y', { duration: 0.35, ease: 'power2.out' });
     });
 
     const onMove = (e: PointerEvent) => {
-      q.dx?.(e.clientX);
-      q.dy?.(e.clientY);
       q.rx?.(e.clientX);
       q.ry?.(e.clientY);
     };
@@ -58,7 +50,6 @@ export function CustomCursor() {
         duration: active ? 0.3 : 0.35,
         ease: active ? 'back.out(1.7)' : 'power2.out',
       });
-      gsap.to(dot, { scale: active ? 0.5 : 1, duration: 0.2, ease: 'power2.out' });
     };
     const onOver = (e: PointerEvent) => {
       if (e.target instanceof Element && e.target.closest(INTERACTIVE)) setHover(true);
@@ -76,21 +67,16 @@ export function CustomCursor() {
     window.addEventListener('pointermove', onMove, { passive: true });
     document.addEventListener('pointerover', onOver);
     document.addEventListener('pointerout', onOut);
-    document.documentElement.classList.add('landing-custom-cursor');
 
     return () => {
       ctx.revert();
       window.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerover', onOver);
       document.removeEventListener('pointerout', onOut);
-      document.documentElement.classList.remove('landing-custom-cursor');
     };
   }, []);
 
   return (
-    <>
-      <div ref={dotRef} aria-hidden className={`landing-cursor-dot${enabled ? ' on' : ''}`} />
-      <div ref={ringRef} aria-hidden className={`landing-cursor-ring${enabled ? ' on' : ''}`} />
-    </>
+    <div ref={ringRef} aria-hidden className={`landing-cursor-ring${enabled ? ' on' : ''}`} />
   );
 }

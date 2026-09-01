@@ -510,11 +510,10 @@ summary {
   mix-blend-mode: normal;
 }
 
-/* ---------- Antigravity-style custom cursor (dot + trailing ring) ----------
- * Hidden natively while active (`landing-custom-cursor` on <html>); the dot
- * tracks the pointer, the ring trails and swells over interactive elements. */
+/* ---------- Antigravity-style cursor follower (trailing ring) ----------
+ * Native cursor stays visible; the ring trails and swells over interactive
+ * elements. Only rendered for fine pointers + motion allowed. */
 
-.landing-cursor-dot,
 .landing-cursor-ring {
   position: fixed;
   left: 0;
@@ -524,30 +523,16 @@ summary {
   will-change: transform;
 }
 
-.landing-cursor-dot:not(.on),
 .landing-cursor-ring:not(.on) {
   display: none;
 }
 
-.landing-cursor-dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 9999px;
-  background: var(--color-fd-foreground);
-  opacity: 0.9;
-}
-
 .landing-cursor-ring {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: 9999px;
-  border: 1px solid color-mix(in oklab, var(--color-fd-foreground) 45%, transparent);
-  opacity: 0.55;
-}
-
-.landing-custom-cursor,
-.landing-custom-cursor * {
-  cursor: none !important;
+  border: 1.5px solid color-mix(in oklab, var(--color-fd-foreground) 55%, transparent);
+  opacity: 0.65;
 }
 
 /* ---------- Ambient floating orbs (pure CSS, transform-only) ---------- */
