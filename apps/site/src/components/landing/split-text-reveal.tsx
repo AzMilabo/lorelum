@@ -50,6 +50,14 @@ export function SplitTextReveal({
       const units = useChars ? split.chars : split.words;
       if (!units || units.length === 0) return;
 
+      // If the heading is already on screen when hydration lands, keep it fully
+      // visible. Hiding it would cause a visible flash before the reveal, which
+      // is worse than the small benefit of re-animating an above-the-fold title.
+      const rect = el.getBoundingClientRect();
+      if (rect.top < window.innerHeight * 0.9 && rect.bottom > 0) {
+        return () => split.revert();
+      }
+
       const count = units.length;
       const stagger = useChars ? Math.min(0.012, 0.5 / count) : Math.min(0.05, 0.7 / count);
 
