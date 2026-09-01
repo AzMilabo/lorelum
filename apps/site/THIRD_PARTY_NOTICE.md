@@ -39,6 +39,7 @@ Notes:
 - License: **GSAP Standard "no charge" license** (<https://gsap.com/standard-license/>).
   Free for commercial use; not GPL/AGPL, so it does not affect Lorelum's Apache-2.0 core.
 - Used for the landing page's ScrollSmoother smooth scroll, ScrollTrigger scrub
-  parallax + hero exit, and the terminal's GSAP sine float. Registered once in
+  parallax + hero exit, SplitText word/char reveals, the custom dot+ring cursor,
+  the panel scale reveal, and the terminal's GSAP sine float. Registered once in
   `apps/site/src/components/landing/gsap-client.ts`, ships with the landing chunk,
   and is disabled under `prefers-reduced-motion: reduce`.
