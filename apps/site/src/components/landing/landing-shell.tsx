@@ -6,6 +6,7 @@ import { i18n } from '@/lib/i18n';
 import { appName, gitConfig } from '@/lib/shared';
 import { AuroraBackground } from './aurora-background';
 import { CursorGlow } from './cursor-glow';
+import { CustomCursor } from './custom-cursor';
 import {
   SmoothScroll,
   SMOOTH_CONTENT_ID,
@@ -66,6 +67,7 @@ export function LandingShell({
           transform-relative one. */}
       <AuroraBackground />
       <CursorGlow />
+      <CustomCursor />
 
       <SmoothScroll>
         <div id={SMOOTH_WRAPPER_ID} className="relative w-full">
