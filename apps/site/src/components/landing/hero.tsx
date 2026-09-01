@@ -8,6 +8,7 @@ import { HeroAurora } from './hero-aurora';
 import { HeroGlow } from './hero-glow';
 import { TerminalShowcase } from './terminal-showcase';
 import { shouldEnableCursorEffects } from './motion-gate';
+import { gsap, registerGsapPlugins } from './gsap-client';
 import Magnet from '@/components/react-bits/magnet';
 import { useMagnetEnabled } from './use-magnet';
 
@@ -27,6 +28,8 @@ export function Hero({ lang }: { lang: string }) {
   const t = getStrings(lang);
   const githubUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
   const sectionRef = useRef<HTMLElement>(null);
+  const copyRef = useRef<HTMLDivElement>(null);
+  const termRef = useRef<HTMLDivElement>(null);
   const pointerOkRef = useRef(false);
   const magnetOn = useMagnetEnabled();
 
@@ -35,6 +38,57 @@ export function Hero({ lang }: { lang: string }) {
       finePointer: window.matchMedia('(pointer: fine)').matches,
       reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     });
+  }, []);
+
+  // Hero scroll exit — fades + lifts the copy as the section leaves, while the
+  // terminal lingers a touch longer. CSS `view()` timelines can't follow the
+  // content a ScrollSmoother translates, so the scrub is GSAP-driven here.
+  useEffect(() => {
+    const section = sectionRef.current;
+    const copy = copyRef.current;
+    const terminal = termRef.current;
+    if (!section || !copy || !terminal) return;
+    registerGsapPlugins();
+
+    const mm = gsap.matchMedia();
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      const copyEnd = () => section.offsetHeight * 0.55;
+      const termEnd = () => section.offsetHeight * 0.78;
+
+      gsap.fromTo(
+        copy,
+        { opacity: 1, y: 0 },
+        {
+          opacity: 0,
+          y: -46,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top top',
+            end: copyEnd,
+            scrub: true,
+          },
+        },
+      );
+
+      gsap.fromTo(
+        terminal,
+        { opacity: 1, y: 0 },
+        {
+          opacity: 0.15,
+          y: -18,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top top',
+            end: termEnd,
+            scrub: true,
+          },
+        },
+      );
+    });
+
+    return () => mm.revert();
   }, []);
 
   // Cursor parallax — normalized pointer (-1..1) eased by springs.
@@ -81,7 +135,7 @@ export function Hero({ lang }: { lang: string }) {
       </motion.div>
 
       <div className="relative mx-auto flex min-h-[100svh] w-full max-w-6xl flex-col items-center justify-center px-4 pb-24 pt-16 text-center sm:pt-20">
-        <div className="landing-hero-scroll flex w-full flex-col items-center">
+        <div ref={copyRef} className="landing-hero-scroll flex w-full flex-col items-center">
           <span className="landing-hero-item inline-flex items-center gap-2 rounded-full border border-fd-border/60 bg-fd-card/50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-fd-muted-foreground backdrop-blur">
             <span className="landing-badge-dot size-1.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
             {t.heroBadge}
@@ -132,7 +186,9 @@ export function Hero({ lang }: { lang: string }) {
         </div>
 
         <motion.div className="landing-hero-scroll-slow w-full" style={{ x: termX, y: termY }}>
-          <TerminalShowcase lang={lang} />
+          <div ref={termRef}>
+            <TerminalShowcase lang={lang} />
+          </div>
         </motion.div>
       </div>
     </section>

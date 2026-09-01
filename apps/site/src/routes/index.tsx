@@ -1,8 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import { LandingPage } from '@/components/landing/landing-page';
+import { LandingShell } from '@/components/landing/landing-shell';
 import { i18n } from '@/lib/i18n';
-import { baseOptions } from '@/lib/layout.shared';
 
 export const Route = createFileRoute('/')({
   component: Home,
@@ -10,8 +9,8 @@ export const Route = createFileRoute('/')({
 
 function Home() {
   return (
-    <HomeLayout {...baseOptions(i18n.defaultLanguage, { withSearch: false })}>
+    <LandingShell lang={i18n.defaultLanguage}>
       <LandingPage lang={i18n.defaultLanguage} />
-    </HomeLayout>
+    </LandingShell>
   );
 }

@@ -1,14 +1,17 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { gsap, registerGsapPlugins } from './gsap-client';
 import { cn } from '@/lib/cn';
 
 /**
- * Scroll-linked vertical parallax wrapper — pure CSS, zero JS.
+ * Scroll-linked vertical parallax wrapper, driven by a ScrollTrigger scrub.
  *
  * Translates children from `from` to `to` px as the element travels through
- * the viewport. Driven by a native CSS scroll-driven animation
- * (`animation-timeline: view()`), so the browser compositor owns the motion
- * and there is no per-frame JavaScript. Progressively enhanced: browsers
- * without `view()` timelines see the element unmoved.
+ * the viewport. Motion is tied to scroll progress so it stays parallax on
+ * every browser (no `animation-timeline` dependency) and composes cleanly
+ * with ScrollSmoother — the scrub lives on the smoother's transformed
+ * content, so the element never fights the smooth wrapper. It is fully
+ * disabled for `prefers-reduced-motion` users (element stays put) and the
+ * whole tween is cleaned up on unmount, so SPA navigation can't leak.
  */
 export function ScrollParallax({
   children,
@@ -21,13 +24,36 @@ export function ScrollParallax({
   from?: number;
   to?: number;
 }) {
-  const style = {
-    '--landing-parallax-from': `${from}px`,
-    '--landing-parallax-to': `${to}px`,
-  } as CSSProperties;
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    registerGsapPlugins();
+
+    const mm = gsap.matchMedia();
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.fromTo(
+        el,
+        { y: from },
+        {
+          y: to,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: el,
+            start: 'top bottom',
+            end: 'bottom top',
+            scrub: true,
+          },
+        },
+      );
+    });
+
+    return () => mm.revert();
+  }, [from, to]);
 
   return (
-    <div className={cn('landing-parallax', className)} style={style}>
+    <div ref={ref} className={cn('landing-parallax', className)}>
       {children}
     </div>
   );
