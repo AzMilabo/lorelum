@@ -2,6 +2,7 @@ import { TerminalDemo } from '@/components/terminal-demo';
 import { getStrings } from '@/lib/translations';
 import { Reveal } from './reveal';
 import { ScrollParallax } from './scroll-parallax';
+import { GsapFloat } from './gsap-float';
 
 export function TerminalShowcase({ lang }: { lang: string }) {
   const t = getStrings(lang);
@@ -17,9 +18,9 @@ export function TerminalShowcase({ lang }: { lang: string }) {
         <ScrollParallax from={30} to={-30} className="pointer-events-none absolute inset-0">
           <div aria-hidden className="landing-terminal-glow" />
         </ScrollParallax>
-        <div className="landing-float">
+        <GsapFloat>
           <TerminalDemo locale={lang} />
-        </div>
+        </GsapFloat>
       </div>
     </Reveal>
   );

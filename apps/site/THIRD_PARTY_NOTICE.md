@@ -31,3 +31,14 @@ Notes:
   `prefers-reduced-motion: off`, resolution/DPR-capped, and its rAF loop pauses when
   the hero is offscreen or the tab is hidden. It pulls in the `ogl` runtime
   dependency (MIT).
+
+## GSAP — animation engine + ScrollTrigger/ScrollSmoother
+
+- Package: `gsap@3.15.0` (`apps/site` dependency)
+- Source: <https://gsap.com> · <https://github.com/greensock/GSAP>
+- License: **GSAP Standard "no charge" license** (<https://gsap.com/standard-license/>).
+  Free for commercial use; not GPL/AGPL, so it does not affect Lorelum's Apache-2.0 core.
+- Used for the landing page's ScrollSmoother smooth scroll, ScrollTrigger scrub
+  parallax + hero exit, and the terminal's GSAP sine float. Registered once in
+  `apps/site/src/components/landing/gsap-client.ts`, ships with the landing chunk,
+  and is disabled under `prefers-reduced-motion: reduce`.
