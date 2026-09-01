@@ -34,8 +34,15 @@ export function Problem({ lang }: { lang: string }) {
                   <span className="font-display text-sm font-semibold tracking-widest text-indigo-400">
                     {String(i + 1).padStart(2, '0')}
                   </span>
-                  <div className="inline-flex size-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500/15 via-violet-500/15 to-cyan-400/15 text-fd-muted-foreground ring-1 ring-fd-border/50 transition-transform duration-300 group-hover:scale-110">
-                    <Icon className="size-4" />
+                  <div
+                    className="landing-icon inline-flex size-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500/15 via-violet-500/15 to-cyan-400/15 text-fd-muted-foreground ring-1 ring-fd-border/50"
+                    style={{ animationDelay: `${i * 100}ms` }}
+                  >
+                    <span aria-hidden className="landing-icon-halo" />
+                    <Icon
+                      className="landing-icon-glyph size-4"
+                      style={{ animationDelay: `${i * 100}ms` }}
+                    />
                   </div>
                 </div>
                 <h3 className="mt-6 font-display text-xl font-medium tracking-tight">{item.title}</h3>

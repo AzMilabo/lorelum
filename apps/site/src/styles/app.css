@@ -149,7 +149,9 @@ html > body[data-scroll-locked] {
   );
 }
 
-/* Animated gradient text (single element, CSS-only, GPU-friendly). */
+/* Animated gradient text (single element, CSS-only, GPU-friendly).
+ * The bright band is a moving "sweep light" over the headline; light theme
+ * swaps it for a saturated darker band so the shine reads on both surfaces. */
 @keyframes landing-gradient-shift {
   0% {
     background-position: 0% 50%;
@@ -160,12 +162,32 @@ html > body[data-scroll-locked] {
 }
 
 .landing-gradient-text {
-  background-image: linear-gradient(90deg, #818cf8, #e879f9, #22d3ee, #818cf8);
+  background-image: linear-gradient(
+    100deg,
+    #818cf8 0%,
+    #a5b4fc 18%,
+    #ffffff 32%,
+    #c084fc 50%,
+    #22d3ee 72%,
+    #818cf8 100%
+  );
   background-size: 200% auto;
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
-  animation: landing-gradient-shift 14s linear infinite;
+  animation: landing-gradient-shift 9s linear infinite;
+}
+
+:root:not(.dark) .landing-gradient-text {
+  background-image: linear-gradient(
+    100deg,
+    #6366f1 0%,
+    #818cf8 18%,
+    #4338ca 32%,
+    #a855f7 52%,
+    #0e7490 74%,
+    #6366f1 100%
+  );
 }
 
 /* Spotlight color for cards, tuned per theme. */
@@ -650,5 +672,118 @@ html > body[data-scroll-locked] {
 @media (prefers-reduced-motion: reduce) {
   .landing-btn-shine {
     display: none;
+  }
+}
+
+/* ---------- Icon micro-motion (features/problem cards) ----------
+ * The tile pops in on load, sways gently while idle, and on hover tilts up
+ * while a rotating conic ring appears around it. Transform-only + a small
+ * masked ring, so the compositor owns the motion. */
+
+@property --landing-icon-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.landing-icon {
+  position: relative;
+  isolation: isolate;
+  transform: translateZ(0);
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s ease;
+  animation: landing-icon-pop 0.8s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  will-change: transform;
+}
+
+.landing-icon-halo {
+  position: absolute;
+  inset: -9px;
+  z-index: -1;
+  border-radius: 9999px;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--landing-icon-angle, 0deg),
+    rgba(99, 102, 241, 0) 0deg,
+    rgba(99, 102, 241, 0.9) 70deg,
+    rgba(232, 121, 249, 0.9) 130deg,
+    rgba(34, 211, 238, 0.9) 190deg,
+    rgba(99, 102, 241, 0) 280deg
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transform: scale(0.75);
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: landing-icon-halo-spin 3.6s linear infinite;
+  pointer-events: none;
+}
+
+.group:hover .landing-icon {
+  transform: rotate(-7deg) translateY(-3px) scale(1.08);
+  box-shadow: 0 12px 30px -12px rgba(139, 92, 246, 0.55);
+}
+
+.group:hover .landing-icon-halo {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.landing-icon-glyph {
+  animation: landing-icon-sway 5.5s ease-in-out infinite alternate;
+}
+
+@keyframes landing-icon-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.55) rotate(-12deg);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.08) rotate(5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0);
+  }
+}
+
+@keyframes landing-icon-halo-spin {
+  to {
+    --landing-icon-angle: 360deg;
+  }
+}
+
+@keyframes landing-icon-sway {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-icon,
+  .landing-icon-glyph,
+  .landing-icon-halo {
+    animation: none;
+    transition: none;
+    transform: none;
+  }
+  .group:hover .landing-icon {
+    transform: none;
+  }
+  .group:hover .landing-icon-halo {
+    opacity: 0;
   }
 }
