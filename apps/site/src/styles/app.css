@@ -31,7 +31,11 @@ html > body[data-scroll-locked] {
 .landing-bg {
   position: fixed;
   inset: 0;
-  z-index: -10;
+  /* Positive z, not -z: a negative-z fixed layer behind a ScrollSmoother's
+   * fixed + transformed wrapper can be dropped by the GPU compositor (real
+   * browser shows the body's black instead of the gradient). A plain fixed
+   * layer at z:0 stays composited reliably. */
+  z-index: 0;
   pointer-events: none;
   overflow: hidden;
 }
@@ -105,13 +109,19 @@ html > body[data-scroll-locked] {
 .landing-vignette {
   position: fixed;
   inset: 0;
-  z-index: -8;
+  z-index: 1;
   pointer-events: none;
   background: radial-gradient(
     ellipse 90% 70% at 50% 0%,
     transparent 34%,
     var(--color-fd-background) 100%
   );
+}
+
+/* The ScrollSmoother content lives above the fixed art layers so the gradient
+ * shows through the (transparent) content while the overlay stays put. */
+#smooth-wrapper {
+  z-index: 2;
 }
 
 /* Focal glow behind the hero copy (static). `left/top + negative margins`
