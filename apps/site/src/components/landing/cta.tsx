@@ -3,6 +3,8 @@ import { ArrowRight } from 'lucide-react';
 import { gitConfig } from '@/lib/shared';
 import { getStrings } from '@/lib/translations';
 import { Reveal } from './reveal';
+import Magnet from '@/components/react-bits/magnet';
+import { useMagnetEnabled } from './use-magnet';
 
 /**
  * CTA — the closing moment. A rotating conic-gradient border ring (CSS
@@ -12,6 +14,7 @@ import { Reveal } from './reveal';
 export function Cta({ lang }: { lang: string }) {
   const t = getStrings(lang);
   const githubUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
+  const magnetOn = useMagnetEnabled();
 
   return (
     <section className="relative mx-auto w-full max-w-6xl overflow-x-clip px-4 py-24 sm:py-32">
@@ -31,14 +34,16 @@ export function Cta({ lang }: { lang: string }) {
               {t.ctaSub}
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
-              <Link
-                to="/$lang/docs/$"
-                params={{ lang, _splat: '' }}
-                className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_8px_30px_-8px_rgba(139,92,246,0.6)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_36px_-8px_rgba(139,92,246,0.75)]"
-              >
-                {t.ctaDocs}
-                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
+              <Magnet disabled={!magnetOn} magnetStrength={8} padding={64} wrapperClassName="inline-block">
+                <Link
+                  to="/$lang/docs/$"
+                  params={{ lang, _splat: '' }}
+                  className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_8px_30px_-8px_rgba(139,92,246,0.6)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_36px_-8px_rgba(139,92,246,0.75)]"
+                >
+                  {t.ctaDocs}
+                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </Magnet>
               <a
                 href={githubUrl}
                 target="_blank"

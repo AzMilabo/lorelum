@@ -8,6 +8,8 @@ import { HeroAurora } from './hero-aurora';
 import { HeroGlow } from './hero-glow';
 import { TerminalShowcase } from './terminal-showcase';
 import { shouldEnableCursorEffects } from './motion-gate';
+import Magnet from '@/components/react-bits/magnet';
+import { useMagnetEnabled } from './use-magnet';
 
 /**
  * Hero — Antigravity-grade type, alive on three axes:
@@ -26,6 +28,7 @@ export function Hero({ lang }: { lang: string }) {
   const githubUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
   const sectionRef = useRef<HTMLElement>(null);
   const pointerOkRef = useRef(false);
+  const magnetOn = useMagnetEnabled();
 
   useEffect(() => {
     pointerOkRef.current = shouldEnableCursorEffects({
@@ -101,15 +104,17 @@ export function Hero({ lang }: { lang: string }) {
           </p>
 
           <div className="landing-hero-item mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-3" style={{ animationDelay: '0.32s' }}>
-            <Link
-              to="/$lang/docs/$"
-              params={{ lang, _splat: '' }}
-              className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_8px_30px_-8px_rgba(139,92,246,0.6)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_36px_-8px_rgba(139,92,246,0.75)]"
-            >
-              <span aria-hidden className="landing-btn-shine" />
-              {t.ctaDocs}
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-            </Link>
+            <Magnet disabled={!magnetOn} magnetStrength={8} padding={64} wrapperClassName="inline-block">
+              <Link
+                to="/$lang/docs/$"
+                params={{ lang, _splat: '' }}
+                className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_8px_30px_-8px_rgba(139,92,246,0.6)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_36px_-8px_rgba(139,92,246,0.75)]"
+              >
+                <span aria-hidden className="landing-btn-shine" />
+                {t.ctaDocs}
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </Magnet>
             <a
               href={githubUrl}
               target="_blank"

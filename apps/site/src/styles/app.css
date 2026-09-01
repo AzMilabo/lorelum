@@ -513,6 +513,32 @@ summary {
   opacity: 1;
 }
 
+/* ---------- Word/character reveal (CharReveal) ----------
+ * A line of copy rises from behind a mask, one unit at a time. Same cheap,
+ * SSR-safe, reduced-motion-friendly contract as `SplitReveal`. */
+
+.landing-char-unit {
+  display: inline-block;
+  transform: translateY(110%);
+  opacity: 0;
+  transition:
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.5s ease;
+}
+
+.landing-char.is-visible .landing-char-unit {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-char-unit {
+    transform: none;
+    opacity: 1;
+    transition: none;
+  }
+}
+
 /* ---------- Page-level cursor glow (ambient light follows the pointer) ----------
  * One fixed element, position driven by a spring (transform-only), so the
  * whole page feels alive under the cursor. Screen blend lights the dark
