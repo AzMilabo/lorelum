@@ -1,5 +1,6 @@
 import { Reveal } from './reveal';
 import { SplitReveal } from './split-reveal';
+import { CharReveal } from './char-reveal';
 
 export function SectionHeading({
   eyebrow,
@@ -11,22 +12,24 @@ export function SectionHeading({
   sub?: string;
 }) {
   return (
-    <Reveal className="mx-auto max-w-3xl text-center">
-      {eyebrow ? (
-        <p className="inline-flex items-center rounded-full border border-fd-border/60 bg-fd-card/50 px-3.5 py-1 backdrop-blur">
-          <span className="landing-shimmer-text bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400 bg-clip-text font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-transparent">
-            {eyebrow}
-          </span>
-        </p>
-      ) : null}
-      <h2 className="mt-4 text-balance font-display text-4xl font-medium tracking-tight sm:text-5xl">
-        <SplitReveal text={title} />
-      </h2>
+    <>
+      <Reveal className="mx-auto max-w-3xl text-center">
+        {eyebrow ? (
+          <p className="inline-flex items-center rounded-full border border-fd-border/60 bg-fd-card/50 px-3.5 py-1 backdrop-blur">
+            <span className="landing-shimmer-text bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400 bg-clip-text font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-transparent">
+              {eyebrow}
+            </span>
+          </p>
+        ) : null}
+        <h2 className="mt-4 text-balance font-display text-4xl font-medium tracking-tight sm:text-5xl">
+          <SplitReveal text={title} />
+        </h2>
+      </Reveal>
       {sub ? (
-        <p className="mt-5 text-balance text-base text-fd-muted-foreground sm:text-lg">
-          {sub}
+        <p className="mx-auto mt-5 max-w-2xl text-balance text-base leading-relaxed text-fd-muted-foreground sm:text-lg">
+          <CharReveal text={sub} mode="auto" />
         </p>
       ) : null}
-    </Reveal>
+    </>
   );
 }
