@@ -136,7 +136,7 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
           <span className="ml-3 font-mono text-xs text-fd-muted-foreground">
             {t.terminalWindowTitle}
           </span>
-          <span className="ml-auto rounded-md bg-fd-primary/10 px-1.5 py-0.5 font-mono text-[10px] text-fd-primary">
+          <span className="ml-auto rounded-md bg-run/10 px-1.5 py-0.5 font-mono text-[10px] text-run">
             lore
           </span>
         </div>
@@ -155,7 +155,7 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
             <span className="text-fd-muted-foreground">$</span>
             <span ref={queryRef} className="text-fd-foreground" />
             {showCursor && (
-              <span className="inline-block h-4 w-2 animate-pulse bg-fd-primary align-middle motion-reduce:animate-none" />
+              <span className="inline-block h-4 w-2 animate-pulse bg-run align-middle motion-reduce:animate-none" />
             )}
           </div>
 
@@ -176,14 +176,14 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
                 className={cn(
                   '-mx-2 mt-1 rounded-lg border px-2 py-1 transition-colors',
                   current
-                    ? 'border-fd-primary/30 bg-fd-primary/10'
+                    ? 'border-run/30 bg-run/10'
                     : 'border-transparent',
                 )}
               >
                 <div
                   className={cn(
                     'flex items-center gap-2 text-xs',
-                    current ? 'text-fd-primary' : 'text-fd-muted-foreground',
+                    current ? 'text-run' : 'text-fd-muted-foreground',
                   )}
                 >
                   <span className="font-medium">✓</span>
