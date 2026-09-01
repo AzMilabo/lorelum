@@ -1,6 +1,7 @@
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrollSmoother } from 'gsap/ScrollSmoother';
+import { SplitText } from 'gsap/SplitText';
 
 /**
  * Single registration point for the GSAP stack on the landing page.
@@ -14,8 +15,8 @@ let registered = false;
 
 export function registerGsapPlugins() {
   if (registered || typeof window === 'undefined') return;
-  gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
+  gsap.registerPlugin(ScrollTrigger, ScrollSmoother, SplitText);
   registered = true;
 }
 
-export { gsap, ScrollTrigger, ScrollSmoother };
+export { gsap, ScrollTrigger, ScrollSmoother, SplitText };
