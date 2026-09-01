@@ -301,21 +301,6 @@ summary {
   animation-delay: 0.24s;
 }
 
-/* Gentle levitation for the terminal demo — transform only, compositor-owned. */
-@keyframes landing-float {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(-10px);
-  }
-}
-
-.landing-float {
-  animation: landing-float 7s ease-in-out infinite alternate;
-  will-change: transform;
-}
-
 /* ---------- CTA: rotating conic border ----------
  * A conic gradient painted on the 1.5px border ring, rotated via the
  * registered `--landing-conic-angle` custom property. Only the ring layer
@@ -385,7 +370,6 @@ summary {
   .landing-hero-sub,
   .landing-line,
   .landing-hero-item,
-  .landing-float,
   .landing-conic-border::before {
     animation: none;
   }
@@ -421,37 +405,17 @@ summary {
   transform: translateY(0) scale(1);
 }
 
-/* ---------- Scroll-linked parallax (native, zero JS) ----------
- * Reserved for inner visual layers (hero/terminal glows). Driven by the CSS
- * `animation-timeline: view()` where supported — the compositor owns the
- * motion. Progressively enhanced: no view() support simply means no parallax. */
-
-@supports (animation-timeline: view()) {
-  .landing-parallax {
-    animation: landing-parallax-y linear both;
-    animation-timeline: view();
-    animation-range: entry 0% cover 100%;
-  }
-}
-
-@keyframes landing-parallax-y {
-  from {
-    transform: translateY(var(--landing-parallax-from, 24px));
-  }
-  to {
-    transform: translateY(var(--landing-parallax-to, -24px));
-  }
-}
+/* ---------- Scroll-linked parallax (GSAP ScrollTrigger scrub) ----------
+ * The `ScrollParallax` component owns the motion now; this comment reserves
+ * the `.landing-parallax` class name for layout hooks only. ScrollSmoother
+ * transforms the content, so native `animation-timeline: view()` timelines
+ * can't track it — the GSAP scrub follows the smoother's scroller instead. */
 
 @media (prefers-reduced-motion: reduce) {
   .landing-reveal {
     opacity: 1;
     transform: none;
     transition: none;
-  }
-  .landing-parallax {
-    animation: none;
-    transform: none;
   }
 }
 
@@ -631,31 +595,10 @@ summary {
 :root:not(.dark) .landing-orb-2 { background: radial-gradient(circle, rgba(45, 212, 191, 0.18), transparent 70%); }
 :root:not(.dark) .landing-orb-3 { background: radial-gradient(circle, rgba(52, 211, 153, 0.16), transparent 70%); }
 
-/* ---------- Hero scroll exit (content drifts away at different rates) ----------
+/* ---------- Hero scroll exit (GSAP ScrollTrigger scrub) ----------
  * The title block fades + rises as the hero scrolls out; the terminal lingers
- * slightly longer. Progressive enhancement via CSS view() timeline. */
-
-@supports (animation-timeline: view()) {
-  .landing-hero-scroll {
-    animation: landing-hero-exit linear both;
-    animation-timeline: view();
-    animation-range: exit 0% exit 55%;
-  }
-  .landing-hero-scroll-slow {
-    animation: landing-hero-exit-slow linear both;
-    animation-timeline: view();
-    animation-range: exit 0% exit 78%;
-  }
-}
-
-@keyframes landing-hero-exit {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(-46px); }
-}
-@keyframes landing-hero-exit-slow {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0.15; transform: translateY(-18px); }
-}
+ * slightly longer. Driven by GSAP in `hero.tsx` so it tracks the content a
+ * ScrollSmoother translates. */
 
 /* ---------- Eyebrow shimmer ---------- */
 
@@ -679,12 +622,6 @@ summary {
   .landing-cursor-glow,
   .landing-orb {
     display: none;
-  }
-  .landing-hero-scroll,
-  .landing-hero-scroll-slow {
-    animation: none;
-    opacity: 1;
-    transform: none;
   }
   .landing-shimmer-text {
     animation: none;

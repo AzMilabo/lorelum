@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import { LandingPage } from '@/components/landing/landing-page';
-import { baseOptions } from '@/lib/layout.shared';
+import { LandingShell } from '@/components/landing/landing-shell';
 
 export const Route = createFileRoute('/$lang/')({
   component: Home,
@@ -10,8 +9,8 @@ export const Route = createFileRoute('/$lang/')({
 function Home() {
   const { lang } = Route.useParams();
   return (
-    <HomeLayout {...baseOptions(lang, { withSearch: false })}>
+    <LandingShell lang={lang}>
       <LandingPage lang={lang} />
-    </HomeLayout>
+    </LandingShell>
   );
 }
