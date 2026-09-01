@@ -21,7 +21,7 @@ export function Stats({ lang }: { lang: string }) {
       <div className="mt-16 grid gap-12 sm:grid-cols-3">
         {STATS.map((stat, i) => (
           <Reveal key={stat.labelKey} className="text-center" delay={i * 120}>
-            <div className="bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400 bg-clip-text font-display text-6xl font-medium tracking-tight text-transparent sm:text-7xl">
+            <div className="landing-gradient-text font-display text-6xl font-medium tracking-tight sm:text-7xl">
               <CountUp to={stat.value} duration={1.8} />
               {stat.suffix}
             </div>

@@ -35,8 +35,15 @@ export function Features({ lang }: { lang: string }) {
               <ScrollParallax from={drift[i % 4]} to={-drift[i % 4]} className="h-full">
                 <SpotlightCard className="group h-full">
                 <div className={item.wide ? 'flex h-full flex-col gap-5 sm:flex-row sm:items-start' : ''}>
-                  <div className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 via-violet-500/20 to-cyan-400/20 text-fd-foreground ring-1 ring-fd-border/60 transition-transform duration-300 group-hover:scale-110">
-                    <Icon className="size-5 text-indigo-400" />
+                  <div
+                    className="landing-icon inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 via-violet-500/20 to-cyan-400/20 text-fd-foreground ring-1 ring-fd-border/60"
+                    style={{ animationDelay: `${i * 90}ms` }}
+                  >
+                    <span aria-hidden className="landing-icon-halo" />
+                    <Icon
+                      className="landing-icon-glyph size-5 text-indigo-400"
+                      style={{ animationDelay: `${i * 90}ms` }}
+                    />
                   </div>
                   <div className={item.wide ? 'sm:pt-0.5' : 'mt-5'}>
                     <div className="flex items-center gap-3">
