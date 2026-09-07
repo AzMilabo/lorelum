@@ -10,7 +10,7 @@ import { cn } from '@/lib/cn';
  * every browser (no `animation-timeline` dependency) and composes cleanly
  * with ScrollSmoother — the scrub lives on the smoother's transformed
  * content, so the element never fights the smooth wrapper. It is fully
- * disabled for `prefers-reduced-motion` users (element stays put) and the
+ * disabled for touch users (element stays put) and the
  * whole tween is cleaned up on unmount, so SPA navigation can't leak.
  */
 export function ScrollParallax({
@@ -31,8 +31,7 @@ export function ScrollParallax({
     if (!el) return;
     registerGsapPlugins();
 
-    const mm = gsap.matchMedia();
-    mm.add('(prefers-reduced-motion: no-preference)', () => {
+    const ctx = gsap.context(() => {
       gsap.fromTo(
         el,
         { y: from },
@@ -49,7 +48,7 @@ export function ScrollParallax({
       );
     });
 
-    return () => mm.revert();
+    return () => ctx.revert();
   }, [from, to]);
 
   return (

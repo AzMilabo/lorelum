@@ -1,12 +1,12 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ThemeSwitch } from 'fumadocs-ui/layouts/shared/slots/theme-switch';
 import { LanguageSwitch } from '@/components/language-switch';
 import { i18n } from '@/lib/i18n';
 import { appName, gitConfig } from '@/lib/shared';
-import { AuroraBackground } from './aurora-background';
-import { CursorGlow } from './cursor-glow';
-import { CustomCursor } from './custom-cursor';
+import { PageBackground } from './page-background';
+import { FpsProbe } from './fps-probe';
+import { gsap, registerGsapPlugins, ScrollTrigger } from './gsap-client';
 import {
   SmoothScroll,
   SMOOTH_CONTENT_ID,
@@ -22,6 +22,10 @@ import {
  * behaving like the natively-scrolled page. We mirror that: the brand/nav is
  * a fixed sibling of `#smooth-content`, so ScrollSmoother never transforms it
  * and the theme/language switches stay reachable while scrolling.
+ *
+ * The nav hides while scrolling down and slides back on the first upward
+ * scroll (transform-only, one tween per direction change). Reduced-motion
+ * users always keep it visible.
  */
 export function LandingShell({
   lang,
@@ -32,10 +36,44 @@ export function LandingShell({
 }) {
   const homePath = lang === i18n.defaultLanguage ? '/' : `/${lang}`;
   const github = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
+  const navRef = useRef<HTMLElement>(null);
+
+  // Hide-on-scroll-down / show-on-scroll-up. Threshold keeps the nav steady
+  // near the top of the page; direction comes from ScrollTrigger so it agrees
+  // with the smoothed scroll the rest of the page animates against.
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    registerGsapPlugins();
+
+    const ctx = gsap.context(() => {
+      let hidden = false;
+      const setNav = (hide: boolean) => {
+        hidden = hide;
+        gsap.to(nav, {
+          yPercent: hide ? -100 : 0,
+          duration: 0.35,
+          ease: 'power3.out',
+          overwrite: true,
+        });
+      };
+      const trigger = ScrollTrigger.create({
+        start: 0,
+        end: 'max',
+        onUpdate(self) {
+          const shouldHide = self.direction === 1 && self.scroll() > 96;
+          if (shouldHide !== hidden) setNav(shouldHide);
+        },
+      });
+      return () => trigger.kill();
+    });
+
+    return () => ctx.revert();
+  }, []);
 
   return (
     <>
-      <nav className="fixed inset-x-0 top-0 z-50 h-14 border-b border-fd-border/60 bg-fd-background/70 backdrop-blur-lg">
+      <nav ref={navRef} className="fixed inset-x-0 top-0 z-50 h-14 border-b border-fd-border/60 bg-fd-background/95">
         <div className="mx-auto flex h-full w-full max-w-[1400px] items-center justify-between px-4">
           <Link
             to={homePath}
@@ -65,9 +103,9 @@ export function LandingShell({
       {/* Fixed/ambient layers must live outside the translated scroll content
           so ScrollSmoother never turns their `position: fixed` into a
           transform-relative one. */}
-      <AuroraBackground />
-      <CursorGlow />
-      <CustomCursor />
+      <PageBackground />
+      {/* Diagnostics overlay — dev only, and self-gated to ?probe=1 URLs. */}
+      {import.meta.env.DEV ? <FpsProbe /> : null}
 
       <SmoothScroll>
         <div id={SMOOTH_WRAPPER_ID} className="relative w-full">

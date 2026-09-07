@@ -4,8 +4,12 @@
  * License: MIT + Commons Clause (see https://reactbits.dev/LICENSE.md).
  * Adapted for Lorelum's performance budget:
  *   - `paused` prop stops the rAF loop (tab hidden / hero offscreen).
- *   - DPR is capped at 1.25 and the backing canvas at 1600x1000 so the
- *     fill-rate stays bounded on retina/4K displays.
+ *   - DPR is capped at 0.85 and the backing canvas at 1024x640 so the
+ *     fill-rate stays bounded on retina/4K displays. The glow is soft and
+ *     stretched via CSS to cover the hero, so the lower backing resolution is
+ *     visually indistinguishable but cuts the per-pixel shader work roughly in
+ *     half versus full-viewport rendering — the single largest GPU cost on the
+ *     opening screen.
  *   - All props are read through a ref so the renderer never re-initializes
  *     on prop changes.
  * See apps/site/THIRD_PARTY_NOTICE.md.
@@ -139,10 +143,11 @@ interface AuroraProps {
   paused?: boolean;
 }
 
-/** Cap so we never rasterize above ~2 MP on high-DPI displays. */
-const MAX_DPR = 1.25;
-const MAX_WIDTH = 1600;
-const MAX_HEIGHT = 1000;
+/** Cap so we never rasterize above ~0.5 MP on high-DPI displays (softer glow
+ *  needs fewer pixels than crisp type; keeps fill-rate low on weak GPUs). */
+const MAX_DPR = 0.85;
+const MAX_WIDTH = 1024;
+const MAX_HEIGHT = 640;
 
 export default function Aurora(props: AuroraProps) {
   const {
@@ -161,104 +166,152 @@ export default function Aurora(props: AuroraProps) {
     const ctn = ctnDom.current;
     if (!ctn) return;
 
-    const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
-    const renderer = new Renderer({
-      alpha: true,
-      premultipliedAlpha: true,
-      antialias: true,
-      dpr,
-    });
-    const gl = renderer.gl;
-    gl.clearColor(0, 0, 0, 0);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    gl.canvas.style.backgroundColor = 'transparent';
-
-    let program: Program | undefined;
-
-    function resize() {
-      if (!ctn) return;
-      const width = Math.min(ctn.offsetWidth, MAX_WIDTH);
-      const height = Math.min(ctn.offsetHeight, MAX_HEIGHT);
-      renderer.setSize(width, height);
-      if (program) {
-        program.uniforms.uResolution.value = [gl.canvas.width, gl.canvas.height];
-      }
-    }
-    window.addEventListener('resize', resize);
-
-    const geometry = new Triangle(gl);
-    if (geometry.attributes.uv) {
-      delete geometry.attributes.uv;
-    }
-
-    const stops = colorStops.map((hex) => {
-      const c = new Color(hex);
-      return [c.r, c.g, c.b];
-    });
-
-    program = new Program(gl, {
-      vertex: VERT,
-      fragment: FRAG,
-      uniforms: {
-        uTime: { value: 0 },
-        uAmplitude: { value: amplitude },
-        uColorStops: { value: stops },
-        uResolution: { value: [ctn.offsetWidth, ctn.offsetHeight] },
-        uBlend: { value: blend },
-        uLightMode: { value: lightMode ? 1 : 0 },
-      },
-    });
-
-    const mesh = new Mesh(gl, { geometry, program });
-    ctn.appendChild(gl.canvas);
-
+    // The WebGL renderer creation + shader compile is a ~tens-of-ms main-thread
+    // spike. It used to run synchronously in this effect, which made the hero
+    // hitch exactly when the aurora first mounted. Defer the whole init to the
+    // browser's idle period (falling back to a timeout so it still runs on
+    // browsers without requestIdleCallback), so the compile lands in spare time
+    // and never blocks a frame. Everything the cleanup needs is captured here.
+    let cancelled = false;
     let animateId = 0;
-    let running = true;
+    let running = false;
+    let program: Program | undefined;
+    let renderer: Renderer | undefined;
+    let mesh: Mesh | undefined;
+    let resizeHandler: (() => void) | undefined;
+    const canvasHost: HTMLDivElement = ctn;
 
-    const update = (t: number) => {
-      if (!running) return;
-      animateId = requestAnimationFrame(update);
-      const p = propsRef.current;
-      const time = t * 0.01;
-      const s = p.speed ?? 1.0;
-      if (program) {
-        program.uniforms.uTime.value = time * s * 0.1;
-        program.uniforms.uAmplitude.value = p.amplitude ?? amplitude;
-        program.uniforms.uBlend.value = p.blend ?? blend;
-        program.uniforms.uLightMode.value = (p.lightMode ?? lightMode) ? 1 : 0;
-        const curStops = p.colorStops ?? colorStops;
-        program.uniforms.uColorStops.value = curStops.map((hex: string) => {
-          const c = new Color(hex);
-          return [c.r, c.g, c.b];
-        });
-        renderer.render({ scene: mesh });
+    const init = () => {
+      if (cancelled || !canvasHost) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+      const r = new Renderer({
+        alpha: true,
+        premultipliedAlpha: true,
+        antialias: true,
+        dpr,
+      });
+      renderer = r;
+      const gl = r.gl;
+      gl.clearColor(0, 0, 0, 0);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.canvas.style.backgroundColor = 'transparent';
+      // Site adaptation: fade the canvas in over ~1s (see .landing-aurora-canvas
+      // in app.css) so the first compiled frame doesn't pop in abruptly.
+      gl.canvas.className = 'landing-aurora-canvas';
+
+      function resize() {
+        if (!canvasHost || !gl || !program) return;
+        const width = Math.min(canvasHost.offsetWidth, MAX_WIDTH);
+        const height = Math.min(canvasHost.offsetHeight, MAX_HEIGHT);
+        r.setSize(width, height);
+        // `renderer.setSize` sizes the canvas CSS box to the (capped) backing
+        // resolution. Stretch it back to fill the hero so a capped buffer never
+        // leaves a black gap on wide/tall viewports — the backing is still
+        // low-res (cheap), it just scales to cover.
+        gl.canvas.style.width = '100%';
+        gl.canvas.style.height = '100%';
+        gl.canvas.style.display = 'block';
+        if (program) {
+          program.uniforms.uResolution.value = [gl.canvas.width, gl.canvas.height];
+        }
       }
+      resizeHandler = resize;
+      window.addEventListener('resize', resize);
+
+      const geometry = new Triangle(gl);
+      if (geometry.attributes.uv) {
+        delete geometry.attributes.uv;
+      }
+
+      const stops = colorStops.map((hex) => {
+        const c = new Color(hex);
+        return [c.r, c.g, c.b];
+      });
+
+      program = new Program(gl, {
+        vertex: VERT,
+        fragment: FRAG,
+        uniforms: {
+          uTime: { value: 0 },
+          uAmplitude: { value: amplitude },
+          uColorStops: { value: stops },
+          uResolution: { value: [canvasHost.offsetWidth, canvasHost.offsetHeight] },
+          uBlend: { value: blend },
+          uLightMode: { value: lightMode ? 1 : 0 },
+        },
+      });
+
+      mesh = new Mesh(gl, { geometry, program });
+      canvasHost.appendChild(gl.canvas);
+
+      const update = (t: number) => {
+        if (!running || cancelled) return;
+        animateId = requestAnimationFrame(update);
+        const p = propsRef.current;
+        const time = t * 0.01;
+        const s = p.speed ?? 1.0;
+        if (program) {
+          program.uniforms.uTime.value = time * s * 0.1;
+          program.uniforms.uAmplitude.value = p.amplitude ?? amplitude;
+          program.uniforms.uBlend.value = p.blend ?? blend;
+          program.uniforms.uLightMode.value = (p.lightMode ?? lightMode) ? 1 : 0;
+          const curStops = p.colorStops ?? colorStops;
+          program.uniforms.uColorStops.value = curStops.map((hex: string) => {
+            const c = new Color(hex);
+            return [c.r, c.g, c.b];
+          });
+          renderer!.render({ scene: mesh! });
+        }
+      };
+
+      const start = () => {
+        if (running || cancelled) return;
+        running = true;
+        animateId = requestAnimationFrame(update);
+      };
+      const stop = () => {
+        running = false;
+        cancelAnimationFrame(animateId);
+      };
+
+      controlsRef.current = { start, stop };
+      resize();
+      // If the host had paused us before init finished (e.g. scrolled away in
+      // the window between mount and the idle callback), don't start drawing.
+      if (!propsRef.current.paused) start();
     };
 
-    const start = () => {
-      if (running) return;
-      running = true;
-      animateId = requestAnimationFrame(update);
-    };
-    const stop = () => {
-      running = false;
-      cancelAnimationFrame(animateId);
-    };
-
-    controlsRef.current = { start, stop };
-    animateId = requestAnimationFrame(update);
-    resize();
+    // Schedule the heavy init for idle time; the timeout bounds the wait so a
+    // busy page can't postpone the aurora indefinitely (it used to be 2.5s,
+    // which read as "the aurora never loads on refresh" when combined with the
+    // serial chunk download). 400ms keeps the compile spike out of the first
+    // frames without adding a noticeable delay.
+    const scheduleIdle =
+      typeof (window as { requestIdleCallback?: unknown }).requestIdleCallback === 'function'
+        ? (window as {
+            requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number;
+          }).requestIdleCallback(init, { timeout: 400 })
+        : (setTimeout(init, 0) as unknown as number);
 
     return () => {
+      cancelled = true;
       running = false;
       cancelAnimationFrame(animateId);
-      controlsRef.current = null;
-      window.removeEventListener('resize', resize);
-      if (ctn && gl.canvas.parentNode === ctn) {
-        ctn.removeChild(gl.canvas);
+      if (typeof (window as { cancelIdleCallback?: unknown }).cancelIdleCallback === 'function') {
+        (window as { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(
+          scheduleIdle as number,
+        );
+      } else {
+        clearTimeout(scheduleIdle as unknown as ReturnType<typeof setTimeout>);
       }
-      gl.getExtension('WEBGL_lose_context')?.loseContext();
+      controlsRef.current = null;
+      if (resizeHandler) window.removeEventListener('resize', resizeHandler);
+      const gl = renderer?.gl;
+      if (gl && gl.canvas.parentNode === canvasHost) {
+        canvasHost.removeChild(gl.canvas);
+      }
+      gl?.getExtension('WEBGL_lose_context')?.loseContext();
     };
   }, [amplitude, blend, colorStops, lightMode]);
 

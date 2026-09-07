@@ -1,8 +1,7 @@
-import { TerminalDemo } from '@/components/terminal-demo';
+import { TerminalDemo } from './terminal-demo';
 import { getStrings } from '@/lib/translations';
 import { Reveal } from './reveal';
-import { ScrollParallax } from './scroll-parallax';
-import { GsapFloat } from './gsap-float';
+import { GsapScaleUp } from './gsap-scale-up';
 
 export function TerminalShowcase({ lang }: { lang: string }) {
   const t = getStrings(lang);
@@ -14,13 +13,10 @@ export function TerminalShowcase({ lang }: { lang: string }) {
         </h2>
         <p className="mt-2 text-sm text-fd-muted-foreground">{t.terminalSectionSub}</p>
       </div>
-      <div className="relative mx-auto mt-10 max-w-2xl overflow-x-clip">
-        <ScrollParallax from={30} to={-30} className="pointer-events-none absolute inset-0">
-          <div aria-hidden className="landing-terminal-glow" />
-        </ScrollParallax>
-        <GsapFloat>
+      <div className="relative mx-auto mt-10 max-w-4xl overflow-x-clip">
+        <GsapScaleUp fromScale={0.6}>
           <TerminalDemo locale={lang} />
-        </GsapFloat>
+        </GsapScaleUp>
       </div>
     </Reveal>
   );
