@@ -2,8 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 import { LandingPage } from '@/components/landing/landing-page';
 import { LandingShell } from '@/components/landing/landing-shell';
 import { i18n } from '@/lib/i18n';
+import { landingHead } from '@/lib/meta';
 
 export const Route = createFileRoute('/')({
+  head: () => landingHead(i18n.defaultLanguage),
   component: Home,
 });
 
