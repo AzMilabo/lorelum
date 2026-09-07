@@ -46,6 +46,12 @@ node_modules/
 # Test coverage
 coverage/
 
+# ────────────────────────────────────────────────────────────
+# Local debugging residue (browser automation scratch data)
+# ────────────────────────────────────────────────────────────
+.tmp-*/
+cdp_*.ts
+
 # Note: bun.lock IS committed (text lockfile, Bun >= 1.2). Do not ignore it.
 
 # Turborepo cache (uncomment if we adopt turborepo later)
