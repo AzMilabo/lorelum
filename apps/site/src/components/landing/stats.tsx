@@ -1,7 +1,9 @@
-import CountUp from '@/components/react-bits/count-up';
+import { useRef } from 'react';
+import { CountUp } from '@/components/react-bits';
 import { getStrings, type LandingStrings } from '@/lib/translations';
 import { Reveal } from './reveal';
 import { SectionHeading } from './section-heading';
+import { usePauseOffscreen } from './hooks/use-viewport-anim';
 
 const STATS: Array<{
   value: number;
@@ -15,8 +17,12 @@ const STATS: Array<{
 
 export function Stats({ lang }: { lang: string }) {
   const t = getStrings(lang);
+  const sectionRef = useRef<HTMLElement>(null);
+  // Pause the gradient-number sweep once this section scrolls out of view.
+  usePauseOffscreen({ ref: sectionRef, selector: '.landing-gradient-text' });
+
   return (
-    <section className="relative mx-auto w-full max-w-6xl px-4 py-24 sm:py-32">
+    <section ref={sectionRef} className="relative mx-auto w-full max-w-6xl px-4 py-24 sm:py-32">
       <SectionHeading eyebrow={t.statsEyebrow} title={t.statsHeading} />
       <div className="mt-16 grid gap-12 sm:grid-cols-3">
         {STATS.map((stat, i) => (

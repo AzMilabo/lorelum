@@ -24,7 +24,13 @@ export function getMDXComponents(components?: MDXComponents) {
     File,
     Files,
     ...components,
-  } satisfies MDXComponents;
+    // `as` rather than `satisfies`: `defaultMdxComponents` (from
+    // fumadocs-ui/mdx) expands to ~638 entries whose types don't satisfy the
+    // `mdx/types` `MDXComponents` index signature exactly (the `log` entry is
+    // typed as a generic component). This only affects compile-time strictness
+    // — the map works at runtime — so we keep the composition and relax the
+    // check rather than dropping the Fumadocs components.
+  } as MDXComponents;
 }
 
 export const useMDXComponents = getMDXComponents;

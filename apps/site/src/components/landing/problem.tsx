@@ -1,5 +1,5 @@
 import { Archive, EyeOff, ShieldAlert } from 'lucide-react';
-import SpotlightCard from '@/components/react-bits/spotlight-card';
+import { SpotlightCard } from '@/components/react-bits';
 import { getStrings } from '@/lib/translations';
 import { Reveal } from './reveal';
 import { ScrollParallax } from './scroll-parallax';

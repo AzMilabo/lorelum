@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { getCanvasScale, getParticleCount } from './particle-budget';
+import { getCanvasScale, getParticleCount } from './gates/particle-budget';
 
 /**
  * Lightweight 2D particle field for the landing background.
@@ -7,7 +7,7 @@ import { getCanvasScale, getParticleCount } from './particle-budget';
  * Deliberately cheap: no WebGL, no dependencies, ~40-90 slowly drifting
  * dots drawn with canvas 2D. The rAF loop only runs while the tab is
  * visible, the backing store is capped at 1.5x DPR, and everything is
- * disabled for `prefers-reduced-motion`. Colors follow the Fumadocs theme
+ * disabled off-screen. Colors follow the Fumadocs theme
  * (bright on dark, faint on light) and update live when the theme flips.
  *
  * The whole field leans gently away from the cursor — a single smoothed
@@ -43,6 +43,16 @@ function rand(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
+/**
+ * The particles drift at ≤0.2px/frame and their twinkle is a slow sine
+ * (periods of seconds), so 60fps redraws are invisible — each frame only
+ * re-clears a full-screen canvas and re-draws ~90 dots at almost the same
+ * spots. Redrawing at 30fps halves that raster cost with no visible change
+ * (the largest per-frame move is still sub-pixel). The `tick` loop keeps its
+ * own clock so easing and twinkle stay time-based, not frame-based.
+ */
+const FRAME_INTERVAL_MS = 1000 / 30;
+
 function createParticles(count: number, w: number, h: number, dark: boolean): Particle[] {
   const rgbs = dark ? DARK_RGBS : LIGHT_RGBS;
   const alphaRange = dark ? [0.18, 0.45] : [0.08, 0.18];
@@ -65,7 +75,6 @@ export function ParticleField() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -79,6 +88,7 @@ export function ParticleField() {
     let ty = 0;
     let ox = 0;
     let oy = 0;
+    let lastDraw = 0;
 
     const isDark = () => document.documentElement.classList.contains('dark');
 
@@ -93,7 +103,6 @@ export function ParticleField() {
         width: w,
         height: h,
         dpr,
-        reducedMotion: false,
       });
       particles = createParticles(count, w, h, isDark());
     };
@@ -105,7 +114,12 @@ export function ParticleField() {
 
     const tick = () => {
       if (!running) return;
-      const t = performance.now() / 1000;
+      raf = requestAnimationFrame(tick);
+      // Frame skipper: redraw at most every FRAME_INTERVAL_MS (30fps).
+      const now = performance.now();
+      if (now - lastDraw < FRAME_INTERVAL_MS) return;
+      lastDraw = now;
+      const t = now / 1000;
       const w = window.innerWidth;
       const h = window.innerHeight;
 
@@ -133,7 +147,6 @@ export function ParticleField() {
       }
       ctx.restore();
       ctx.globalAlpha = 1;
-      raf = requestAnimationFrame(tick);
     };
 
     const start = () => {

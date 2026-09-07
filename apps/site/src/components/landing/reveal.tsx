@@ -39,10 +39,6 @@ export function Reveal({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setVisible(true);
-      return;
-    }
     const rect = el.getBoundingClientRect();
     // Already on screen after hydration: keep it visible, no reveal.
     if (rect.top < window.innerHeight * 0.92 && rect.bottom > 0) {

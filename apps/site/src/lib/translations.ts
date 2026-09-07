@@ -17,23 +17,24 @@ export interface LandingStrings {
   heroTitleBefore: string;
   heroTitleGradient: string;
   heroTitleAfter: string;
+  /** Trailing punctuation rendered after the gradient word, on line one. */
+  heroTitleComma: string;
   heroSub: string;
+  /** Loop of short phrases the hero typewriter cycles through. */
+  heroTypewriter: string[];
   heroTrust: string;
   ctaDocs: string;
   ctaGithub: string;
   // Terminal showcase
   terminalSectionTitle: string;
   terminalSectionSub: string;
-  terminalCaption: string;
   terminalWindowTitle: string;
-  terminalRetrieving: string;
-  terminalQuery: string;
-  terminalTaskPrompt: string;
-  terminalTask: string;
-  terminalPracticesPrompt: string;
-  terminalPracticesText: string;
-  terminalAntiPrompt: string;
-  terminalAntiText: string;
+  /** Human description of the `lore get` result's applies_when field. */
+  getTitle: string;
+  appliesWhen: string;
+  antiPattern: string;
+  /** Short label for how many Practices the install added. */
+  installAddedCount: string;
   // Problem
   problemEyebrow: string;
   problemHeading: string;
@@ -98,27 +99,27 @@ const en: LandingStrings = {
   heroBadge: 'Engineering knowledge, injected on demand',
   heroTitleBefore: 'The right ',
   heroTitleGradient: 'Practice',
-  heroTitleAfter: ', at the right moment.',
+  heroTitleComma: ',',
+  heroTitleAfter: 'at the right moment.',
   heroSub:
     'Lorelum retrieves your team\u2019s engineering Practices and injects them into AI context exactly when they\u2019re needed \u2014 so agents follow your rules, not drift from them.',
   heroTrust: 'Apache-2.0 · Local-first · No cloud required',
+  heroTypewriter: [
+    'Injected when the moment matters.',
+    'Right Practice, right task.',
+    'Your rules, actually followed.',
+  ],
   ctaDocs: 'Read the docs',
   ctaGithub: 'Star on GitHub',
   // Terminal showcase
   terminalSectionTitle: 'See lore in action',
   terminalSectionSub:
-    'A client-hydrated terminal demo \u2014 the query loop runs only after React hydrates.',
-  terminalCaption:
-    'A client-hydrated terminal demo \u2014 the query loop runs only after React hydrates.',
+    'A real CLI transcript — the actual `lore install` and `lore get` output, replayed as JSON envelopes.',
   terminalWindowTitle: 'lore — interactive',
-  terminalRetrieving: 'retrieving Practices…',
-  terminalQuery: '$ lore query',
-  terminalTaskPrompt: 'task: building the RBAC admin panel',
-  terminalTask: 'moment: about to claim the whole capability is done',
-  terminalPracticesPrompt: '3 relevant Practices',
-  terminalPracticesText: 'verification.match-claims-to-evidence',
-  terminalAntiPrompt: '2 anti-patterns',
-  terminalAntiText: 'testing.tests-as-cheerleaders-for-implementation',
+  getTitle: 'Reuse Evidence Only When It Still Applies',
+  appliesWhen: 'when earlier verification results may no longer describe the current work',
+  antiPattern: 'Old result reused for changed work',
+  installAddedCount: '30',
   // Problem
   problemEyebrow: 'The problem',
   problemHeading: "Rules that don't reach the agent don't exist.",
@@ -207,25 +208,26 @@ const zh: LandingStrings = {
   heroBadge: '按需注入的工程知识',
   heroTitleBefore: '正确的 ',
   heroTitleGradient: 'Practice',
-  heroTitleAfter: '，出现在正确的时刻。',
+  heroTitleComma: '，',
+  heroTitleAfter: '出现在正确的时刻。',
   heroSub:
     'Lorelum 在智能体最需要的时刻，把团队沉淀的工程 Practice 注入它的上下文——让 AI 遵循你的规则，而不是渐渐偏离。',
   heroTrust: 'Apache-2.0 · 本地优先 · 无需云端',
+  heroTypewriter: [
+    '在关键的时刻，注入正确的 Practice。',
+    '正确的 Practice，给正确的任务。',
+    '你的规则，被真正遵循。',
+  ],
   ctaDocs: '阅读文档',
   ctaGithub: 'GitHub Star',
   // Terminal showcase
   terminalSectionTitle: '看看 lore 怎么工作',
-  terminalSectionSub: '客户端水合终端演示 —— 查询循环仅在 React 水合后运行。',
-  terminalCaption: '客户端水合终端演示 —— 查询循环仅在 React 水合后运行。',
+  terminalSectionSub: '真实 CLI 记录回放 —— `lore install` 与 `lore get` 的实际 JSON 协议输出。',
   terminalWindowTitle: 'lore — 交互演示',
-  terminalRetrieving: '正在检索 Practices…',
-  terminalQuery: '$ lore query',
-  terminalTaskPrompt: '任务：正在实现 RBAC 管理后台',
-  terminalTask: '时刻：准备宣布整个能力已完成',
-  terminalPracticesPrompt: '3 条相关 Practices',
-  terminalPracticesText: 'verification.match-claims-to-evidence',
-  terminalAntiPrompt: '2 条反模式',
-  terminalAntiText: 'testing.tests-as-cheerleaders-for-implementation',
+  getTitle: 'Reuse Evidence Only When It Still Applies',
+  appliesWhen: '当先前的验证结果可能已不适用于当前改动时',
+  antiPattern: '改动之后复用旧结果',
+  installAddedCount: '30',
   // Problem
   problemEyebrow: '问题',
   problemHeading: '到不了智能体手里的规则，等于不存在。',

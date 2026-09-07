@@ -1,61 +1,80 @@
-import { Link } from '@tanstack/react-router';
-import { ArrowRight } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
+import { ArrowRight, Star } from 'lucide-react';
 import { gitConfig } from '@/lib/shared';
 import { getStrings } from '@/lib/translations';
-import { GsapScaleReveal } from './gsap-scale-reveal';
-import Magnet from '@/components/react-bits/magnet';
-import { useMagnetEnabled } from './use-magnet';
+import { GsapScaleUp } from './gsap-scale-up';
+import { ScrollFloatText } from './motion-aware-scroll-float';
+import { MotionAwareAntigravity } from './motion-aware-antigravity';
+import { MotionAwareSpecularButton } from './motion-aware-specular-button';
 
 /**
- * CTA — the closing moment. A rotating conic-gradient border ring (CSS
- * `@property`, ring-only repaint) around a glass panel with a slow inner
- * aurora glow. Pills match the hero.
+ * CTA — the closing moment, Antigravity-style: a full-bleed glass panel with a
+ * canvas particle background (orbiting ring that repels from the cursor) behind
+ * an oversized headline, mimicking https://antigravity.google. The section spans
+ * the full viewport width so the panel reads as a hero, not a centered card.
  */
 export function Cta({ lang }: { lang: string }) {
   const t = getStrings(lang);
   const githubUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
-  const magnetOn = useMagnetEnabled();
+  const navigate = useNavigate();
 
   return (
-    <section className="relative mx-auto w-full max-w-6xl overflow-x-clip px-4 py-24 sm:py-32">
-      <GsapScaleReveal fromScale={0.92} fromY={40}>
-        <div className="landing-conic-border">
-          <div className="landing-conic-inner relative overflow-hidden px-6 py-20 text-center sm:px-12 sm:py-24">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -inset-1/2 -z-10 opacity-70"
-            >
-              <div className="landing-cta-glow" />
-            </div>
-            <h2 className="mx-auto max-w-2xl text-balance font-display text-4xl font-medium tracking-tight sm:text-6xl">
-              {t.ctaHeading}
-            </h2>
-            <p className="mx-auto mt-5 max-w-md text-balance text-base text-fd-muted-foreground sm:text-lg">
+    <section className="relative w-full overflow-hidden px-4 py-28 sm:py-36">
+      <GsapScaleUp fromScale={0.6}>
+        <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-black backdrop-blur">
+          {/* Particle field on a pure-black night-sky backdrop, under the
+              content (mirrors the Antigravity site, where particles render on
+              the dark panel below the headline/buttons). */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 z-[1]">
+            <MotionAwareAntigravity />
+          </div>
+
+          <div className="relative z-10 px-6 py-24 text-center sm:px-16 sm:py-28">
+            <ScrollFloatText
+              text={t.ctaHeading}
+              containerClassName="mx-auto max-w-3xl text-balance font-display text-5xl font-medium tracking-tight text-white sm:text-7xl"
+              textClassName="text-balance"
+              animationDuration={1.1}
+              ease="back.inOut(2)"
+              stagger={0.03}
+            />
+            <p className="mx-auto mt-6 max-w-lg text-balance text-base text-white/70 sm:text-lg">
               {t.ctaSub}
             </p>
-            <div className="mt-9 flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
-              <Magnet disabled={!magnetOn} magnetStrength={8} padding={64} wrapperClassName="inline-block">
-                <Link
-                  to="/$lang/docs/$"
-                  params={{ lang, _splat: '' }}
-                  className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_8px_30px_-8px_rgba(139,92,246,0.6)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_36px_-8px_rgba(139,92,246,0.75)]"
-                >
-                  {t.ctaDocs}
-                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-              </Magnet>
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
+              <MotionAwareSpecularButton
+                size="lg"
+                radius={999}
+                tint="#141417"
+                tintOpacity={0.82}
+                blur={8}
+                textColor="#f5f5f5"
+                lineColor="#ffffff"
+                baseColor="#8b8b96"
+                intensity={1.15}
+                shineSize={12}
+                shineFade={42}
+                followMouse
+                proximity={280}
+                className="landing-specular-cta group"
+                onClick={() => navigate({ to: '/$lang/docs/$', params: { lang, _splat: '' } })}
+              >
+                {t.ctaDocs}
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+              </MotionAwareSpecularButton>
               <a
                 href={githubUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-card/50 px-6 py-3 text-sm font-medium text-fd-foreground backdrop-blur transition-colors hover:bg-fd-accent"
+                className="group inline-flex h-[3.375rem] items-center gap-2 rounded-full border border-white/25 bg-white/5 px-7 text-sm font-semibold text-white backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:border-white/60 hover:bg-white/10 hover:shadow-[0_10px_30px_-10px_rgba(255,255,255,0.25)]"
               >
+                <Star className="size-4 transition-all duration-200 group-hover:scale-110 group-hover:-rotate-12 group-hover:fill-amber-300 group-hover:text-amber-300" />
                 {t.ctaGithub}
               </a>
             </div>
           </div>
         </div>
-      </GsapScaleReveal>
+      </GsapScaleUp>
     </section>
   );
 }
