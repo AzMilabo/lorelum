@@ -17,11 +17,28 @@ export const Route = createRootRoute({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'Lorelum — the right Practice for the right task and moment',
+        name: 'theme-color',
+        content: '#0b0b12',
+        media: '(prefers-color-scheme: dark)',
       },
+      {
+        name: 'theme-color',
+        content: '#ffffff',
+        media: '(prefers-color-scheme: light)',
+      },
+      // The per-language title/description are set by the landing `head` on
+      // `/$lang` and `/` (they override this root block). Keeping the title
+      // out of the root avoids emitting the English default for `/zh` on SSR.
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
+      {
+        // Inline SVG favicon (no binary asset): a rounded indigo tile with the
+        // letter "L". `utf8` data-URI so the hash stays URL-safe.
+        rel: 'icon',
+        href:
+          "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%236c6ff5'/><text x='50' y='50' dy='.36em' text-anchor='middle' font-family='system-ui,sans-serif' font-size='62' font-weight='700' fill='white'>L</text></svg>",
+      },
       { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
       {
         rel: 'preconnect',
@@ -66,7 +83,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   }, [lang]);
 
   return (
-    <html suppressHydrationWarning>
+    <html lang={lang} suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
