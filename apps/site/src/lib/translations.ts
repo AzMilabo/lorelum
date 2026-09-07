@@ -67,7 +67,6 @@ export interface LandingStrings {
   ecosystemEyebrow: string;
   ecosystemHeading: string;
   ecosystemSub: string;
-  ecosystemItems: string[];
   // FAQ
   faqEyebrow: string;
   faqHeading: string;
@@ -162,16 +161,6 @@ const en: LandingStrings = {
   ecosystemHeading: 'Works where your agents live',
   ecosystemSub:
     'One source of truth for the rules your coding agents are already reading.',
-  ecosystemItems: [
-    'AGENTS.md',
-    'CLAUDE.md',
-    '.cursorrules',
-    'Cursor',
-    'Claude Code',
-    'Codex',
-    'Continue',
-    'Aider',
-  ],
   // FAQ
   faqEyebrow: 'FAQ',
   faqHeading: 'Questions teams ask before switching',
@@ -262,16 +251,6 @@ const zh: LandingStrings = {
   ecosystemEyebrow: '生态',
   ecosystemHeading: '在你智能体所在之处工作',
   ecosystemSub: '为你的编码智能体正在阅读的规则，提供唯一的事实来源。',
-  ecosystemItems: [
-    'AGENTS.md',
-    'CLAUDE.md',
-    '.cursorrules',
-    'Cursor',
-    'Claude Code',
-    'Codex',
-    'Continue',
-    'Aider',
-  ],
   // FAQ
   faqEyebrow: '常见问题',
   faqHeading: '团队在切换前最常问的问题',
