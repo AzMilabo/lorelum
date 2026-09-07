@@ -6,13 +6,13 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "start": "vite preview",
     "preview": "vite preview",
-    "types:check": "tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
   },
   "dependencies": {
     "@fumadocs/language": "0.2.2",
+    "@react-three/fiber": "^9.7.0",
     "@tanstack/react-router": "1.170.27",
     "@tanstack/react-router-devtools": "1.167.1",
     "@tanstack/react-start": "1.168.44",
@@ -25,9 +25,11 @@
     "motion": "^12",
     "ogl": "1.0.11",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "three": "^0.185.1"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.29.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/mdx": "^2.0.14",
     "@types/node": "^26.2.0",
@@ -37,7 +39,6 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "vite": "^8.2.1",
-    "@cloudflare/vite-plugin": "^1.29.0",
     "wrangler": "^4.74.0"
   },
   "version": "0.0.1"
