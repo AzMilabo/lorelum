@@ -1,0 +1,3 @@
+# Generated files are normalized to LF so Windows checkouts don't produce
+# phantom diffs (routeTree.gen.ts repeatedly blocked rebases with CRLF churn).
+apps/site/src/routeTree.gen.ts text eol=lf
