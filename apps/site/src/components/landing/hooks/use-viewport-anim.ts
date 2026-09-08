@@ -1,9 +1,11 @@
 import { useEffect, type RefObject } from 'react';
 import { gsap, registerGsapPlugins, ScrollTrigger } from '../gsap-client';
 
-type Target =
-  | { ref: RefObject<HTMLElement | null> }
-  | { ref: RefObject<HTMLElement | null>; selector: string };
+interface Target {
+  ref: RefObject<HTMLElement | null>;
+  /** Match elements inside `ref` instead of the element itself. */
+  selector?: string;
+}
 
 /**
  * Pause CSS animations while the target is outside the viewport.
@@ -28,8 +30,7 @@ type Target =
  * The trigger is created unconditionally.
  */
 export function usePauseOffscreen(target: Target, className = 'is-offscreen') {
-  const { ref } = target;
-  const selector = 'selector' in target ? target.selector : undefined;
+  const { ref, selector } = target;
 
   useEffect(() => {
     const el = ref.current;
