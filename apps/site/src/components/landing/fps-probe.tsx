@@ -82,7 +82,9 @@ export function FpsProbe() {
     // IntersectionObserver activity probe. IO always fires once on observe,
     // so a count that stays at 1 while the page scrolls means IO never sees
     // viewport crossings (the ScrollSmoother hazard); a count that grows
-    // means IO works and ScrollTrigger is a preference, not a requirement.
+    // means IO fires under the current ScrollSmoother configuration.
+    // ScrollTrigger stays the canonical viewport gate (AGENTS.md hard rule 3)
+    // — if you rely on IO, verify here and record the configuration.
     let ioFires = 0;
     let ioState: 'in' | 'out' | 'n/a' = 'n/a';
     const ioTarget = document.querySelector('#smooth-content footer');
