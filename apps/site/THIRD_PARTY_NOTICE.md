@@ -69,7 +69,7 @@ Notes:
 
 ## Antigravity hero particle effect — ported from antigravity.google
 
-- `src/components/landing/antigravity.tsx` is a port of the particle effect from
+- `src/components/landing/effects/antigravity.tsx` is a port of the particle effect from
   Google's Antigravity marketing site (`antigravity.google`,
   `MainParticlesComponent`, three.js r180). It previously sat in `react-bits/`
   but is NOT a React Bits component — it lives beside its landing consumer now.
@@ -78,7 +78,7 @@ Notes:
   then.
 - Runtime deps: `three`, `@react-three/fiber` (already in `package.json`).
   Mounted only on fine-pointer + motion-allowed environments via
-  `src/components/landing/motion-aware-antigravity.tsx`.
+  `src/components/landing/motion-aware/motion-aware-antigravity.tsx`.
 - `src/lib/poisson-disc.ts` (its sampling helper — a dependency-free port of
   Bridson's poisson-disc algorithm) is project code, not third-party; it moved
   out of `react-bits/` so that directory stays React-Bits-only.
@@ -91,6 +91,6 @@ Notes:
 - Used for the landing page's ScrollSmoother smooth scroll, ScrollTrigger scrub
   parallax + hero exit, SplitText word/char reveals, the custom dot+ring cursor,
   the panel scale reveal, and the terminal's GSAP sine float. Registered once in
-  `apps/site/src/components/landing/gsap-client.ts`, ships with the landing chunk,
+  `apps/site/src/components/landing/motion/gsap-client.ts`, ships with the landing chunk,
   with no motion-preference gating (removed with the rest of the landing's
   reduced-motion machinery on 2026-09-07).

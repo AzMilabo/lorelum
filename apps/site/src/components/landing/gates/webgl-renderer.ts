@@ -12,7 +12,7 @@
  * call once during mount (the probe canvas is immediately discarded).
  */
 
-import { isSoftwareRenderer } from './gates/webgl-capability';
+import { isSoftwareRenderer } from './webgl-capability';
 
 export type WebglCapability = 'hardware' | 'software' | 'unknown';
 

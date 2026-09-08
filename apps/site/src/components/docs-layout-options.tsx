@@ -1,7 +1,7 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
 import { LanguageSwitch } from '@/components/language-switch';
 import { i18n } from '@/lib/i18n';
-import { appName, gitConfig } from './shared';
+import { appName, gitConfig } from '@/lib/shared';
 
 /** User-facing names for each locale, used in the nav title suffix. */
 const localeNames: Record<string, string> = {

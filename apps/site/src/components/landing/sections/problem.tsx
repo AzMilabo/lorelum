@@ -1,8 +1,8 @@
 import { Archive, EyeOff, ShieldAlert } from 'lucide-react';
 import { SpotlightCard } from '@/components/react-bits';
 import { getStrings } from '@/lib/translations';
-import { Reveal } from './reveal';
-import { ScrollParallax } from './scroll-parallax';
+import { Reveal } from '../motion/reveal';
+import { ScrollParallax } from '../motion/scroll-parallax';
 import { SectionHeading } from './section-heading';
 import { TintedIcon, type AccentTint } from './tinted-icon';
 

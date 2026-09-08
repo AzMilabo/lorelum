@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { readWebglRendererString } from './webgl-renderer';
+import { readWebglRendererString } from './gates/webgl-renderer';
 
 /**
  * On-screen frame-rate probe for diagnosing scroll/entrance jank in a REAL
