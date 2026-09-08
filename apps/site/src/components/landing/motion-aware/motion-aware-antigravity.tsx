@@ -1,5 +1,5 @@
-import Antigravity from './antigravity';
-import { useCanvasEffectsEnabled } from './hooks/use-canvas-effects';
+import Antigravity from '../effects/antigravity';
+import { useCanvasEffectsEnabled } from '../motion/use-canvas-effects';
 
 /**
  * Motion-aware gate for the Antigravity particle simulation on the CTA card,

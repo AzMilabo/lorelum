@@ -9,7 +9,7 @@
  * and can't silently drift.
  */
 
-import type { WebglCapability } from '../webgl-renderer';
+import type { WebglCapability } from './webgl-renderer';
 
 export interface AuroraGateInput {
   /** Client-only — always false during SSR so we never render on the server. */
@@ -21,7 +21,7 @@ export interface AuroraGateInput {
   /** A WebGL context could be created. */
   webgl: boolean;
   /**
-   * Probe result from `../webgl-renderer.ts`. Software rasterizers (Microsoft
+   * Probe result from `./webgl-renderer.ts`. Software rasterizers (Microsoft
    * Basic Render Driver / SwiftShader) drop a full-screen aurora to ~30fps, so
    * they keep the CSS fallback. `'unknown'` (SSR, or the renderer could not be
    * read) is allowed through so we never degrade a setup we couldn't classify.

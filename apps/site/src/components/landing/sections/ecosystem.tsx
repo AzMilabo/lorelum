@@ -1,6 +1,6 @@
 import { LogoLoop, type LogoItem } from '@/components/react-bits';
 import { getStrings } from '@/lib/translations';
-import { Reveal } from './reveal';
+import { Reveal } from '../motion/reveal';
 import { SectionHeading } from './section-heading';
 
 /**

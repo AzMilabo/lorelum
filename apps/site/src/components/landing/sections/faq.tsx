@@ -1,6 +1,6 @@
 import { ChevronDown } from 'lucide-react';
 import { getStrings } from '@/lib/translations';
-import { Reveal } from './reveal';
+import { Reveal } from '../motion/reveal';
 import { SectionHeading } from './section-heading';
 
 export function Faq({ lang }: { lang: string }) {

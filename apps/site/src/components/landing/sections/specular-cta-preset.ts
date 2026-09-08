@@ -1,4 +1,4 @@
-import type { MotionAwareSpecularButtonProps } from './motion-aware-specular-button';
+import type { MotionAwareSpecularButtonProps } from '../motion-aware/motion-aware-specular-button';
 
 /**
  * Shared look for the landing's specular CTA pill (hero + closing CTA).

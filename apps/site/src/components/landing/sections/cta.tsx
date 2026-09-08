@@ -3,9 +3,9 @@ import { ArrowRight, Star } from 'lucide-react';
 import { ScrollFloat } from '@/components/react-bits';
 import { gitConfig } from '@/lib/shared';
 import { getStrings } from '@/lib/translations';
-import { GsapScaleUp } from './gsap-scale-up';
-import { MotionAwareAntigravity } from './motion-aware-antigravity';
-import { MotionAwareSpecularButton } from './motion-aware-specular-button';
+import { GsapScaleUp } from '../motion/gsap-scale-up';
+import { MotionAwareAntigravity } from '../motion-aware/motion-aware-antigravity';
+import { MotionAwareSpecularButton } from '../motion-aware/motion-aware-specular-button';
 import { specularCtaProps } from './specular-cta-preset';
 
 /**
