@@ -1,9 +1,9 @@
 import { useNavigate } from '@tanstack/react-router';
 import { ArrowRight, Star } from 'lucide-react';
+import { ScrollFloat } from '@/components/react-bits';
 import { gitConfig } from '@/lib/shared';
 import { getStrings } from '@/lib/translations';
 import { GsapScaleUp } from './gsap-scale-up';
-import { ScrollFloatText } from './motion-aware-scroll-float';
 import { MotionAwareAntigravity } from './motion-aware-antigravity';
 import { MotionAwareSpecularButton } from './motion-aware-specular-button';
 
@@ -31,14 +31,15 @@ export function Cta({ lang }: { lang: string }) {
           </div>
 
           <div className="relative z-10 px-6 py-24 text-center sm:px-16 sm:py-28">
-            <ScrollFloatText
-              text={t.ctaHeading}
+            <ScrollFloat
               containerClassName="mx-auto max-w-3xl text-balance font-display text-5xl font-medium tracking-tight text-white sm:text-7xl"
               textClassName="text-balance"
               animationDuration={1.1}
               ease="back.inOut(2)"
               stagger={0.03}
-            />
+            >
+              {t.ctaHeading}
+            </ScrollFloat>
             <p className="mx-auto mt-6 max-w-lg text-balance text-base text-white/70 sm:text-lg">
               {t.ctaSub}
             </p>

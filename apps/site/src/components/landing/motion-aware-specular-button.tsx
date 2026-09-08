@@ -1,6 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { SpecularButton, type SpecularButtonProps } from '@/components/react-bits';
-import { shouldEnableCanvasEffects } from './gates/motion-gate';
+import { useCanvasEffectsEnabled } from './hooks/use-canvas-effects';
 
 export type MotionAwareSpecularButtonProps = Omit<SpecularButtonProps, 'enableFx'>;
 
@@ -13,11 +13,7 @@ export type MotionAwareSpecularButtonProps = Omit<SpecularButtonProps, 'enableFx
  * loop is ever started for them.
  */
 export function MotionAwareSpecularButton({ children, ...props }: MotionAwareSpecularButtonProps & { children?: ReactNode }) {
-  const [fxEnabled, setFxEnabled] = useState(false);
-
-  useEffect(() => {
-    setFxEnabled(shouldEnableCanvasEffects({ finePointer: window.matchMedia('(pointer: fine)').matches }));
-  }, []);
+  const fxEnabled = useCanvasEffectsEnabled();
 
   return (
     <SpecularButton enableFx={fxEnabled} {...props}>
