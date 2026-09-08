@@ -4,6 +4,7 @@ import { getStrings } from '@/lib/translations';
 import { Reveal } from './reveal';
 import { ScrollParallax } from './scroll-parallax';
 import { SectionHeading } from './section-heading';
+import { TintedIcon, type AccentTint } from './tinted-icon';
 
 /**
  * Problem — three restrained spotlight cards. Number + icon up top, a strong
@@ -15,7 +16,7 @@ export function Problem({ lang }: { lang: string }) {
   const t = getStrings(lang);
   const drift = [26, 12, 20]; // per-column parallax amplitude
   // Problem reads as warning, so the accent tube runs warm (amber/rose/orange).
-  const tints = [
+  const tints: AccentTint[] = [
     { text: 'text-amber-400', grad: 'from-amber-500/15 via-orange-500/15 to-rose-400/15' },
     { text: 'text-rose-400', grad: 'from-rose-500/15 via-red-500/15 to-orange-400/15' },
     { text: 'text-orange-400', grad: 'from-orange-500/15 via-amber-400/15 to-yellow-400/15' },
@@ -31,7 +32,6 @@ export function Problem({ lang }: { lang: string }) {
       <SectionHeading eyebrow={t.problemEyebrow} title={t.problemHeading} sub={t.problemSub} />
       <div className="mt-14 grid gap-5 md:grid-cols-3">
         {items.map((item, i) => {
-          const Icon = item.icon;
           const tint = tints[i % tints.length];
           return (
             <Reveal key={item.title} className="h-full" delay={i * 100}>
@@ -41,16 +41,7 @@ export function Problem({ lang }: { lang: string }) {
                   <span className={`font-mono text-sm font-medium tracking-[0.18em] ${tint.text}`}>
                     {String(i + 1).padStart(2, '0')}
                   </span>
-                  <div
-                    className={`landing-icon inline-flex size-9 items-center justify-center rounded-lg bg-gradient-to-br ${tint.grad} text-fd-muted-foreground ring-1 ring-fd-border/50`}
-                    style={{ animationDelay: `${i * 100}ms` }}
-                  >
-                    <span aria-hidden className="landing-icon-halo" />
-                    <Icon
-                      className={`landing-icon-glyph size-4 ${tint.text}`}
-                      style={{ animationDelay: `${i * 100}ms` }}
-                    />
-                  </div>
+                  <TintedIcon icon={item.icon} tint={tint} delayMs={i * 100} size="sm" />
                 </div>
                 <h3 className="mt-6 font-display text-xl font-medium tracking-tight">{item.title}</h3>
                 <p className="mt-3 text-sm leading-relaxed text-fd-muted-foreground">{item.body}</p>
