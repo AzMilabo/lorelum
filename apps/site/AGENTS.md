@@ -104,9 +104,10 @@ copy — read it before writing your own version.
    `src/components/react-bits/` with their license header, keep upstream
    structure, and are imported **only via the `@/components/react-bits`
    barrel**. Adding, removing or rewriting one requires a matching row in
-   `apps/site/THIRD_PARTY_NOTICE.md`. Anything ported from elsewhere (e.g.
-   `landing/effects/antigravity.tsx` from antigravity.google) gets its own
-   notice section with provenance and open license questions called out.
+   `apps/site/THIRD_PARTY_NOTICE.md`. Anything ported from elsewhere gets its
+   own notice section with provenance and open license questions called out —
+   and if a port cannot be licensed, rewrite it rather than ship it (see the
+   antigravity ring's rewrite history in THIRD_PARTY_NOTICE.md).
 
 8. **Dark mode is class-based.** `dark:` is re-bound to `.dark` on `<html>`
    (`@custom-variant` in `app.css`), not `prefers-color-scheme`. Monochrome
