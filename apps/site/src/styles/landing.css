@@ -1,0 +1,471 @@
+/* ---------- Landing background (static art, zero per-frame cost) ---------- */
+
+.landing-bg {
+  position: fixed;
+  inset: 0;
+  /* Positive z, not -z: a negative-z fixed layer behind a ScrollSmoother's
+   * fixed + transformed wrapper can be dropped by the GPU compositor (real
+   * browser shows the body's black instead of the gradient). A plain fixed
+   * layer at z:0 stays composited reliably. */
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/*
+ * The gradient mesh lives on an oversized layer that drifts very slowly.
+ * It is a transform-only animation (no repaint): the compositor moves a
+ * pre-rasterized surface, so scroll and interaction stay cheap.
+ */
+.landing-bg::before {
+  content: '';
+  position: absolute;
+  inset: -14%;
+  background-image: radial-gradient(
+      55% 45% at 18% -5%,
+      rgba(79, 70, 229, 0.36) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      45% 40% at 88% 5%,
+      rgba(45, 212, 191, 0.24) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      50% 45% at 50% 105%,
+      rgba(168, 85, 247, 0.2) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      35% 30% at 100% 92%,
+      rgba(52, 211, 153, 0.16) 0%,
+      transparent 60%
+    );
+  will-change: transform;
+  animation: landing-bg-drift 90s ease-in-out infinite alternate;
+}
+
+:root:not(.dark) .landing-bg::before {
+  background-image: radial-gradient(
+      55% 45% at 18% -5%,
+      rgba(199, 210, 254, 0.7) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      45% 40% at 88% 5%,
+      rgba(153, 246, 228, 0.6) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      50% 45% at 50% 105%,
+      rgba(233, 213, 255, 0.6) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      35% 30% at 100% 92%,
+      rgba(167, 243, 208, 0.5) 0%,
+      transparent 60%
+    );
+}
+
+@keyframes landing-bg-drift {
+  0% {
+    transform: translate3d(-2%, -1.25%, 0) scale(1.05);
+  }
+  100% {
+    transform: translate3d(2%, 1.5%, 0) scale(1.07);
+  }
+}
+
+/* WebGL aurora canvas fade-in: the shader compiles to a full-brightness frame
+ * immediately, which used to pop in abruptly after the entrance animation.
+ * A transform/opacity-only fade keeps it compositor-cheap. The animation is
+ * attached to the canvas itself (see hero-aurora.tsx) so it starts the moment
+ * the first frame exists. */
+@keyframes landing-aurora-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.landing-aurora-canvas {
+  animation: landing-aurora-in 1.1s ease-out both;
+}
+
+/* Vignette: keeps hero text readable over the glows. */
+.landing-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 90% 70% at 50% 0%,
+    transparent 34%,
+    var(--color-fd-background) 100%
+  );
+}
+
+/* The ScrollSmoother content lives above the fixed art layers so the gradient
+ * shows through the (transparent) content while the overlay stays put. */
+#smooth-wrapper {
+  z-index: 2;
+}
+
+/* Animated gradient text. The bright band is a moving "sweep light" over the
+ * headline; light theme swaps it for a saturated darker band.
+ *
+ * Perf: `background-position` animation on a `background-clip: text` element
+ * repaints the glyph block each frame, and the previous `text-shadow` glow
+ * made it worse (per-glyph shadow re-sample every frame). The glow keyframes
+ * are removed; the sweep alone keeps the "living gradient" feel at a fraction
+ * of the cost. The sweep is additionally paused by a ScrollTrigger viewport
+ * gate (see `.landing-gradient-text.is-offscreen`) so hero/stats text that has
+ * scrolled out of view stops repainting entirely. */
+@keyframes landing-gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.landing-gradient-text {
+  background-image: linear-gradient(
+    100deg,
+    #818cf8 0%,
+    #a5b4fc 18%,
+    #ffffff 32%,
+    #c084fc 50%,
+    #22d3ee 72%,
+    #818cf8 100%
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: landing-gradient-shift 9s linear infinite;
+}
+
+/* Paused while the element is outside the viewport (toggled by a GSAP
+ * ScrollTrigger; see `use-viewport-anim.ts`). */
+.landing-gradient-text.is-offscreen {
+  animation-play-state: paused;
+}
+
+:root:not(.dark) .landing-gradient-text {
+  background-image: linear-gradient(
+    100deg,
+    #6366f1 0%,
+    #818cf8 18%,
+    #4338ca 32%,
+    #a855f7 52%,
+    #0e7490 74%,
+    #6366f1 100%
+  );
+}
+
+/* Spotlight color for cards, tuned per theme. */
+:root {
+  --landing-spotlight: rgba(79, 70, 229, 0.16);
+}
+.dark {
+  --landing-spotlight: rgba(255, 255, 255, 0.22);
+}
+
+/* ---------- Selection ---------- */
+
+::selection {
+  background: color-mix(in oklab, var(--color-fd-primary) 22%, transparent);
+}
+
+/* Visible focus rings on every interactive element (2px, offset so it clears
+   the pill radius). Uses the theme primary so it reads in both modes. */
+:where(a, button, summary, [role='button'], [role='link']):focus-visible {
+  outline: 2px solid var(--color-fd-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+summary {
+  cursor: pointer;
+}
+
+/* Pulsing "live" dot on the hero badge (3s breathing, opacity + glow only). */
+@keyframes landing-badge-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(52, 211, 153, 0.9);
+  }
+  50% {
+    opacity: 0.35;
+    box-shadow: 0 0 2px rgba(52, 211, 153, 0.3);
+  }
+}
+
+.landing-badge-dot {
+  animation: landing-badge-pulse 3s ease-in-out infinite;
+}
+
+/* ---------- Hero load choreography (one-shot, compositor-friendly) ----------
+ * `landing-line` masks the two H1 lines in from the bottom (clip-path +
+ * translateY — transform is compositor-owned; the clip-path only repaints
+ * during the ~0.9s entrance). `landing-hero-item` fades the rest of the
+ * hero up in order. Delays are applied inline per element.
+ */
+@keyframes landing-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    clip-path: inset(0 0 0% 0);
+  }
+}
+
+.landing-line {
+  animation: landing-line-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes landing-hero-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.landing-hero-item {
+  animation: landing-hero-item-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Hero subtitle: calm one-shot fade-in (transform/opacity only). */
+@keyframes landing-hero-sub-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.landing-hero-sub {
+  animation: landing-hero-sub-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.24s;
+}
+
+/* ---------- Scroll-in reveal (IntersectionObserver + CSS transition) ----------
+ * The `Reveal` component adds `.is-visible` when the element enters the
+ * viewport (one-shot observer, disconnects after firing). The transition is
+ * stronger than a plain fade: 28px travel + a touch of scale with a springy
+ * ease, so every section visibly "lands" as you scroll. Works in every
+ * browser (no `animation-timeline` dependency) and costs no per-frame JS. */
+
+.landing-reveal {
+  opacity: 0;
+  transform: translateY(var(--reveal-y, 28px)) scale(var(--reveal-scale, 0.98));
+  transition:
+    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.landing-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* ---------- GSAP SplitText reveal (SplitTextReveal) ----------
+ * SplitText inserts units with these classes; keep them inline-block so
+ * words/characters never wrap mid-letter. No `will-change: transform` here:
+ * with hundreds of split units across the page, forcing every unit onto its
+ * own compositor layer would pin hundreds of layers in memory. GSAP promotes
+ * the units to layers only while the scrub tween runs, then releases them. */
+
+.landing-splittext .split-char,
+.landing-splittext .split-word {
+  display: inline-block;
+}
+
+/* ---------- Scroll-linked parallax (GSAP ScrollTrigger scrub) ----------
+ * The `ScrollParallax` component owns the motion now; this comment reserves
+ * the `.landing-parallax` class name for layout hooks only. ScrollSmoother
+ * transforms the content, so native `animation-timeline: view()` timelines
+ * can't track it — the GSAP scrub follows the smoother's scroller instead. */
+
+/* ---------- GSAP SplitText reveal (SplitTextReveal) ----------
+ * The tile pops in on load, sways gently while idle, and on hover tilts up
+ * while a rotating conic ring appears around it. Transform-only + a small
+ * masked ring, so the compositor owns the motion. */
+
+@property --landing-icon-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.landing-icon {
+  position: relative;
+  isolation: isolate;
+  transform: translateZ(0);
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s ease;
+  animation: landing-icon-pop 0.8s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.landing-icon-halo {
+  position: absolute;
+  inset: -9px;
+  z-index: -1;
+  border-radius: 9999px;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--landing-icon-angle, 0deg),
+    rgba(99, 102, 241, 0) 0deg,
+    rgba(99, 102, 241, 0.9) 70deg,
+    rgba(232, 121, 249, 0.9) 130deg,
+    rgba(34, 211, 238, 0.9) 190deg,
+    rgba(99, 102, 241, 0) 280deg
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transform: scale(0.75);
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: landing-icon-halo-spin 3.6s linear infinite;
+  pointer-events: none;
+}
+
+.group:hover .landing-icon {
+  transform: rotate(-7deg) translateY(-3px) scale(1.08);
+  box-shadow: 0 12px 30px -12px rgba(139, 92, 246, 0.55);
+}
+
+.group:hover .landing-icon-halo {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.landing-icon-glyph {
+  animation: landing-icon-sway 5.5s ease-in-out infinite alternate;
+}
+
+@keyframes landing-icon-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.55) rotate(-12deg);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.08) rotate(5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0);
+  }
+}
+
+@keyframes landing-icon-halo-spin {
+  to {
+    --landing-icon-angle: 360deg;
+  }
+}
+
+@keyframes landing-icon-sway {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-3px);
+  }
+}
+
+/* ---------- Hero badge decrypt (React Bits DecryptedText) ----------
+ * While the badge resolves into its real wording, the still-scrambled glyphs
+ * read as faint so the "decoding" is legible rather than noisy. */
+.landing-decrypt-scrambled {
+  opacity: 0.5;
+}
+
+.landing-specular-cta {
+  gap: 0.5rem;
+  height: 3.375rem;
+  padding: 0 1.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 8px 30px -8px rgba(139, 92, 246, 0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.landing-specular-cta:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 36px -8px rgba(139, 92, 246, 0.65);
+}
+
+.landing-specular-cta:active {
+  transform: scale(0.97);
+}
+
+/* Label layout for the landing CTAs: text + trailing icon stay on one line
+ * (the upstream label is a plain span, so a tight width wraps the icon). */
+.landing-specular-cta .specular-button__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+/* ---------- Ecosystem logo wall ----------
+ * Logos are monochrome dark marks (Simple Icons + favicons, downloaded to
+ * /public/logos). Under the dark theme invert them so the wall reads on the
+ * dark background; a soft brightness lift keeps grays from going flat. */
+html.dark .logo-wall img {
+  filter: invert(1) brightness(1.2);
+}
+
+.logo-wall li img {
+  transition: filter 0.2s ease;
+}
+
+.logo-wall li:hover img {
+  filter: brightness(1.35);
+}
+
+html.dark .logo-wall li:hover img {
+  filter: invert(1) brightness(1.7);
+}
+
+/* Aider's mark is brand green on transparent — inversion would turn it pink,
+ * so it opts out of the dark-theme logo inversion. */
+html.dark .logo-wall img.logo-keep-color {
+  filter: none;
+}
+
+html.dark .logo-wall li:hover img.logo-keep-color {
+  filter: brightness(1.25);
+}
+
