@@ -454,6 +454,7 @@ const AntigravityInner = ({
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
       lastMoveRef.current = performance.now();
+      pointerNormRef.current.over = true;
       pointerNormRef.current.x = (e.clientX / window.innerWidth) * 2 - 1;
       pointerNormRef.current.y = -((e.clientY / window.innerHeight) * 2 - 1);
     };
@@ -485,7 +486,7 @@ const AntigravityInner = ({
     const idle = nowMs - lastMoveRef.current > 1400;
     const wanderT = t * 0.66 + 94.234;
     const wanderN = t * 0.75 + 21.028;
-    if (!idle && pointerNormRef.current.over !== false) {
+    if (!idle && pointerNormRef.current.over) {
       cursorRef.current.set(
         pointerNormRef.current.x * halfW * 0.175 + noise1D(wanderT) * 0.1,
         pointerNormRef.current.y * halfH * 0.175 + noise1D(wanderN) * 0.1
