@@ -75,6 +75,8 @@ Keep the tree navigable and each file independently understandable. These are pr
 - **One issue per PR.** Keep PRs focused and reviewable. If a change spans multiple issues, split it.
 - **Conventional Commits** (`feat(cli): ...`, `fix(engine): ...`, `spec(format): ...`, `docs: ...`).
 - **Every PR links to an issue** (`Closes #123`).
+- **Use the repository PR template.** Before opening or editing a PR, read [`.github/PULL_REQUEST_TEMPLATE.md`](./.github/PULL_REQUEST_TEMPLATE.md) and keep every section, including the linked issue, change type, verification, checklist, AI assistance, and reviewer notes.
+- **Review the full diff before opening a PR.** Read every changed line, verify the change is intentional and in scope, and record the result in the PR's AI assistance section.
 - **Public-contract changes need design alignment first.** Changes to the Practice/pack format, retrieval model, CLI surface, or MCP tool interface require an issue or Discussion with design alignment before implementation. Reuse existing agreed design and acceptance criteria when they cover the requested change; do not require a new discussion for the same decision.
 - **Work that preserves the existing public contract does not need upfront design discussion.** This includes pure bug fixes restoring documented behavior, internal refactors, performance improvements, and docs. Issue and PR requirements, applicable tests and benchmarks, and the approval boundaries below still apply.
 
