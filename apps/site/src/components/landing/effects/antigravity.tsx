@@ -1,28 +1,30 @@
 /*
- * Faithful port of the Antigravity site's particle component
- * (antigravity.google, `MainParticlesComponent`, three.js r180).
+ * Landing particle ring — an original GPU particle effect for the CTA panel,
+ * inspired by the look of the particle ring on antigravity.google. No code
+ * from that site is used; the shaders below are written for Lorelum.
  *
- * The official effect is a GPU simulation, not a CPU orbit:
+ * Architecture:
  *
- *   1. ~20k points are poisson-disc sampled into a 500×500 space and stored in
- *      a 256×256 RGBA float texture (RG = reference position / 250, B = scale,
- *      A = velocity). The remaining texels stay zero (alpha-discard hides them).
- *   2. Every other frame a sim shader renders that texture into a ping-pong
- *      render target: points near a *breathing* ring (`0.175 + sin(t)*0.03 +
- *      cos(3t)*0.02`) accumulate scale/velocity and are displaced toward the
- *      ring with perlin turbulence; everything else relaxes around its home.
- *   3. A point-cloud render shader draws each texel as a small rotated capsule
- *      sprite, sized/brightened by its sim scale & velocity, noise-mixing
- *      color1/color2/color3 — producing the glowing galaxy blob ("tide") that
- *      eases after the cursor (lerp 0.02) or wanders on noise when idle.
+ *   1. A few thousand points are poisson-disc sampled into a [-1, 1] square
+ *      and stored in a 256×256 RGBA float texture (xy = home position,
+ *      z = scale, w = velocity). Empty texels stay at zero and are hidden by
+ *      alpha discard.
+ *   2. Every other frame a simulation shader integrates the state texture
+ *      into a ping-pong render target: particles inside a breathing gaussian
+ *      ring band gain scale and velocity, pick up a tangential orbit, and
+ *      are pulled toward the ring core; everything else relaxes toward its
+ *      home position under a two-octave turbulent drift.
+ *   3. A point-cloud pass draws each texel as a soft round sprite, sized by
+ *      sim scale and brightened by velocity, tinted along a three-color ramp
+ *      driven by per-particle simplex noise — reading as a glowing galaxy
+ *      ring that eases after the cursor or wanders on noise when idle.
  *
- * All constants are the site's dark-scheme values: density 220, particles-scale
- * 0.65, ring-width 0.15, ring-width2 0.05, ring-displacement 0.23, colors
- * #7189ff / #3074f9 / #000000.
+ * The simplex-noise GLSL is webgl-noise by Ashima Arts / Stefan Gustavson
+ * (MIT) — see THIRD_PARTY_NOTICE.md for the attribution record.
  *
- * Adapted for Lorelum: TypeScript, @react-three/fiber mount, SSR-safe (the
- * callers gate this via `motion-aware-*`), DPR capped at 1, sim paused when the
- * canvas leaves the viewport, and full disposal on unmount.
+ * SSR/perf notes: callers gate this behind `motion-aware-*`; DPR is capped
+ * at 1, the sim pauses while the canvas leaves the viewport, and every GPU
+ * resource is disposed on unmount.
  */
 
 /* eslint-disable react/no-unknown-property */
@@ -32,22 +34,26 @@ import * as THREE from 'three';
 import { poissonDiscFill } from '@/lib/poisson-disc';
 
 export interface AntigravityProps {
-  /** Poisson density (the site's `data-density`). Higher = fewer, denser points. */
+  /** Poisson density — higher value = denser points. */
   density?: number;
-  /** Point size multiplier (the site's `data-particles-scale`). */
-  particlesScale?: number;
-  /** Outer ring band width (the site's `data-ring-width`). */
-  ringWidth?: number;
-  /** Tight inner band width (the site's `data-ring-width2`). */
-  ringWidth2?: number;
-  /** Displacement strength onto the ring (the site's `data-ring-displacement`). */
-  ringDisplacement?: number;
+  /** Global point-size multiplier. */
+  pointScale?: number;
+  /** Soft outer width of the ring band (world units). */
+  bandWidth?: number;
+  /** Width of the bright ring core (world units). */
+  coreWidth?: number;
+  /** How strongly band particles are pulled onto the ring. */
+  pullStrength?: number;
 }
 
 const SIM_SIZE = 256;
 const SAMPLE_SPACE = 500;
 
-/* Ashima 3D simplex noise — the same `snoise` the site's shaders include. */
+/*
+ * 3D simplex noise — webgl-noise by Ashima Arts / Stefan Gustavson, MIT
+ * license (https://github.com/ashima/webgl-noise). Verbatim redistribution
+ * under the MIT header above.
+ */
 const SNOISE = /* glsl */ `
 vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -96,83 +102,69 @@ float snoise(vec3 v) {
 `;
 
 /*
- * Sim pass (site's `simMaterial`): integrates every particle state texel.
- * Input:  uPosition  = previous frame state (or the initial ref texture)
- *         uPosRefs   = static reference positions
- * Output: new state = vec4(finalPos, scale, velocity)
+ * Simulation pass: integrates every state texel.
+ *   uState = previous frame state (xy = position, z = scale, w = velocity)
+ *   uHome  = static poisson home positions
+ * A gaussian band around the breathing ring drives three forces — a
+ * tangential orbit, a radial spring onto the ring, and a scale/velocity
+ * charge — while a two-octave drift field keeps the whole cloud slowly
+ * alive everywhere else.
  */
 const SIM_FRAG = /* glsl */ `
 precision highp float;
-uniform sampler2D uPosition;
-uniform sampler2D uPosRefs;
+uniform sampler2D uState;
+uniform sampler2D uHome;
 uniform vec2 uRingPos;
 uniform float uTime;
-uniform float uDeltaTime;
 uniform float uRingRadius;
-uniform float uRingWidth;
-uniform float uRingWidth2;
-uniform float uRingDisplacement;
+uniform float uBandWidth;
+uniform float uCoreWidth;
+uniform float uPull;
 ${SNOISE}
 void main() {
-  vec2 simTexCoords = gl_FragCoord.xy / vec2(${SIM_SIZE.toFixed(1)}, ${SIM_SIZE.toFixed(1)});
-  vec4 pFrame = texture2D(uPosition, simTexCoords);
-  float scale = pFrame.z;
-  float velocity = pFrame.w;
-  vec2 refPos = texture2D(uPosRefs, simTexCoords).xy;
+  vec2 uv = gl_FragCoord.xy / ${SIM_SIZE.toFixed(1)};
+  vec4 st = texture2D(uState, uv);
+  vec2 pos = st.xy;
+  float scale = st.z;
+  float vel = st.w;
+  vec2 home = texture2D(uHome, uv).xy;
 
-  float time = uTime * .5;
-  vec2 curentPos = refPos;
+  // Ring radius breathes on two slow sinusoids.
+  float ring = uRingRadius * (1.0 + 0.15 * sin(uTime * 0.85) + 0.06 * sin(uTime * 2.3 + 1.3));
+  float d = distance(pos, uRingPos);
+  float band = exp(-pow((d - ring) / uBandWidth, 2.0));
+  float core = exp(-pow((d - ring) / uCoreWidth, 2.0));
 
-  vec2 pos = pFrame.xy;
-  pos *= .8;
+  // Two-octave turbulent drift, time-scrolled: large-scale sway + small shimmer.
+  float t = uTime * 0.5;
+  vec2 drift = vec2(
+    snoise(vec3(pos * 0.06, t)),
+    snoise(vec3(pos * 0.06 + 19.7, t + 11.0))
+  ) * 0.035
+  + vec2(
+    snoise(vec3(pos * 0.23 + 40.0, t * 1.7)),
+    snoise(vec3(pos * 0.23 + 40.0, t * 1.7 + 17.0))
+  ) * 0.008;
 
-  float dist = distance(curentPos.xy, uRingPos);
-  float noise0 = snoise(vec3(curentPos.xy * .2 + vec2(18.4924, 72.9744), time * 0.5));
-  float dist1 = distance(curentPos.xy + (noise0 * .005), uRingPos);
+  // Orbit: a tangential current that only band particles ride.
+  vec2 toRing = uRingPos - pos;
+  vec2 tangent = vec2(-toRing.y, toRing.x) / max(length(toRing), 1e-3);
+  vec2 orbit = tangent * band * (0.018 + 0.010 * sin(uTime * 0.6));
 
-  float t = smoothstep(uRingRadius - (uRingWidth * 2.), uRingRadius, dist) - smoothstep(uRingRadius, uRingRadius + uRingWidth, dist1);
-  float t2 = smoothstep(uRingRadius - (uRingWidth2 * 2.), uRingRadius, dist) - smoothstep(uRingRadius, uRingRadius + uRingWidth2, dist1);
-  float t3 = smoothstep(uRingRadius + uRingWidth2, uRingRadius, dist);
+  // Radial spring: band particles drift onto the ring, the rest ignore it.
+  vec2 radial = toRing / max(length(toRing), 1e-3);
+  vec2 pull = -radial * (d - ring) * band * uPull;
 
-  t = pow(t, 2.);
-  t2 = pow(t2, 3.);
+  pos = mix(pos, home + drift + orbit, 0.22) + pull;
 
-  t += t2 * 3.;
-  t += t3 * .4;
-  t += snoise(vec3(curentPos.xy * 30. + vec2(11.4924, 12.9744), time * 0.5)) * t3 * .5;
+  // Charge scale from the band, plus a slow ambient shimmer so the whole
+  // dust field stays faintly visible outside the ring. Velocity chases
+  // scale (afterglow).
+  float ambient = 0.5 + 0.5 * snoise(vec3(home * 1.7, t * 0.35));
+  scale += (band * (0.8 + 0.4 * core) + ambient * 0.42 - scale) * 0.2;
+  vel += (scale - vel) * 0.32;
 
-  float nS = snoise(vec3(curentPos.xy * 2. + vec2(18.4924, 72.9744), time * 0.5));
-  t += pow((nS + 1.5) * .5, 2.) * .6;
-
-  // Mid scale noise
-  float noise1 = snoise(vec3(curentPos.xy * 4. + vec2(88.494, 32.4397), time * 0.35));
-  float noise2 = snoise(vec3(curentPos.xy * 4. + vec2(50.904, 120.947), time * 0.35));
-
-  // Close scale noise
-  float noise3 = snoise(vec3(curentPos.xy * 20. + vec2(18.4924, 72.9744), time * .5));
-  float noise4 = snoise(vec3(curentPos.xy * 20. + vec2(50.904, 120.947), time * .5));
-
-  vec2 disp = vec2(noise1, noise2) * .03;
-  disp += vec2(noise3, noise4) * .005;
-
-  // Sin wave
-  disp.x += sin((refPos.x * 20.) + (time * 4.)) * .02 * clamp(dist, 0., 1.);
-  disp.y += cos((refPos.y * 20.) + (time * 3.)) * .02 * clamp(dist, 0., 1.);
-
-  pos -= (uRingPos - (curentPos + disp)) * pow(t2, .75) * uRingDisplacement;
-
-  // Add scale
-  float scaleDiff = t - scale;
-  scaleDiff *= .2;
-  scale += scaleDiff;
-
-  // Final position
-  vec2 finalPos = curentPos + disp + (pos * .25);
-
-  velocity *= .5;
-  velocity += scale * .25;
-
-  gl_FragColor = vec4(finalPos, scale, velocity);
+  gl_FragColor = vec4(pos, scale, vel);
 }
 `;
 
@@ -183,109 +175,65 @@ void main() {
 `;
 
 /*
- * Render pass (site's `renderMaterial`): draws one point per state texel as a
- * rotated capsule sprite, sized by sim scale, coloured by noise-mixed palette,
- * dark scheme multiplies colour by velocity (bright blob, dim dust).
+ * Render pass, vertex side: per-particle work happens here (cheaper than
+ * per-fragment) — read the state texel, derive the color-ramp phase from
+ * simplex noise seeded per particle, and size the point from its scale.
  */
 const RENDER_VERT = /* glsl */ `
 precision highp float;
 attribute vec4 seeds;
-uniform sampler2D uPosition;
+uniform sampler2D uState;
 uniform float uTime;
 uniform float uParticleScale;
-uniform float uPixelRatio;
-varying vec4 vSeeds;
-varying float vVelocity;
-varying vec2 vLocalPos;
-varying vec2 vScreenPos;
 varying float vScale;
+varying float vVel;
+varying float vMix;
+varying float vSeed;
+${SNOISE}
 void main() {
-  vec4 pos = texture2D(uPosition, uv);
-  vSeeds = seeds;
-  vVelocity = pos.w;
-  vScale = pos.z;
-  vLocalPos = pos.xy;
-  vec4 viewSpace = modelViewMatrix * vec4(vec3(pos.xy, 0.), 1.0);
-  gl_Position = projectionMatrix * viewSpace;
-  vScreenPos = gl_Position.xy;
-  gl_PointSize = ((vScale * 7.) * (uPixelRatio * 0.5) * uParticleScale);
+  vec4 st = texture2D(uState, uv);
+  vScale = st.z;
+  vVel = st.w;
+  vSeed = seeds.x;
+  vMix = 0.5 + 0.5 * snoise(vec3(st.xy * 2.2, uTime * 0.45 + seeds.x * 6.2831));
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(st.xy, 0.0, 1.0);
+  gl_PointSize = clamp(uParticleScale * (0.5 + st.z) * (7.0 + 5.0 * seeds.y), 1.0, 7.0);
 }
 `;
 
+/*
+ * Render pass, fragment side: a soft round sprite with a gaussian falloff
+ * (reads the same as the reference's rotated capsule at these point sizes),
+ * tinted along color1 -> color2 -> color3 by the per-particle mix and
+ * brightened by velocity.
+ */
 const RENDER_FRAG = /* glsl */ `
 precision highp float;
-varying vec4 vSeeds;
-varying vec2 vScreenPos;
-varying vec2 vLocalPos;
 varying float vScale;
-varying float vVelocity;
+varying float vVel;
+varying float vMix;
+varying float vSeed;
 uniform vec3 uColor1;
 uniform vec3 uColor2;
 uniform vec3 uColor3;
-uniform vec2 uRingPos;
-uniform vec2 uRez;
 uniform float uAlpha;
-uniform float uTime;
-uniform int uColorScheme;
-${SNOISE}
-float sdRoundBox(in vec2 p, in vec2 b, in vec4 r) {
-  r.xy = (p.x > 0.0) ? r.xy : r.zw;
-  r.x = (p.y > 0.0) ? r.x : r.y;
-  vec2 q = abs(p) - b + r.x;
-  return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r.x;
-}
-vec2 rotate(vec2 v, float a) {
-  float s = sin(a);
-  float c = cos(a);
-  mat2 m = mat2(c, s, -s, c);
-  return m * v;
-}
 void main() {
-  float uBorderSize = 0.2;
-  float ratio = uRez.x / uRez.y;
-
-  float noiseAngle = snoise(vec3(vLocalPos * 10. + vec2(18.4924, 72.9744), uTime * .85));
-  float noiseColor = snoise(vec3(vLocalPos * 2. + vec2(74.664, 91.556), uTime * .5));
-  noiseColor = (noiseColor + 1.) * .5;
-
-  float angle = atan(vLocalPos.y - uRingPos.y, vLocalPos.x - uRingPos.x);
-
-  vec2 uv = gl_PointCoord.xy;
-  uv -= vec2(0.5);
-  uv.y *= -1.;
-  uv = rotate(uv, -angle + (noiseAngle * .5));
-
-  vec2 tuv = vScreenPos;
-  tuv = rotate(tuv, uTime * 1.);
-  tuv.y *= 1. / ratio;
-  tuv += .5;
-
-  float h = 0.8;
-  float progress = smoothstep(0., .75, pow(noiseColor, 2.));
-  vec3 col = mix(mix(uColor1, uColor2, progress / h), mix(uColor2, uColor3, (progress - h) / (1.0 - h)), step(h, progress));
-  vec3 color = col;
-
-  float dist = sqrt(dot(uv, uv));
-  float dr = .5;
-  float t = smoothstep(dr + (uBorderSize + .0001), dr - uBorderSize, dist);
-  t = clamp(t, 0., 1.);
-
-  float rounded = sdRoundBox(uv, vec2(0.5, 0.2), vec4(.25));
-  rounded = smoothstep(.1, 0., rounded);
-
-  float a = uAlpha * rounded * smoothstep(0.1, 0.2, vScale);
+  vec2 p = gl_PointCoord - 0.5;
+  float sprite = 1.0 - smoothstep(0.3, 1.0, length(p) * 2.0);
+  float a = uAlpha * sprite * smoothstep(0.06, 0.32, vScale);
   if (a < 0.01) {
     discard;
   }
 
-  color = clamp(color, 0., 1.);
-  color = mix(color, color * clamp(vVelocity, 0., 1.), float(uColorScheme));
+  vec3 col = mix(uColor1, uColor2, clamp(vMix * 1.5, 0.0, 1.0));
+  col = mix(col, uColor3, smoothstep(0.55, 1.0, vMix));
+  col *= 0.75 + 0.75 * clamp(vVel, 0.0, 1.0);
 
-  gl_FragColor = vec4(color, clamp(a, 0., 1.));
+  gl_FragColor = vec4(col, a);
 }
 `;
 
-/* Smooth 1D pseudo-noise in [-1, 1] — stands in for the site's simplex wander. */
+/* Smooth 1D pseudo-noise in [-1, 1] — drives the idle cursor wander. */
 function noise1D(x: number): number {
   return (
     (Math.sin(x) + Math.sin(x * 2.17 + 1.7) * 0.6 + Math.sin(x * 4.31 + 3.1) * 0.35) / 1.95
@@ -294,18 +242,18 @@ function noise1D(x: number): number {
 
 const AntigravityInner = ({
   density = 220,
-  particlesScale = 0.65,
-  ringWidth = 0.15,
-  ringWidth2 = 0.05,
-  ringDisplacement = 0.23,
+  pointScale = 0.65,
+  bandWidth = 0.16,
+  coreWidth = 0.055,
+  pullStrength = 0.24,
 }: AntigravityProps) => {
   const { gl, size, viewport } = useThree();
 
   const visibleRef = useRef(true);
   useEffect(() => {
-    // Pause sim/render while the canvas is off-screen (the site does the same
-    // via IntersectionObserver), without stopping fiber's frameloop — a
-    // stopped frameloop skips resizes and froze the buffer at 300x150.
+    // Pause sim/render while the canvas is off-screen, without stopping
+    // fiber's frameloop — a stopped frameloop skips resizes and froze the
+    // buffer at 300x150.
     const canvas = gl.domElement;
     const io = new IntersectionObserver(
       entries => entries.forEach(entry => (visibleRef.current = entry.isIntersecting)),
@@ -329,10 +277,8 @@ const AntigravityInner = ({
    * quad scene, and the points geometry/material.
    */
   const gpu = useMemo(() => {
-    // density -> poisson spacing, exactly the site's lerp mapping.
-    const lerpDensity = (a: number, b: number) => (density * (b - a)) / 300 + a;
-    const minDistance = lerpDensity(10, 2);
-    const maxDistance = lerpDensity(11, 3);
+    const minDistance = 10 + (density * (2 - 10)) / 300;
+    const maxDistance = 11 + (density * (3 - 11)) / 300;
 
     const samples = poissonDiscFill({
       shape: [SAMPLE_SPACE, SAMPLE_SPACE],
@@ -342,7 +288,7 @@ const AntigravityInner = ({
     });
     const count = samples.length;
 
-    // Initial state texture: RG = ref position / 250, B = scale, A = velocity.
+    // Initial state texture: xy = home position in [-1, 1], z = scale, w = velocity.
     const stateData = new Float32Array(SIM_SIZE * SIM_SIZE * 4);
     for (let i = 0; i < count; i++) {
       const [sx, sy] = samples[i]!;
@@ -370,17 +316,16 @@ const AntigravityInner = ({
     const rt2 = new THREE.WebGLRenderTarget(SIM_SIZE, SIM_SIZE, rtOptions);
     pingPongRef.current = { read: rt1, write: rt2 };
 
-    // Sim quad scene (full-screen triangle pair, orthographic).
+    // Sim quad scene (full-screen quad, orthographic camera).
     const simMaterial = new THREE.ShaderMaterial({
       uniforms: {
-        uPosition: { value: posTex },
-        uPosRefs: { value: posTex },
+        uState: { value: posTex },
+        uHome: { value: posTex },
         uRingPos: { value: new THREE.Vector2(0, 0) },
-        uRingRadius: { value: 0.2 },
-        uDeltaTime: { value: 0 },
-        uRingWidth: { value: ringWidth },
-        uRingWidth2: { value: ringWidth2 },
-        uRingDisplacement: { value: ringDisplacement },
+        uRingRadius: { value: 0.18 },
+        uBandWidth: { value: bandWidth },
+        uCoreWidth: { value: coreWidth },
+        uPull: { value: pullStrength },
         uTime: { value: 0 },
       },
       vertexShader: SIM_VERT,
@@ -413,17 +358,13 @@ const AntigravityInner = ({
 
     const renderMaterial = new THREE.ShaderMaterial({
       uniforms: {
-        uPosition: { value: posTex },
+        uState: { value: posTex },
         uTime: { value: 0 },
         uColor1: { value: new THREE.Color('#7189ff') },
         uColor2: { value: new THREE.Color('#3074f9') },
-        uColor3: { value: new THREE.Color('#000000') },
+        uColor3: { value: new THREE.Color('#05060f') },
         uAlpha: { value: 1 },
-        uRingPos: { value: new THREE.Vector2(0, 0) },
-        uRez: { value: new THREE.Vector2(1, 1) },
         uParticleScale: { value: 0.4 },
-        uPixelRatio: { value: 1 },
-        uColorScheme: { value: 1 },
       },
       vertexShader: RENDER_VERT,
       fragmentShader: RENDER_FRAG,
@@ -465,20 +406,17 @@ const AntigravityInner = ({
   useFrame(state => {
     if (!visibleRef.current) return; // off-screen: hold the last frame
     const t = state.clock.getElapsedTime();
-    const dt = state.clock.getDelta();
     frameRef.current += 1;
 
     const { simMaterial, renderMaterial } = gpu;
     const width = size.width || 1;
-    const height = size.height || 1;
 
-    // The site's per-frame particle scale: canvasWidth / pixelRatio / 2000 * scale.
-    particleScaleRef.current = (width / 1 / 2000) * particlesScale;
+    particleScaleRef.current = (width / 1700) * pointScale;
 
     /*
-     * Cursor position: the site raycasts a plane and maps the hit through
-     * 0.175, plus simplex wander; idle (no recent pointer) is wander-only.
-     * The plane half-extent maps to the fiber viewport at z=0.
+     * Cursor position: ease toward the pointer mapped through a 0.175 gain
+     * over the viewport half-extent, plus a slow noise wander; when the
+     * pointer goes idle the wander takes over entirely.
      */
     const halfW = viewport.width / 2;
     const halfH = viewport.height / 2;
@@ -499,34 +437,28 @@ const AntigravityInner = ({
       ringPosRef.current.y += (cursorRef.current.y - ringPosRef.current.y) * 0.01;
     }
 
-    const ringRadius = 0.175 + Math.sin(t) * 0.03 + Math.cos(t * 3) * 0.02;
-
-    simMaterial.uniforms.uPosition.value = everRenderedRef.current ? pingPongRef.current!.read.texture : gpu.posTex;
     simMaterial.uniforms.uTime.value = t;
-    simMaterial.uniforms.uDeltaTime.value = dt;
-    simMaterial.uniforms.uRingRadius.value = ringRadius;
+    simMaterial.uniforms.uRingRadius.value = 0.18;
     (simMaterial.uniforms.uRingPos.value as THREE.Vector2).copy(ringPosRef.current);
 
     renderMaterial.uniforms.uTime.value = t;
-    (renderMaterial.uniforms.uRingPos.value as THREE.Vector2).copy(ringPosRef.current);
     renderMaterial.uniforms.uParticleScale.value = particleScaleRef.current;
-    (renderMaterial.uniforms.uRez.value as THREE.Vector2).set(width, height);
 
-    // Sim every other frame (the site's skipFrame), then render to the write RT.
+    // Sim every other frame, then render the freshest state.
     if (frameRef.current % 2 === 0) {
       gl.setRenderTarget(pingPongRef.current!.write);
       gl.render(gpu.simScene, gpu.simCamera);
       gl.setRenderTarget(null);
-      renderMaterial.uniforms.uPosition.value = everRenderedRef.current
+      renderMaterial.uniforms.uState.value = everRenderedRef.current
         ? pingPongRef.current!.write.texture
         : gpu.posTex;
       // Swap for the next sim step.
       pingPongRef.current = { read: pingPongRef.current!.write, write: pingPongRef.current!.read };
       everRenderedRef.current = true;
     } else if (everRenderedRef.current) {
-      renderMaterial.uniforms.uPosition.value = pingPongRef.current!.read.texture;
+      renderMaterial.uniforms.uState.value = pingPongRef.current!.read.texture;
     } else {
-      renderMaterial.uniforms.uPosition.value = gpu.posTex;
+      renderMaterial.uniforms.uState.value = gpu.posTex;
     }
   });
 

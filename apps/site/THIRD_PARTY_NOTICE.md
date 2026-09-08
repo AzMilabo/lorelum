@@ -67,21 +67,28 @@ Notes:
   `GradientText`) are **not vendored** — they had no consumers in this site, and
   were never checked in. Keep the vendored set to what is actually used.
 
-## Antigravity hero particle effect — ported from antigravity.google
+## Landing particle ring — original effect, inspired by antigravity.google
 
-- `src/components/landing/effects/antigravity.tsx` is a port of the particle effect from
-  Google's Antigravity marketing site (`antigravity.google`,
-  `MainParticlesComponent`, three.js r180). It previously sat in `react-bits/`
-  but is NOT a React Bits component — it lives beside its landing consumer now.
-- **Open compliance item:** the upstream site's license/attribution terms are not
-  recorded. Verify before any production release; treat as reference code until
-  then.
+- `src/components/landing/effects/antigravity.tsx` is **Lorelum's own GPU
+  particle effect** (shader and host code written for this project), visually
+  inspired by the particle ring on Google's Antigravity marketing site
+  (antigravity.google). No code from that site is used. An earlier state of
+  this file was a direct port of the site's shaders; it was rewritten
+  in-place on 2026-09-08 (clean-room reimplementation of the sim and render
+  passes) specifically to clear this license question. The upstream site's
+  terms grant no reuse rights, which is why the port was replaced rather
+  than kept.
+- The only third-party code in the file is the 3D simplex-noise GLSL
+  (`SNOISE`), from **webgl-noise** by Ashima Arts / Stefan Gustavson —
+  <https://github.com/ashima/webgl-noise>, **MIT license**. The MIT header is
+  preserved above the constant in the file.
 - Runtime deps: `three`, `@react-three/fiber` (already in `package.json`).
-  Mounted only on fine-pointer + motion-allowed environments via
+  Mounted only on fine-pointer devices via
   `src/components/landing/motion-aware/motion-aware-antigravity.tsx`.
-- `src/lib/poisson-disc.ts` (its sampling helper — a dependency-free port of
-  Bridson's poisson-disc algorithm) is project code, not third-party; it moved
-  out of `react-bits/` so that directory stays React-Bits-only.
+- `src/lib/poisson-disc.ts` (Bridson's poisson-disc sampling) is project
+  code, not third-party.
+- **Closed compliance item:** the earlier "upstream license not verified"
+  concern applied to the direct port only and is resolved by the rewrite.
 
 ## GSAP — animation engine + ScrollTrigger/ScrollSmoother
 - Package: `gsap@3.15.0` (`apps/site` dependency)

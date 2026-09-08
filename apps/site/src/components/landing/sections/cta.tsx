@@ -9,11 +9,10 @@ import { MotionAwareSpecularButton } from '../motion-aware/motion-aware-specular
 import { specularCtaProps } from './specular-cta-preset';
 
 /**
- * CTA — the closing moment, Antigravity-style: a full-bleed glass panel with a
- * canvas particle background (glowing particle ring that eases toward the
- * cursor) behind an oversized headline, mimicking https://antigravity.google.
- * The section spans the full viewport width so the panel reads as a hero, not
- * a centered card.
+ * CTA — the closing moment, in the spirit of antigravity.google: a full-bleed
+ * glass panel with a canvas particle background (glowing particle ring that
+ * eases toward the cursor) behind an oversized headline. The section spans
+ * the full viewport width so the panel reads as a hero, not a centered card.
  */
 export function Cta({ lang }: { lang: string }) {
   const t = getStrings(lang);

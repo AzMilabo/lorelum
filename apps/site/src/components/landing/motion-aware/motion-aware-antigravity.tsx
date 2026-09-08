@@ -2,19 +2,17 @@ import Antigravity from '../effects/antigravity';
 import { useCanvasEffectsEnabled } from '../motion/use-canvas-effects';
 
 /**
- * Motion-aware gate for the Antigravity particle simulation on the CTA card,
- * a faithful port of the official Antigravity download section
- * (antigravity.google, `MainParticlesComponent`).
+ * Motion-aware gate for the particle ring on the CTA card — Lorelum's own
+ * GPU particle effect (see `../effects/antigravity.tsx`), visually inspired
+ * by the one on antigravity.google.
  *
- * Antigravity runs a GPU ping-pong sim on a WebGL `<Canvas>` (three +
+ * The ring runs a GPU ping-pong sim on a WebGL `<Canvas>` (three +
  * @react-three/fiber), which is heavy, so it only runs on fine-pointer
  * devices. On the server or on touch we render nothing, so no WebGL context
  * is created and nothing animates.
  *
- * Props are the site's dark-section data attributes, verbatim:
- * data-density="220" data-particles-scale="0.65" data-ring-width="0.15"
- * data-ring-width2="0.05" data-ring-displacement="0.23"
- * (colors #7189ff / #3074f9 / #000000 live in the component itself).
+ * The values below are the tuned look for the dark CTA panel (colors
+ * #7189ff / #3074f9 / #05060f live in the component itself).
  */
 export function MotionAwareAntigravity() {
   const enabled = useCanvasEffectsEnabled();
@@ -26,10 +24,10 @@ export function MotionAwareAntigravity() {
   return (
     <Antigravity
       density={220}
-      particlesScale={0.65}
-      ringWidth={0.15}
-      ringWidth2={0.05}
-      ringDisplacement={0.23}
+      pointScale={0.65}
+      bandWidth={0.16}
+      coreWidth={0.055}
+      pullStrength={0.24}
     />
   );
 }
