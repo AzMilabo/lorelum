@@ -47,12 +47,12 @@ export function HeroAurora() {
   const [mounted, setMounted] = useState(false);
   const [dark, setDark] = useState(false);
   const [touch, setTouch] = useState(false);
-  const [webgl] = useState(isWebGLAvailable); // stable after first client render
+  const [webgl, setWebgl] = useState(false);
   // Software rasterizers (Microsoft Basic Render Driver / SwiftShader) choke on
   // a full-screen WebGL layer — the aurora drops to ~30fps while the CSS-only
   // fallback holds 60. Detected once on mount; `unknown` (SSR / unreadable)
-  // maps to hardware so we never degrade an unclassified setup.
-  const [hardwareWebgl, setHardwareWebgl] = useState<WebglCapability | null>(null);
+  // passes the gate so we never degrade an unclassified setup.
+  const [hardwareWebgl, setHardwareWebgl] = useState<WebglCapability>('unknown');
   const [inView, setInView] = useState(true);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -64,6 +64,7 @@ export function HeroAurora() {
 
   useEffect(() => {
     setMounted(true);
+    setWebgl(isWebGLAvailable());
     setHardwareWebgl(detectWebglRenderer());
     setDark(document.documentElement.classList.contains('dark'));
     setTouch(window.matchMedia('(pointer: coarse)').matches);
@@ -132,9 +133,7 @@ export function HeroAurora() {
       dark,
       touch,
       webgl,
-      // `null` (unknown) is treated as true by the gate — only an explicit
-      // software-renderer reading disables the aurora.
-      hardwareWebgl: hardwareWebgl === 'software' ? false : null,
+      hardwareWebgl,
       inView,
       viewportWidth,
     });

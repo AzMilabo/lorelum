@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { readWebglRendererString } from './webgl-renderer';
 
 /**
  * On-screen frame-rate probe for diagnosing scroll/entrance jank in a REAL
@@ -32,26 +33,9 @@ export function FpsProbe() {
     const originalTitle = document.title;
 
     // The GPU driver actually backing WebGL — "SwiftShader" / "llvmpipe" mean
-    // software rendering, which scales terribly with screen area.
-    const readGlRenderer = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        const gl = (canvas.getContext('webgl') ??
-          canvas.getContext('webgl2')) as WebGLRenderingContext | null;
-        if (!gl) return 'webgl-unavailable';
-        const ext = gl.getExtension('WEBGL_debug_renderer_info') as
-          | { UNMASKED_RENDERER_WEBGL: number }
-          | null;
-        const name = ext
-          ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL))
-          : String(gl.getParameter(gl.RENDERER));
-        (gl.getExtension('WEBGL_lose_context') as { loseContext: () => void } | null)?.loseContext();
-        return name;
-      } catch {
-        return 'gl-error';
-      }
-    };
-    const glRenderer = readGlRenderer();
+    // software rendering, which scales terribly with screen area. Same probe
+    // as the aurora gate (webgl-renderer.ts), raw string here.
+    const glRenderer = readWebglRendererString() ?? 'webgl-unavailable';
 
     // A/B layer hiding for diagnosing jank in a real browser: pass
     // `&hide=aurora` and/or `&hide=particles` to disable that layer via CSS
