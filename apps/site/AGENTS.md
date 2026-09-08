@@ -31,16 +31,22 @@ not done.
 
 | You are adding…                        | It goes in…                                        | Never…                                   |
 | -------------------------------------- | -------------------------------------------------- | ---------------------------------------- |
-| a landing section / page component     | `src/components/landing/`                          | —                                        |
+| a landing section                      | `src/components/landing/sections/`                 | —                                        |
 | user-facing copy (any language)        | `src/lib/translations.ts`                          | hardcode strings in components           |
 | animation capability check             | `src/components/landing/gates/` (+ colocated test) | inline `matchMedia` calls in components  |
-| shared animation hook                  | `src/components/landing/hooks/`                    | a new top-level util file                |
+| shared animation hook / GSAP primitive | `src/components/landing/motion/`                   | a new top-level util file                |
+| an ambient / effect component          | `src/components/landing/effects/`                  | a second background layer                |
+| a motion-aware gate wrapper            | `src/components/landing/motion-aware/`             | an ungated wrapper named `motion-aware-*`|
 | a vendored React Bits component        | `src/components/react-bits/` + barrel `index.ts`   | `npm install` an animation library       |
 | third-party component CSS              | `src/styles/vendor.css`                            | inline `<style>` or new top-level CSS    |
 | site's own CSS                         | `src/styles/landing.css`                           | edit `app.css` beyond `@theme` tokens    |
 | SEO head / meta                        | `src/lib/meta.ts` + route `head`                   | `<title>` back into `__root.tsx`         |
 | static assets                          | `public/`                                          | `src/` (imports are for code only)       |
 | docs page                              | `content/docs/*.mdx` + `*.zh.mdx`                  | one locale without the other             |
+
+Page-level composition (`landing-page.tsx`, `landing-shell.tsx`, the
+dev-only `fps-probe.tsx`) stays at the `landing/` root — it is the stable
+import surface the routes consume.
 
 `src/routeTree.gen.ts` is **generated** by TanStack Router. Never edit it; add
 a file under `src/routes/` instead.
@@ -53,19 +59,20 @@ copy — read it before writing your own version.
 1. **SSR safety.** The site server-renders and prerenders. No `window`,
    `document`, `matchMedia`, `localStorage` at module top level or during
    render — touch them inside `useEffect`/`useLayoutEffect` only. Copy:
-   `src/components/landing/hero.tsx` (gates read in effects, refs for elements).
+   `src/components/landing/sections/hero.tsx` (gates read in effects, refs
+   for elements).
 
 2. **GSAP lifecycle.** Import gsap and register plugins via
-   `src/components/landing/gsap-client.ts` (`registerGsapPlugins()` before any
-   ScrollTrigger/ScrollSmoother/SplitText use). Create tweens inside
-   `gsap.context(() => {...})` and return `ctx.revert()` — never
-   `gsap.matchMedia()` and never bare globals. Copy: `hero.tsx`,
-   `src/components/landing/split-text-reveal.tsx`.
+   `src/components/landing/motion/gsap-client.ts` (`registerGsapPlugins()`
+   before any ScrollTrigger/ScrollSmoother/SplitText use). Create tweens
+   inside `gsap.context(() => {...})` and return `ctx.revert()` — never
+   `gsap.matchMedia()` and never bare globals. Copy: `sections/hero.tsx`,
+   `src/components/landing/motion/split-text-reveal.tsx`.
 
 3. **ScrollTrigger is the canonical viewport gate.** Run/pause work based on
    viewport with ScrollTrigger — usually `usePauseOffscreen` from
-   `src/components/landing/hooks/use-viewport-anim.ts` — so every gate follows
-   the ScrollSmoother's scroller and refresh timing with one idiom.
+   `src/components/landing/motion/use-viewport-anim.ts` — so every gate
+   follows the ScrollSmoother's scroller and refresh timing with one idiom.
    IntersectionObserver **does** fire under the current ScrollSmoother setup
    (measured with the fps probe's `io` line: counts rise on every viewport
    crossing), but transform-based smooth scrolling has silent IO failure modes
@@ -75,12 +82,13 @@ copy — read it before writing your own version.
 
 4. **Canvas/WebGL effects are gated and single-layer.** New canvas, WebGL or
    per-frame effects must (a) render through a `motion-aware-*` wrapper in
-   `landing/` that checks `shouldEnableCanvasEffects` from `gates/motion-gate`,
-   (b) derive particle counts from `gates/particle-budget`, and (c) not add a
-   second background layer — `page-background.tsx` is the one ambient layer.
-   Three stacked glow layers already had to be deleted for flicker. Copy:
-   `src/components/landing/motion-aware-specular-button.tsx`,
-   `src/components/landing/antigravity.tsx` (SSR-safe Canvas usage).
+   `landing/motion-aware/` that checks `shouldEnableCanvasEffects` from
+   `gates/motion-gate`, (b) derive particle counts from
+   `gates/particle-budget`, and (c) not add a second background layer —
+   `effects/page-background.tsx` is the one ambient layer. Three stacked glow
+   layers already had to be deleted for flicker. Copy:
+   `src/components/landing/motion-aware/motion-aware-specular-button.tsx`,
+   `src/components/landing/effects/antigravity.tsx` (SSR-safe Canvas usage).
 
 5. **No `prefers-reduced-motion` machinery.** Product decision (recorded in
    commit `eec3b0e`): the site does not honor the OS reduce-motion setting.
@@ -97,8 +105,8 @@ copy — read it before writing your own version.
    structure, and are imported **only via the `@/components/react-bits`
    barrel**. Adding, removing or rewriting one requires a matching row in
    `apps/site/THIRD_PARTY_NOTICE.md`. Anything ported from elsewhere (e.g.
-   `landing/antigravity.tsx` from antigravity.google) gets its own notice
-   section with provenance and open license questions called out.
+   `landing/effects/antigravity.tsx` from antigravity.google) gets its own
+   notice section with provenance and open license questions called out.
 
 8. **Dark mode is class-based.** `dark:` is re-bound to `.dark` on `<html>`
    (`@custom-variant` in `app.css`), not `prefers-color-scheme`. Monochrome

@@ -4,14 +4,14 @@ import { ThemeSwitch } from 'fumadocs-ui/layouts/shared/slots/theme-switch';
 import { LanguageSwitch } from '@/components/language-switch';
 import { i18n } from '@/lib/i18n';
 import { appName, gitConfig } from '@/lib/shared';
-import { PageBackground } from './page-background';
+import { PageBackground } from './effects/page-background';
 import { FpsProbe } from './fps-probe';
-import { gsap, registerGsapPlugins, ScrollTrigger } from './gsap-client';
+import { gsap, registerGsapPlugins, ScrollTrigger } from './motion/gsap-client';
 import {
   SmoothScroll,
   SMOOTH_CONTENT_ID,
   SMOOTH_WRAPPER_ID,
-} from './smooth-scroll';
+} from './motion/smooth-scroll';
 
 /**
  * Landing-page shell, replacing Fumadocs `HomeLayout` on the marketing route

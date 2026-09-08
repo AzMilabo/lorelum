@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { getCanvasScale, getParticleCount } from './gates/particle-budget';
+import { getCanvasScale, getParticleCount } from '../gates/particle-budget';
 
 /**
  * Lightweight 2D particle field for the landing background.

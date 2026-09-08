@@ -5,14 +5,14 @@ import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
 import { DecryptedText } from '@/components/react-bits';
 import { gitConfig } from '@/lib/shared';
 import { getStrings } from '@/lib/translations';
-import { HeroAurora } from './hero-aurora';
+import { HeroAurora } from '../effects/hero-aurora';
 import { TerminalShowcase } from './terminal-showcase';
-import { useCanvasEffectsEnabled } from './hooks/use-canvas-effects';
-import { gsap, registerGsapPlugins } from './gsap-client';
-import { MotionAwareTextType } from './motion-aware-text-type';
-import { MotionAwareSpecularButton } from './motion-aware-specular-button';
+import { useCanvasEffectsEnabled } from '../motion/use-canvas-effects';
+import { gsap, registerGsapPlugins } from '../motion/gsap-client';
+import { MotionAwareTextType } from '../motion-aware/motion-aware-text-type';
+import { MotionAwareSpecularButton } from '../motion-aware/motion-aware-specular-button';
 import { specularCtaProps } from './specular-cta-preset';
-import { usePauseOffscreen } from './hooks/use-viewport-anim';
+import { usePauseOffscreen } from '../motion/use-viewport-anim';
 
 /**
  * Hero — Antigravity-grade type, alive on three axes:
