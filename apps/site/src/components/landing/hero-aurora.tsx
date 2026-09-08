@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { shouldRenderWebglAurora } from './gates/aurora-gate';
 import { gsap, registerGsapPlugins, ScrollTrigger } from './gsap-client';
-import { detectWebglRenderer, type WebglCapability } from './webgl-renderer';
+import { detectWebglRenderer, type WebglCapability } from './gates/webgl-renderer';
 
 /**
  * Client-only WebGL aurora for the hero, gated to the cases where it can
