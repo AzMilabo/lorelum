@@ -9,6 +9,8 @@
  * and can't silently drift.
  */
 
+import type { WebglCapability } from '../webgl-renderer';
+
 export interface AuroraGateInput {
   /** Client-only — always false during SSR so we never render on the server. */
   mounted: boolean;
@@ -19,14 +21,12 @@ export interface AuroraGateInput {
   /** A WebGL context could be created. */
   webgl: boolean;
   /**
-   * The WebGL implementation is hardware-accelerated (not a software
-   * rasterizer such as Microsoft Basic Render Driver / SwiftShader). Under
-   * software rendering a full-screen aurora costs ~2x the fps of the CSS
-   * fallback, so we keep the WebGL layer off there. `null` (unknown — e.g.
-   * SSR, or the renderer could not be read) is treated as true so we never
-   * degrade a setup we simply couldn't classify.
+   * Probe result from `../webgl-renderer.ts`. Software rasterizers (Microsoft
+   * Basic Render Driver / SwiftShader) drop a full-screen aurora to ~30fps, so
+   * they keep the CSS fallback. `'unknown'` (SSR, or the renderer could not be
+   * read) is allowed through so we never degrade a setup we couldn't classify.
    */
-  hardwareWebgl: boolean | null;
+  hardwareWebgl: WebglCapability;
   /** Hero section is currently intersecting the viewport. */
   inView: boolean;
   /** Viewport width in CSS pixels. */
@@ -42,7 +42,7 @@ export function shouldRenderWebglAurora(input: AuroraGateInput): boolean {
     input.dark &&
     !input.touch &&
     input.webgl &&
-    input.hardwareWebgl !== false &&
+    input.hardwareWebgl !== 'software' &&
     input.inView &&
     input.viewportWidth >= AURORA_MIN_WIDTH
   );

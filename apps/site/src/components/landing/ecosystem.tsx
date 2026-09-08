@@ -50,7 +50,9 @@ export function Ecosystem({ lang }: { lang: string }) {
         <span className="font-mono text-sm text-fd-muted-foreground">{name}</span>
       </span>
     ),
-    ...(href ? { href, title: name, ariaLabel: name } : { title: name, ariaLabel: name }),
+    title: name,
+    ariaLabel: name,
+    ...(href && { href }),
   }));
 
   return (

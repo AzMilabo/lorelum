@@ -4,6 +4,7 @@ import appCss from '@/styles/app.css?url';
 import { RootProvider } from 'fumadocs-ui/provider/tanstack';
 import { i18nProvider, uiTranslations } from 'fumadocs-ui/i18n';
 import { i18n } from '@/lib/i18n';
+import { getLandingMeta } from '@/lib/meta';
 import { zhCN } from '@fumadocs/language/zh-cn';
 
 export const Route = createRootRoute({
@@ -61,11 +62,6 @@ const translations = i18n
   .extend(uiTranslations())
   .preset('zh', zhCN());
 
-const documentTitles: Record<string, string> = {
-  en: 'Lorelum — the right Practice for the right task and moment',
-  zh: 'Lorelum —— 在正确的任务与关键时刻，检索正确的工程 Practice',
-};
-
 function RootComponent() {
   return (
     <RootDocument>
@@ -78,8 +74,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   const { lang = i18n.defaultLanguage } = useParams({ strict: false });
 
   // Keep the browser tab title localized (SSR keeps the English default).
+  // Same strings as the landing `head` (lib/meta.ts), so they can't drift.
   React.useEffect(() => {
-    document.title = documentTitles[lang] ?? documentTitles[i18n.defaultLanguage];
+    document.title = getLandingMeta(lang).title;
   }, [lang]);
 
   return (

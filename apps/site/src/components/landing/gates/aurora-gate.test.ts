@@ -6,7 +6,7 @@ const base: AuroraGateInput = {
   dark: true,
   touch: false,
   webgl: true,
-  hardwareWebgl: true,
+  hardwareWebgl: 'hardware',
   inView: true,
   viewportWidth: 1440,
 };
@@ -16,12 +16,12 @@ describe('shouldRenderWebglAurora', () => {
     expect(shouldRenderWebglAurora(base)).toBe(true);
   });
 
-  test('renders when renderer is unknown (hardwareWebgl=null) — never degrade an unclassified setup', () => {
-    expect(shouldRenderWebglAurora({ ...base, hardwareWebgl: null })).toBe(true);
+  test("renders when renderer is unknown ('unknown') — never degrade an unclassified setup", () => {
+    expect(shouldRenderWebglAurora({ ...base, hardwareWebgl: 'unknown' })).toBe(true);
   });
 
-  test('disabled under software rendering (hardwareWebgl=false)', () => {
-    expect(shouldRenderWebglAurora({ ...base, hardwareWebgl: false })).toBe(false);
+  test("disabled under software rendering ('software')", () => {
+    expect(shouldRenderWebglAurora({ ...base, hardwareWebgl: 'software' })).toBe(false);
   });
 
   test('never renders during SSR (mounted=false)', () => {

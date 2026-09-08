@@ -2,15 +2,16 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { ArrowRight, Star } from 'lucide-react';
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
+import { DecryptedText } from '@/components/react-bits';
 import { gitConfig } from '@/lib/shared';
 import { getStrings } from '@/lib/translations';
 import { HeroAurora } from './hero-aurora';
 import { TerminalShowcase } from './terminal-showcase';
-import { shouldEnableCanvasEffects } from './gates/motion-gate';
+import { useCanvasEffectsEnabled } from './hooks/use-canvas-effects';
 import { gsap, registerGsapPlugins } from './gsap-client';
-import { DecryptText } from './motion-aware-decrypt-text';
-import { TypewriterText } from './motion-aware-text-type';
+import { MotionAwareTextType } from './motion-aware-text-type';
 import { MotionAwareSpecularButton } from './motion-aware-specular-button';
+import { specularCtaProps } from './specular-cta-preset';
 import { usePauseOffscreen } from './hooks/use-viewport-anim';
 
 /**
@@ -33,13 +34,9 @@ export function Hero({ lang }: { lang: string }) {
   const navigate = useNavigate();
   const sectionRef = useRef<HTMLElement>(null);
   const copyRef = useRef<HTMLDivElement>(null);
-  const pointerOkRef = useRef(false);
-
-  useEffect(() => {
-    pointerOkRef.current = shouldEnableCanvasEffects({
-      finePointer: window.matchMedia('(pointer: fine)').matches,
-    });
-  }, []);
+  // Reactive fine-pointer gate (hydration-gated, follows `(pointer: fine)`
+  // changes) — the canonical capability check, see AGENTS.md "Where things go".
+  const pointerEffectsEnabled = useCanvasEffectsEnabled();
 
   // Pause the gradient-text sweep (and any other CSS animation) once the hero
   // scrolls away, so it stops repainting off-screen. ScrollTrigger — the
@@ -89,7 +86,7 @@ export function Hero({ lang }: { lang: string }) {
   const titleY = useTransform(smy, (v) => v * -9);
 
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!pointerOkRef.current) return;
+    if (!pointerEffectsEnabled) return;
     const el = sectionRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
@@ -114,7 +111,16 @@ export function Hero({ lang }: { lang: string }) {
         <div ref={copyRef} className="landing-hero-scroll flex w-full flex-col items-center">
           <span className="landing-hero-item inline-flex items-center gap-2 rounded-full border border-fd-border/60 bg-fd-card/50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-fd-muted-foreground backdrop-blur">
             <span className="landing-badge-dot size-1.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
-            <DecryptText text={t.heroBadge} />
+            <DecryptedText
+              text={t.heroBadge}
+              animateOn="inViewHover"
+              revealDirection="start"
+              sequential={false}
+              speed={30}
+              maxIterations={8}
+              encryptedClassName="landing-decrypt-scrambled"
+              useOriginalCharsOnly
+            />
           </span>
 
           <motion.div className="w-full" style={{ x: titleX, y: titleY }}>
@@ -138,7 +144,7 @@ export function Hero({ lang }: { lang: string }) {
               `min-h` reserves one line so the CTA buttons below don't jump as
               the text types/erases. Wrapper keeps it SSR-safe. */}
           <div className="landing-hero-item mt-4 min-h-6" style={{ animationDelay: '0.26s' }}>
-            <TypewriterText
+            <MotionAwareTextType
               text={t.heroTypewriter}
               className="font-mono text-sm tracking-wide text-fd-muted-foreground/90 sm:text-[15px]"
               cursorClassName="text-fd-primary"
@@ -148,19 +154,8 @@ export function Hero({ lang }: { lang: string }) {
 
           <div className="landing-hero-item mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-3" style={{ animationDelay: '0.32s' }}>
             <MotionAwareSpecularButton
-              size="lg"
-              radius={999}
-              tint="#141417"
+              {...specularCtaProps}
               tintOpacity={0.88}
-              textColor="#f5f5f5"
-              lineColor="#ffffff"
-              baseColor="#8b8b96"
-              intensity={1.15}
-              shineSize={12}
-              shineFade={42}
-              followMouse
-              proximity={280}
-              className="landing-specular-cta group"
               onClick={() => navigate({ to: '/$lang/docs/$', params: { lang, _splat: '' } })}
             >
               {t.ctaDocs}

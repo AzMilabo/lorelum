@@ -21,7 +21,7 @@ import { gsap, registerGsapPlugins, ScrollTrigger } from './gsap-client';
  * static first phrase and stops the per-character setState chain, then resumes
  * typing when the hero comes back.
  */
-export function TypewriterText({
+export function MotionAwareTextType({
   text,
   className,
   cursorClassName,

@@ -16,23 +16,31 @@ import { isSoftwareRenderer } from './gates/webgl-capability';
 
 export type WebglCapability = 'hardware' | 'software' | 'unknown';
 
-export function detectWebglRenderer(): WebglCapability {
-  if (typeof window === 'undefined') return 'unknown';
+/**
+ * Read the *unmasked* GL_RENDERER string, or `null` when WebGL is unavailable
+ * or the read fails. Browser-only: creates a throwaway probe canvas and
+ * releases its context via WEBGL_lose_context when present.
+ */
+export function readWebglRendererString(): string | null {
+  if (typeof window === 'undefined') return null;
   try {
     const canvas = document.createElement('canvas');
-    const gl = (canvas.getContext('webgl') ??
-      canvas.getContext('webgl2')) as WebGLRenderingContext | null;
-    if (!gl) return 'unknown';
+    const gl = canvas.getContext('webgl') ?? canvas.getContext('webgl2');
+    if (!gl) return null;
 
-    const ext = gl.getExtension('WEBGL_debug_renderer_info') as
-      | { UNMASKED_RENDERER_WEBGL: number }
-      | null;
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
     const name = ext
       ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL))
       : String(gl.getParameter(gl.RENDERER));
     gl.getExtension('WEBGL_lose_context')?.loseContext();
-    return isSoftwareRenderer(name) ? 'software' : 'hardware';
+    return name;
   } catch {
-    return 'unknown';
+    return null;
   }
+}
+
+export function detectWebglRenderer(): WebglCapability {
+  const name = readWebglRendererString();
+  if (name === null) return 'unknown';
+  return isSoftwareRenderer(name) ? 'software' : 'hardware';
 }
