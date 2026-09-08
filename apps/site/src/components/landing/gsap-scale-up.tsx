@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { gsap, registerGsapPlugins, ScrollTrigger } from './gsap-client';
+import { gsap, registerGsapPlugins } from './gsap-client';
 import { cn } from '@/lib/cn';
 
 /**
@@ -54,6 +54,3 @@ export function GsapScaleUp({
     </div>
   );
 }
-
-/** Re-exported for consumers that need ScrollTrigger.refresh() after layout. */
-export { ScrollTrigger };

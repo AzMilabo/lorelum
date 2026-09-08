@@ -1,6 +1,5 @@
 export const appName = 'Lorelum';
 export const docsRoute = '/docs';
-export const docsImageRoute = '/og/docs';
 
 // Git hosting info used by the docs "edit this page" link.
 export const gitConfig = {
