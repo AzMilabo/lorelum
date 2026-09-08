@@ -9,10 +9,10 @@ import {
 } from "../storage/journal/operation-journal";
 import { writeManifest, type InstalledPacksManifest } from "../storage/manifest/manifest-store";
 import {
-  readEffectivePracticeSnapshot,
-  readStoreMetadata,
+  materializeEffectivePracticesByIds,
+  readPracticeIdsForPack,
 } from "../storage/sqlite/snapshot-reader";
-import { writeDerivedState } from "../storage/sqlite/state-writer";
+import { applyIncrementalDerivedState } from "../storage/sqlite/state-writer";
 
 import { PackNotInstalledError } from "./errors";
 import { nextStoreCounter } from "./counters";
@@ -48,9 +48,11 @@ export async function uninstallPack(
     const entry = active.packs.find((pack) => pack.packName === packName);
     if (entry === undefined) throw new PackNotInstalledError(packName);
 
-    const metadata = readStoreMetadata(database);
+    const affectedPracticeIds = readPracticeIdsForPack(database, packName);
     const effectivePractices =
-      metadata === undefined ? [] : readEffectivePracticeSnapshot(database).effectivePractices;
+      recovery.metadata === undefined
+        ? []
+        : materializeEffectivePracticesByIds(database, recovery.metadata, affectedPracticeIds);
     const reconciled = removePackSources(activeSources(effectivePractices), packName);
 
     const advances = reconciled.advancesEffectiveRevision;
@@ -65,11 +67,13 @@ export async function uninstallPack(
     const journal = createOperationJournalRecord("uninstall", active, targetManifest);
     await writeOperationJournal(rootPath, journal);
     await writeManifest(rootPath, targetManifest);
-    writeDerivedState(database, {
+    applyIncrementalDerivedState(database, {
       generation: targetManifest.generation,
       effectiveRevision: targetManifest.effectiveRevision,
       activePacks: targetManifest.packs,
       effectivePractices: reconciled.effectivePractices,
+      affectedPracticeIds,
+      activePackMutation: { kind: "remove", packName },
       revisionNotification:
         advances && hook !== undefined ? { delta: reconciled.delta } : undefined,
       revisionLogDelta: advances ? reconciled.delta : undefined,

@@ -3,10 +3,11 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { EffectivePractice, PracticeSource } from "../model";
+import { installedPackEntriesEqual } from "../storage/manifest/manifest-store";
 import { acquireMutationLock } from "../storage/mutation-lock";
 import { openStoreDatabase } from "../storage/sqlite/database";
+import { readActivePackEntries } from "../storage/sqlite/snapshot-reader";
 import { SqliteStateError, StoreBusyError, StoreRecoveryRequiredError } from "../storage/errors";
-import { openLocalStore } from "./open";
 import { runStoreRecovery, type RecoveryResult } from "./recovery";
 import {
   deletePendingRevisionNotification,
@@ -44,7 +45,9 @@ export function activeSources(
  * Acquire the lock before any recovery side effect. `runStoreRecovery` may
  * rewrite the manifest and remove journals, so running it before the lock can
  * roll back a live writer. The lock owner always performs recovery before the
- * mutation callback is allowed to write new state.
+ * mutation callback is allowed to write new state. Normal mutations verify the
+ * manifest tuple and active-Pack rows here; `open()` retains the full artifact
+ * and projection audit (ADR 0013).
  *
  * The lock and the database handle are always released, even when `run`
  * throws.
@@ -72,10 +75,14 @@ export async function withStoreMutation<T>(
       throw error;
     }
     const recovery = await runStoreRecovery(rootPath, database);
-    // Recovery is complete and the writer lock makes this verification stable.
-    // This preserves the rule that normal mutations pass the full cold-open
-    // integrity gate without allowing cold open to race the writer.
-    await openLocalStore(rootPath);
+    if (
+      recovery.metadata !== undefined &&
+      !installedPackEntriesEqual(readActivePackEntries(database), recovery.manifest.packs)
+    ) {
+      throw new StoreRecoveryRequiredError(
+        "SQLite Active Pack rows differ from the active manifest",
+      );
+    }
     return await run({ database, recovery });
   } finally {
     database?.close();

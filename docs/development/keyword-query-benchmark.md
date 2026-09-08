@@ -57,17 +57,7 @@ Observed on 2026-09-08 UTC, macOS arm64, Bun 1.3.8, compiled CLI from the curren
 
 ### Incremental update verification
 
-Observed on the same machine with five unique one-Practice Pack installs per corpus. `incremental-install` is reported separately because the current LocalStore mutation path rewrites its complete canonical SQLite derived state. `query-delta-update` starts after that commit and measures only the subsequent revision-log-driven FTS synchronization plus query.
-
-| Corpus | Samples | Incremental install p50 / p95 ms | Delta query p50 / p95 ms | Delta reuse p50 / p95 ms |
-| --- | --- | --- | --- | --- |
-| 1,000 synthetic | 5 | 121.21 / 126.40 | 3.69 / 9.51 | 1.03 / 1.58 |
-| 5,000 synthetic | 5 | 595.80 / 610.51 | 9.41 / 9.93 | 1.19 / 1.38 |
-| 20,000 synthetic | 5 | 2459.93 / 2478.51 | 11.28 / 19.75 | 1.47 / 1.64 |
-
-The FTS update therefore scales with the changed Practice, not the corpus: it stays below 20ms p95 at 20,000 Practices. The increasing install time is a separate LocalStore lifecycle cost and is not solved by this index work. Improving it requires a distinct design to stop `writeDerivedState()` from replacing the complete canonical projection per mutation.
-
-The successive install/query integration test separately proves that, after its initial build, each normal mutation is applied from one revision delta and does not call the full-corpus snapshot method. The performance script reports the corresponding in-process latency stages; a 100-cycle compiled benchmark remains required before treating this table as the issue's final performance acceptance record.
+Canonical mutation measurements, including compiled lifecycle latency, peak RSS, and logical SQLite row counts, are tracked separately in [Issue #79](https://github.com/lorelum/lorelum/issues/79). This query benchmark deliberately reports only the persistent FTS lifecycle.
 
 The first 20,000-Practice run exposed an existing sibling-file recursion overflow while installing the fixture. Artifact enumeration and hashing now use loops without changing sorted path-NUL-content-LF digest encoding. A separate 20,000-file regression independently checks the digest. The table records the completed run after that correction.
 

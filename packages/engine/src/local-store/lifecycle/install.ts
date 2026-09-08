@@ -3,13 +3,7 @@ import { join } from "node:path";
 
 import type { ValidationIssue } from "@lorelum/format";
 
-import {
-  diffEffectivePractices,
-  reconcileEffectivePractices,
-  type EffectivePractice,
-  type PackCandidate,
-  type PracticeSource,
-} from "../model";
+import { diffEffectivePractices, reconcileEffectivePractices, type PackCandidate } from "../model";
 import { artifactPath, promoteArtifact, sealSnapshot } from "../storage/artifacts/artifact-store";
 import { createProjection, type SnapshotProjection } from "../storage/artifacts/projection";
 import { writeSnapshotFromCandidate } from "../storage/artifacts/snapshot-writer";
@@ -24,14 +18,14 @@ import {
   type InstalledPacksManifest,
 } from "../storage/manifest/manifest-store";
 import {
-  readEffectivePracticeSnapshot,
-  readStoreMetadata,
+  materializeEffectivePracticesByIds,
+  readPracticeIdsForPack,
 } from "../storage/sqlite/snapshot-reader";
-import { writeDerivedState } from "../storage/sqlite/state-writer";
+import { applyIncrementalDerivedState } from "../storage/sqlite/state-writer";
 
 import { UpgradeRequiredError, PackNotInstalledError } from "./errors";
 import { nextStoreCounter } from "./counters";
-import { deliverRevisionNotifications, withStoreMutation } from "./mutation";
+import { activeSources, deliverRevisionNotifications, withStoreMutation } from "./mutation";
 import type { EffectiveRevisionHook, InstallResult } from "./types";
 
 function compareCodeUnits(left: string, right: string): number {
@@ -69,13 +63,6 @@ function withPackEntry(
   });
 }
 
-/** Materialize the active source set from the materialized snapshot. */
-function activeSources(
-  effectivePractices: readonly EffectivePractice[],
-): readonly PracticeSource[] {
-  return effectivePractices.flatMap((practice) => practice.sources);
-}
-
 /**
  * Install or upgrade one pack (ADR 0007 §7, 定稿 §5). The two flows share
  * this orchestration: only the conflict-check replacement set and the journal
@@ -100,9 +87,6 @@ export async function installOrUpgrade(
     // `recovery.manifest` is the converged, tuple-validated manifest (fresh
     // store → empty manifest), so install never re-reads or re-guesses it.
     const active = recovery.manifest;
-    const metadata = readStoreMetadata(database);
-    const effectivePractices =
-      metadata === undefined ? [] : readEffectivePracticeSnapshot(database).effectivePractices;
     const existingEntry = active.packs.find((pack) => pack.packName === candidate.pack.name);
 
     // Stage the immutable snapshot and compute its artifact digest before any
@@ -154,6 +138,17 @@ export async function installOrUpgrade(
       throw new PackNotInstalledError(candidate.pack.name);
     }
 
+    const affectedPracticeIds = [
+      ...new Set([
+        ...candidate.sources.map((source) => source.practiceId),
+        ...(mode === "upgrade" ? readPracticeIdsForPack(database, candidate.pack.name) : []),
+      ]),
+    ].sort(compareCodeUnits);
+    const effectivePractices =
+      recovery.metadata === undefined
+        ? []
+        : materializeEffectivePracticesByIds(database, recovery.metadata, affectedPracticeIds);
+
     const entry = entryForCandidate(candidate, artifactDigest);
     let reconciled: ReturnType<typeof reconcileEffectivePractices>;
     let targetManifest: InstalledPacksManifest;
@@ -203,11 +198,13 @@ export async function installOrUpgrade(
         await rm(stagingPath, { recursive: true, force: true });
       }
       await writeManifest(rootPath, targetManifest);
-      writeDerivedState(database, {
+      applyIncrementalDerivedState(database, {
         generation: targetManifest.generation,
         effectiveRevision: targetManifest.effectiveRevision,
         activePacks: targetManifest.packs,
         effectivePractices: reconciled.effectivePractices,
+        affectedPracticeIds,
+        activePackMutation: { kind: "upsert", entry },
         revisionNotification:
           advances && hook !== undefined ? { delta: reconciled.delta } : undefined,
         revisionLogDelta: advances ? reconciled.delta : undefined,
