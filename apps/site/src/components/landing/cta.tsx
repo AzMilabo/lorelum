@@ -6,6 +6,7 @@ import { getStrings } from '@/lib/translations';
 import { GsapScaleUp } from './gsap-scale-up';
 import { MotionAwareAntigravity } from './motion-aware-antigravity';
 import { MotionAwareSpecularButton } from './motion-aware-specular-button';
+import { specularCtaProps } from './specular-cta-preset';
 
 /**
  * CTA — the closing moment, Antigravity-style: a full-bleed glass panel with a
@@ -45,20 +46,9 @@ export function Cta({ lang }: { lang: string }) {
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
               <MotionAwareSpecularButton
-                size="lg"
-                radius={999}
-                tint="#141417"
+                {...specularCtaProps}
                 tintOpacity={0.82}
                 blur={8}
-                textColor="#f5f5f5"
-                lineColor="#ffffff"
-                baseColor="#8b8b96"
-                intensity={1.15}
-                shineSize={12}
-                shineFade={42}
-                followMouse
-                proximity={280}
-                className="landing-specular-cta group"
                 onClick={() => navigate({ to: '/$lang/docs/$', params: { lang, _splat: '' } })}
               >
                 {t.ctaDocs}

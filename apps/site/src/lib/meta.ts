@@ -32,39 +32,26 @@ export interface LandingMeta {
   ogLocale: string;
 }
 
-const fallback = (): LandingMeta => ({
-  title: 'Lorelum — the right Practice for the right task and moment',
-  description:
-    'Lorelum keeps your team\u2019s engineering Practices structured and retrievable, and injects the right one into your AI coding agent\u2019s context exactly when the task needs it.',
-  ogLocale: 'en_US',
-});
-
-/** SEO metadata per supported locale. */
-export const landingMeta: Record<string, LandingMeta> = i18n.languages.reduce(
-  (acc, lang) => {
-    const meta: LandingMeta =
-      lang === 'zh'
-        ? {
-            title: 'Lorelum —— 在正确的任务与关键时刻，检索正确的工程 Practice',
-            description:
-              'Lorelum 让团队的工程 Practice 保持结构化、可检索，并在任务最需要的那一刻，把正确的那条注入 AI 编码智能体的上下文。',
-            ogLocale: 'zh_CN',
-          }
-        : {
-            title: 'Lorelum — the right Practice for the right task and moment',
-            description:
-              'Lorelum keeps your team\u2019s engineering Practices structured and retrievable, and injects the right one into your AI coding agent\u2019s context exactly when the task needs it.',
-            ogLocale: 'en_US',
-          };
-    acc[lang] = meta;
-    return acc;
+/** SEO metadata per supported locale. Locales without an entry fall back to
+ *  the default language's entry via `getLandingMeta`. */
+const landingMeta: Record<string, LandingMeta> = {
+  en: {
+    title: 'Lorelum — the right Practice for the right task and moment',
+    description:
+      'Lorelum keeps your team\u2019s engineering Practices structured and retrievable, and injects the right one into your AI coding agent\u2019s context exactly when the task needs it.',
+    ogLocale: 'en_US',
   },
-  {} as Record<string, LandingMeta>,
-);
+  zh: {
+    title: 'Lorelum —— 在正确的任务与关键时刻，检索正确的工程 Practice',
+    description:
+      'Lorelum 让团队的工程 Practice 保持结构化、可检索，并在任务最需要的那一刻，把正确的那条注入 AI 编码智能体的上下文。',
+    ogLocale: 'zh_CN',
+  },
+};
 
 /** Resolve metadata for a locale, falling back to the default language. */
 export function getLandingMeta(locale: string): LandingMeta {
-  return landingMeta[locale] ?? landingMeta[i18n.defaultLanguage] ?? fallback();
+  return landingMeta[locale] ?? landingMeta[i18n.defaultLanguage];
 }
 
 /**

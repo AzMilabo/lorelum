@@ -11,6 +11,7 @@ import { useCanvasEffectsEnabled } from './hooks/use-canvas-effects';
 import { gsap, registerGsapPlugins } from './gsap-client';
 import { MotionAwareTextType } from './motion-aware-text-type';
 import { MotionAwareSpecularButton } from './motion-aware-specular-button';
+import { specularCtaProps } from './specular-cta-preset';
 import { usePauseOffscreen } from './hooks/use-viewport-anim';
 
 /**
@@ -153,19 +154,8 @@ export function Hero({ lang }: { lang: string }) {
 
           <div className="landing-hero-item mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-3" style={{ animationDelay: '0.32s' }}>
             <MotionAwareSpecularButton
-              size="lg"
-              radius={999}
-              tint="#141417"
+              {...specularCtaProps}
               tintOpacity={0.88}
-              textColor="#f5f5f5"
-              lineColor="#ffffff"
-              baseColor="#8b8b96"
-              intensity={1.15}
-              shineSize={12}
-              shineFade={42}
-              followMouse
-              proximity={280}
-              className="landing-specular-cta group"
               onClick={() => navigate({ to: '/$lang/docs/$', params: { lang, _splat: '' } })}
             >
               {t.ctaDocs}
