@@ -62,9 +62,16 @@ copy — read it before writing your own version.
    `gsap.matchMedia()` and never bare globals. Copy: `hero.tsx`,
    `src/components/landing/split-text-reveal.tsx`.
 
-3. **ScrollTrigger, not IntersectionObserver.** `ScrollSmoother` breaks IO —
-   observers never fire on this page. To run/pause work based on viewport,
-   use `usePauseOffscreen` from `src/components/landing/hooks/use-viewport-anim.ts`.
+3. **ScrollTrigger is the canonical viewport gate.** Run/pause work based on
+   viewport with ScrollTrigger — usually `usePauseOffscreen` from
+   `src/components/landing/hooks/use-viewport-anim.ts` — so every gate follows
+   the ScrollSmoother's scroller and refresh timing with one idiom.
+   IntersectionObserver **does** fire under the current ScrollSmoother setup
+   (measured with the fps probe's `io` line: counts rise on every viewport
+   crossing), but transform-based smooth scrolling has silent IO failure modes
+   in other configurations, and the old "observers never fire" rule was
+   measured to be false. If you must use IO anyway, verify with `?probe=1`
+   first and say why in the PR.
 
 4. **Canvas/WebGL effects are gated and single-layer.** New canvas, WebGL or
    per-frame effects must (a) render through a `motion-aware-*` wrapper in

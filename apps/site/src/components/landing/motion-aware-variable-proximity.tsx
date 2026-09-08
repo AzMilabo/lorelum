@@ -11,10 +11,10 @@ import { useCanvasEffectsEnabled } from './hooks/use-canvas-effects';
  * Keep this name distinct (`motion-aware-*`) so a reader never confuses the
  * plain vendored component with the safe-to-use landing one.
  *
- * Renders the label as a plain span until hydration proves the pointer is fine
- * and motion is allowed (the `VariableProximity` effect drives per-letter
+ * Renders the label as a plain span until hydration proves the pointer is
+ * fine (the `VariableProximity` effect drives per-letter
  * weight/optical-size axes off cursor distance — Bricolage Grotesque's
- * `opsz`/`wght` range). Under reduced motion or on touch, the text stays
+ * `opsz`/`wght` range). On touch, the text stays
  * static but fully styled; no rAF mouse loop is ever mounted.
  */
 export function VariableProximityText({
