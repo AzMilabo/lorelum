@@ -1,9 +1,9 @@
 # 官网部署工作流（Cloudflare Workers + Workers Builds）
 
 > **适用范围**：`apps/site`（Lorelum 官网：Landing + Docs）。
-> **线上地址**：https://your-project.workers.dev
+> **线上地址**：https://lorelum.com
 > **部署目标**：Cloudflare **Workers**（项目名 `lorelum`），Git 集成走 **Workers Builds**，手动部署走 `wrangler deploy` 直传。
-> **更新日期**：2026-08-25
+> **更新日期**：2026-09-08
 
 ## 1. 部署形态（先搞清楚再动手）
 
@@ -11,7 +11,7 @@
 
 - `bun run build:site` 产出 `apps/site/dist/`（`dist/client` 静态资源 + `dist/server` Worker）
 - `wrangler.jsonc` 的 `main` 指向 `@tanstack/react-start/server-entry`
-- Cloudflare 后台项目类型是 **Worker**（不是 Pages），域名 `your-project.workers.dev`
+- Cloudflare 后台项目类型是 **Worker**（不是 Pages）；生产域名 `lorelum.com` 在后台作为 Worker 的自定义域绑定，Workers 默认的 `*.workers.dev` 域名仅用于测试
 
 **常见误区**：Cloudflare Pages 免费版的"每月 500 次 build"限制**不适用于本项目**。本项目走 Workers Builds，配额按**构建分钟**计（见 §4）。
 
@@ -44,7 +44,7 @@ cd apps/site && npx wrangler dev --port 8788
 bun run build:site && bun run deploy:site
 ```
 
-手动直传会直接更新**生产**（`your-project.workers.dev`），所以适合在站点本就是展示/测试用途时使用；若是正式站，改版预览请走本地（第 3 步）或临时 preview 版本。
+手动直传会直接更新**生产**（`lorelum.com`），所以适合在站点本就是展示/测试用途时使用；若是正式站，改版预览请走本地（第 3 步）或临时 preview 版本。
 
 ## 4. 配额说明
 
