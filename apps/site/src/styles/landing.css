@@ -266,75 +266,6 @@ summary {
   animation-delay: 0.24s;
 }
 
-/* ---------- CTA: rotating conic border ----------
- * A conic gradient painted on the 1.5px border ring, rotated via the
- * registered `--landing-conic-angle` custom property. Only the ring layer
- * repaints (a small area), so it stays cheap. Browsers without `@property`
- * simply see a static gradient border (progressive enhancement).
- */
-@property --landing-conic-angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
-.landing-conic-border {
-  position: relative;
-  border-radius: 1.5rem;
-  padding: 1.5px;
-  overflow: hidden;
-  isolation: isolate;
-}
-
-.landing-conic-border::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1.5px;
-  background: conic-gradient(
-      from var(--landing-conic-angle) at 50% 50%,
-      rgba(99, 102, 241, 0) 0deg,
-      rgba(99, 102, 241, 0.9) 45deg,
-      rgba(168, 85, 247, 0.95) 90deg,
-      rgba(34, 211, 238, 0.9) 135deg,
-      rgba(99, 102, 241, 0) 200deg,
-      rgba(99, 102, 241, 0) 360deg
-    )
-    border-box;
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  animation: landing-conic-spin 7s linear infinite;
-}
-
-@keyframes landing-conic-spin {
-  to {
-    --landing-conic-angle: 360deg;
-  }
-}
-
-.landing-conic-inner {
-  position: relative;
-  border-radius: calc(1.5rem - 1.5px);
-  /* Nearly opaque card surface — the backdrop-filter this used to pair with
-     is dropped because ~90% opacity already hides what is behind it, and the
-     full-panel backdrop blur was one of the largest backdrop-filter surfaces
-     on the page (expensive to re-sample on every scroll frame). */
-  background: color-mix(in oklab, var(--color-fd-card) 96%, transparent);
-}
-
-/* ---------- Reduced motion ----------
- * Pure CSS kill-switch keyed off the real media query: the OS setting wins
- * with zero JS and zero first-paint gap. `motion-forced.ts` adds
- * `html.motion-force` only for the explicit `?motion=on` demo override,
- * which neutralizes these rules via the `:not(.motion-force)` guard. */
-
 /* ---------- Scroll-in reveal (IntersectionObserver + CSS transition) ----------
  * The `Reveal` component adds `.is-visible` when the element enters the
  * viewport (one-shot observer, disconnects after firing). The transition is
@@ -373,27 +304,7 @@ summary {
  * transforms the content, so native `animation-timeline: view()` timelines
  * can't track it — the GSAP scrub follows the smoother's scroller instead. */
 
-/* Slow drift for the hero glow — transform-only, compositor-owned. */
-/* ---------- Hero scroll exit (GSAP ScrollTrigger scrub) ----------
- * The title block fades + rises as the hero scrolls out; the terminal lingers
- * slightly longer. Driven by GSAP in `hero.tsx` so it tracks the content a
- * ScrollSmoother translates. */
-
-/* ---------- Eyebrow shimmer ---------- */
-
-@keyframes landing-shimmer-shift {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-
-.landing-shimmer-text {
-  background-size: 200% auto;
-  animation: landing-shimmer-shift 6s linear infinite;
-}
-
-/* Reduced-motion addition (see the "Reduced motion" block above). */
-
-/* ---------- Icon micro-motion (features/problem cards) ----------
+/* ---------- GSAP SplitText reveal (SplitTextReveal) ----------
  * The tile pops in on load, sways gently while idle, and on hover tilts up
  * while a rotating conic ring appears around it. Transform-only + a small
  * masked ring, so the compositor owns the motion. */
@@ -491,9 +402,7 @@ summary {
 
 /* ---------- Hero badge decrypt (React Bits DecryptedText) ----------
  * While the badge resolves into its real wording, the still-scrambled glyphs
- * read as faint so the "decoding" is legible rather than noisy. Reduced-motion
- * users always see the finished text (the component is gated in first), so no
- * animation rule is needed here. */
+ * read as faint so the "decoding" is legible rather than noisy. */
 .landing-decrypt-scrambled {
   opacity: 0.5;
 }

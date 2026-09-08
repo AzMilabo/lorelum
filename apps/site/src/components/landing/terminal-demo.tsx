@@ -115,7 +115,7 @@ export function TerminalDemo({ locale = 'en' }: { locale?: string }) {
   // Pause the whole demo when it scrolls out of view.
   useEffect(() => {
     const el = rootRef.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return;
+    if (!el) return;
     const io = new IntersectionObserver(
       ([entry]) => setVisible(entry.isIntersecting),
       { threshold: 0.05 },

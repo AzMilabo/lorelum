@@ -13,6 +13,9 @@ import { useEffect, useState } from 'react';
  *   - the WebGL renderer string (surfaces software rasterizers such as
  *     SwiftShader, the classic cause of "smooth in a small window, janky
  *     fullscreen")
+ *   - IntersectionObserver activity on an element deep in the smooth content
+ *     (the footer) — settles the "does IO fire at all under ScrollSmoother?"
+ *     question on real hardware (see AGENTS.md hard rule 3)
  * Measurement is one rAF loop + one 1s interval; nothing else runs.
  */
 export function FpsProbe() {
@@ -76,6 +79,28 @@ export function FpsProbe() {
       });
     }
 
+    // IntersectionObserver activity probe. IO always fires once on observe,
+    // so a count that stays at 1 while the page scrolls means IO never sees
+    // viewport crossings (the ScrollSmoother hazard); a count that grows
+    // means IO fires under the current ScrollSmoother configuration.
+    // ScrollTrigger stays the canonical viewport gate (AGENTS.md hard rule 3)
+    // — if you rely on IO, verify here and record the configuration.
+    let ioFires = 0;
+    let ioState: 'in' | 'out' | 'n/a' = 'n/a';
+    const ioTarget = document.querySelector('#smooth-content footer');
+    const io =
+      ioTarget &&
+      new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            ioFires += 1;
+            ioState = entry.isIntersecting ? 'in' : 'out';
+          }
+        },
+        { threshold: 0 },
+      );
+    if (io && ioTarget) io.observe(ioTarget);
+
     let raf = 0;
     let last = performance.now();
     let running = true;
@@ -107,6 +132,7 @@ export function FpsProbe() {
         `fps ${fpsText} | maxFrame ${Math.round(max)}ms`,
         `viewport ${window.innerWidth}x${window.innerHeight} | dpr ${window.devicePixelRatio}`,
         `canvases ${canvases.join(' | ') || 'none'} | aurora:${auroraMounted} offscreen:${offscreen}`,
+        `io ${ioFires} fires, last:${ioState}`,
         `gl ${glRenderer}`,
       ]);
       // Compact title keeps AX-visible; `m` = max frame ms.
@@ -118,6 +144,7 @@ export function FpsProbe() {
       running = false;
       cancelAnimationFrame(raf);
       clearInterval(timer);
+      io?.disconnect();
       document.title = originalTitle;
     };
   }, []);
