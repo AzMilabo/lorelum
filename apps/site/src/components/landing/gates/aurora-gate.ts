@@ -3,8 +3,8 @@
  *
  * The aurora is the single GPU-heavy layer, so it is only enabled when it
  * can actually shine: client-side, dark theme, desktop pointer, WebGL
- * available (and hardware-accelerated — see `hardwareWebgl`), hero in view
- * and motion allowed. Every other combination falls back to the CSS gradient
+ * available (and hardware-accelerated — see `hardwareWebgl`) and the hero in
+ * view. Every other combination falls back to the CSS gradient
  * mesh + 2D particle field. Kept framework-free so the policy is unit tested
  * and can't silently drift.
  */

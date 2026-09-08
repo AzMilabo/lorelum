@@ -25,8 +25,8 @@ export function getParticleCount({ width, height }: ParticleBudgetInput): number
 }
 
 /**
- * Cap the backing-store scale so we never rasterize the canvas above 1.5x,
- * keeping fill-rate bounded on high-DPI (retina/4K) displays.
+ * Cap the backing-store scale at 1x so we never rasterize the canvas above
+ * its CSS size, keeping fill-rate bounded on high-DPI (retina/4K) displays.
  */
 export function getCanvasScale(dpr: number): number {
   return Math.min(dpr || 1, MAX_DPR);

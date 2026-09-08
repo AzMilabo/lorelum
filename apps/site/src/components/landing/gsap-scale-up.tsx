@@ -12,8 +12,7 @@ import { cn } from '@/lib/cn';
  *
  *   gsap.from(section, { scrollTrigger: { start: 'top bottom', end: 'top center', scrub: 1 }, scale: 0.5, ease: 'power2.out' })
  *
- * It registers unconditionally;
- * motion the element simply renders at full scale.
+ * The tween registers unconditionally for all visitors.
  */
 export function GsapScaleUp({
   children,

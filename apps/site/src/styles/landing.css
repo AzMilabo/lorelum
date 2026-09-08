@@ -304,27 +304,7 @@ summary {
  * transforms the content, so native `animation-timeline: view()` timelines
  * can't track it — the GSAP scrub follows the smoother's scroller instead. */
 
-/* Slow drift for the hero glow — transform-only, compositor-owned. */
-/* ---------- Hero scroll exit (GSAP ScrollTrigger scrub) ----------
- * The title block fades + rises as the hero scrolls out; the terminal lingers
- * slightly longer. Driven by GSAP in `hero.tsx` so it tracks the content a
- * ScrollSmoother translates. */
-
-/* ---------- Eyebrow shimmer ---------- */
-
-@keyframes landing-shimmer-shift {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-
-.landing-shimmer-text {
-  background-size: 200% auto;
-  animation: landing-shimmer-shift 6s linear infinite;
-}
-
-/* Reduced-motion addition (see the "Reduced motion" block above). */
-
-/* ---------- Icon micro-motion (features/problem cards) ----------
+/* ---------- GSAP SplitText reveal (SplitTextReveal) ----------
  * The tile pops in on load, sways gently while idle, and on hover tilts up
  * while a rotating conic ring appears around it. Transform-only + a small
  * masked ring, so the compositor owns the motion. */
@@ -422,9 +402,7 @@ summary {
 
 /* ---------- Hero badge decrypt (React Bits DecryptedText) ----------
  * While the badge resolves into its real wording, the still-scrambled glyphs
- * read as faint so the "decoding" is legible rather than noisy. Reduced-motion
- * users always see the finished text (the component is gated in first), so no
- * animation rule is needed here. */
+ * read as faint so the "decoding" is legible rather than noisy. */
 .landing-decrypt-scrambled {
   opacity: 0.5;
 }

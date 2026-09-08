@@ -24,8 +24,7 @@ import {
  * and the theme/language switches stay reachable while scrolling.
  *
  * The nav hides while scrolling down and slides back on the first upward
- * scroll (transform-only, one tween per direction change). Reduced-motion
- * users always keep it visible.
+ * scroll (transform-only, one tween per direction change).
  */
 export function LandingShell({
   lang,

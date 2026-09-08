@@ -12,13 +12,12 @@ import { gsap, registerGsapPlugins, ScrollTrigger } from './gsap-client';
  *
  * Renders a plain, fully-visible string on the server (no typing/erasing, no
  * blinking cursor), then mounts the typewriter effect once hydration lands.
- * `startOnVisible` is
- * intentionally NOT used: the landing runs GSAP ScrollSmoother, whose
- * transform-based scrolling breaks IntersectionObserver (the observer never
- * fires even for in-viewport content — a known ScrollSmoother limitation).
+ * `startOnVisible` is intentionally NOT used: the hero gates typing itself via
+ * ScrollTrigger (the page's canonical viewport gate — see AGENTS.md hard rule
+ * 3), so the typewriter never runs above/off-screen on first paint.
  *
  * The typewriter also pauses when its scroll container leaves the viewport
- * (ScrollTrigger, not IO): while the hero is scrolled away it renders the
+ * (ScrollTrigger): while the hero is scrolled away it renders the
  * static first phrase and stops the per-character setState chain, then resumes
  * typing when the hero comes back.
  */

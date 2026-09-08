@@ -11,11 +11,11 @@ const HAS_CJK = /[\u3400-\u9fff\uf900-\ufaff]/;
  * travels through the viewport. Unlike a one-shot fire-and-forget timeline,
  * this is a scrub: progress is bound to scroll, so scrolling up reverses the
  * reveal and the words settle at exactly their natural position (y 0,
- * opacity 1) once the line reaches the upper-middle of the viewport. It is
- * SSR-safe: the text renders as plain visible HTML so no-JS and content that
- * is already on screen never flash. On the server it never
+ * opacity 1) once the line reaches the upper-middle of the viewport.
+ * It is SSR-safe: the text renders as plain visible HTML so no-JS and content
+ * that is already on screen never flashes. On the server it never
  * splits, so the text stays as a single readable element. Created inside
- * `gsap.matchMedia` and split DOM is reverted on unmount so SPA navigation
+ * `gsap.context` and split DOM is reverted on unmount so SPA navigation
  * can't leak.
  */
 export function SplitTextReveal({
