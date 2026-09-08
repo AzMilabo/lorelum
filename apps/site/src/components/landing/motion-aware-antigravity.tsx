@@ -7,9 +7,9 @@ import { useCanvasEffectsEnabled } from './hooks/use-canvas-effects';
  * (antigravity.google, `MainParticlesComponent`).
  *
  * Antigravity runs a GPU ping-pong sim on a WebGL `<Canvas>` (three +
- * @react-three/fiber), which is heavy, so it only runs on fine-pointer +
- * motion-allowed. On the server, under reduced motion, or on touch we render
- * nothing, so no WebGL context is created and nothing animates.
+ * @react-three/fiber), which is heavy, so it only runs on fine-pointer
+ * devices. On the server or on touch we render nothing, so no WebGL context
+ * is created and nothing animates.
  *
  * Props are the site's dark-section data attributes, verbatim:
  * data-density="220" data-particles-scale="0.65" data-ring-width="0.15"

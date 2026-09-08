@@ -8,11 +8,12 @@ type Target =
 /**
  * Pause CSS animations while the target is outside the viewport.
  *
- * The landing runs GSAP ScrollSmoother, whose transform-based scrolling breaks
- * IntersectionObserver (observers never fire — see `motion-aware-text-type`).
- * So this uses ScrollTrigger inside a `gsap.context` (same pattern as every
- * other ScrollTrigger on the page, so the smoother's scroller and refresh
- * timing are handled): when the tracked element leaves the viewport it
+ * This is the landing's canonical viewport gate: ScrollTrigger inside a
+ * `gsap.context` (same pattern as every other viewport gate on the page, so
+ * the smoother's scroller and refresh timing are handled). IntersectionObserver
+ * does fire under the current ScrollSmoother setup (verified with the fps
+ * probe's `io` line), but ScrollTrigger stays the one idiom for viewport gates
+ * — see AGENTS.md hard rule 3. When the tracked element leaves the viewport it
  * gets `.is-offscreen` (`animation-play-state: paused`) and the class is
  * removed on return.
  *

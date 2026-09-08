@@ -42,11 +42,8 @@ export function Hero({ lang }: { lang: string }) {
   }, []);
 
   // Pause the gradient-text sweep (and any other CSS animation) once the hero
-  // scrolls away, so it stops repainting off-screen. ScrollTrigger, not IO —
-  // ScrollSmoother breaks IntersectionObserver (see use-viewport-anim).
-  // Pause the gradient-text sweep once the hero scrolls away, so it stops
-  // repainting off-screen. ScrollTrigger, not IO — ScrollSmoother breaks
-  // IntersectionObserver (see use-viewport-anim).
+  // scrolls away, so it stops repainting off-screen. ScrollTrigger — the
+  // page's canonical viewport gate (see use-viewport-anim).
   usePauseOffscreen({ ref: sectionRef, selector: '.landing-gradient-text' });
 
   // Hero scroll exit — fades + lifts the copy as the section leaves. The
@@ -139,7 +136,7 @@ export function Hero({ lang }: { lang: string }) {
 
           {/* Typewriter subline — short phrases that loop after the hero loads.
               `min-h` reserves one line so the CTA buttons below don't jump as
-              the text types/erases. Wrapper keeps it SSR/reduced-motion-safe. */}
+              the text types/erases. Wrapper keeps it SSR-safe. */}
           <div className="landing-hero-item mt-4 min-h-6" style={{ animationDelay: '0.26s' }}>
             <TypewriterText
               text={t.heroTypewriter}

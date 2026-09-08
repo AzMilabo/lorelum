@@ -5,26 +5,22 @@ import { detectWebglRenderer, type WebglCapability } from './webgl-renderer';
 
 /**
  * Client-only WebGL aurora for the hero, gated to the cases where it can
- * shine: dark theme + desktop pointer + WebGL + hero in view + motion OK.
+ * shine: dark theme + desktop pointer + hardware WebGL + hero in view.
+ * Everything else sees the CSS gradient mesh + particle field instead.
  *
  * `ogl` is loaded through `React.lazy` so it lands in a separate async chunk
  * (never in the pre-rendered HTML or the main bundle). The rAF loop is
  * stopped while the hero is offscreen or the tab is hidden, and the whole
  * layer unmounts when the gate flips false (e.g. theme switch to light).
  *
- * Everything else sees the CSS gradient mesh + particle field instead.
- */
-/**
- * Direct single-file import (NOT the `react-bits` barrel): `React.lazy` must
- * resolve to the component's own module so Aurora lands in a separate async
- * chunk. Importing through `@/components/react-bits` would pull the whole
- * barrel (every vendored component) into this chunk and defeat the lazy-load.
- *
- * The chunk is fetched through a shared promise that `HeroAurora` also kicks
- * off eagerly on mount: the download then overlaps the hero entrance instead
- * of starting only after the settle timer, which used to make the aurora
- * appear seconds after a refresh (timer + full chunk round-trip + idle wait,
- * all serial).
+ * The chunk is fetched through a shared promise that this component also
+ * kicks off eagerly on mount: the download then overlaps the hero entrance
+ * instead of starting only after the settle timer, which used to make the
+ * aurora appear seconds after a refresh (timer + full chunk round-trip + idle
+ * wait, all serial). The chunk is imported directly from
+ * `@/components/react-bits/aurora`, NOT through the barrel: `React.lazy` must
+ * resolve to the component's own module, and the barrel would pull every
+ * vendored component into this chunk and defeat the lazy-load.
  */
 type AuroraModule = typeof import('@/components/react-bits/aurora');
 let auroraChunkPromise: Promise<AuroraModule> | null = null;
@@ -101,13 +97,12 @@ export function HeroAurora() {
     // copy is ~0.42s + ~0.7s duration — 1.2s covers it with a little headroom.
     const settleTimer = window.setTimeout(() => setSettled(true), 1200);
 
-    // Viewport gate for the WebGL layer. This deliberately uses a GSAP
-    // ScrollTrigger, NOT IntersectionObserver: the landing runs ScrollSmoother,
-    // whose transform-based scrolling means IO callbacks never fire (the hero
-    // would read as "in view" forever and the aurora would keep rasterizing a
-    // full-screen WebGL canvas even after it scrolled away — the single biggest
-    // idle GPU cost on this page). ScrollTrigger follows the smoother's
-    // scroller, so the gate flips the moment the hero leaves.
+    // Viewport gate for the WebGL layer. This uses the page's canonical
+    // viewport idiom, a GSAP ScrollTrigger (see AGENTS.md hard rule 3 and
+    // use-viewport-anim): it follows the ScrollSmoother's scroller and
+    // refresh timing, so the gate flips the moment the hero leaves and the
+    // full-screen WebGL canvas never keeps rasterizing after it scrolled
+    // away — the single biggest idle GPU cost on this page.
     let cleanupGate: (() => void) | undefined;
     registerGsapPlugins();
     const ctx = gsap.context(() => {

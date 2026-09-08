@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { gsap, registerGsapPlugins, ScrollTrigger } from './gsap-client';
+import { gsap, registerGsapPlugins } from './gsap-client';
 import { cn } from '@/lib/cn';
 
 /**
@@ -12,8 +12,7 @@ import { cn } from '@/lib/cn';
  *
  *   gsap.from(section, { scrollTrigger: { start: 'top bottom', end: 'top center', scrub: 1 }, scale: 0.5, ease: 'power2.out' })
  *
- * It registers unconditionally;
- * motion the element simply renders at full scale.
+ * The tween registers unconditionally for all visitors.
  */
 export function GsapScaleUp({
   children,
@@ -54,6 +53,3 @@ export function GsapScaleUp({
     </div>
   );
 }
-
-/** Re-exported for consumers that need ScrollTrigger.refresh() after layout. */
-export { ScrollTrigger };

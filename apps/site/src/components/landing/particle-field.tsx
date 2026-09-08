@@ -6,8 +6,8 @@ import { getCanvasScale, getParticleCount } from './gates/particle-budget';
  *
  * Deliberately cheap: no WebGL, no dependencies, ~40-90 slowly drifting
  * dots drawn with canvas 2D. The rAF loop only runs while the tab is
- * visible, the backing store is capped at 1.5x DPR, and everything is
- * disabled off-screen. Colors follow the Fumadocs theme
+ * visible, the backing store never exceeds the CSS size (DPR capped at 1),
+ * and colors follow the Fumadocs theme
  * (bright on dark, faint on light) and update live when the theme flips.
  *
  * The whole field leans gently away from the cursor — a single smoothed
