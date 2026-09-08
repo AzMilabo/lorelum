@@ -1,6 +1,6 @@
 import { useEffect, useState, type RefObject } from 'react';
 import { TextType } from '@/components/react-bits';
-import { gsap, registerGsapPlugins, ScrollTrigger } from './gsap-client';
+import { gsap, registerGsapPlugins, ScrollTrigger } from '../motion/gsap-client';
 
 /**
  * Motion-aware wrapper around the vendored `react-bits/text-type` base.

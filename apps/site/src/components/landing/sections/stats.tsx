@@ -1,9 +1,9 @@
 import { useRef } from 'react';
 import { CountUp } from '@/components/react-bits';
 import { getStrings, type LandingStrings } from '@/lib/translations';
-import { Reveal } from './reveal';
+import { Reveal } from '../motion/reveal';
 import { SectionHeading } from './section-heading';
-import { usePauseOffscreen } from './hooks/use-viewport-anim';
+import { usePauseOffscreen } from '../motion/use-viewport-anim';
 
 const STATS: Array<{
   value: number;
