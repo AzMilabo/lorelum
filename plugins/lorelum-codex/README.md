@@ -16,9 +16,8 @@ Hooks are metadata-only. They do not run `lore query`, access the network, modif
 From the repository root:
 
 ```powershell
-python C:\Users\gotobed\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py plugins\lorelum-codex
+python "$env:USERPROFILE\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py" plugins\lorelum-codex
 bun test plugins/lorelum-codex/scripts
 ```
 
 The dynamic CLI and Store integration will be connected after the Pack metadata command contract is finalized.
-

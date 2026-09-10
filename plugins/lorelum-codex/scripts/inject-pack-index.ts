@@ -9,6 +9,23 @@ import { renderPackIndex } from "./render-pack-index";
 
 const DEFAULT_CLI_COMMAND = "lore";
 const DEFAULT_CLI_ARGS = ["list", "packs"] as const;
+export const DEFAULT_CLI_TIMEOUT_MS = 9_000;
+
+function configuredCliArgs(): readonly string[] {
+  const encoded = process.env.LORELUM_CLI_ARGS;
+  if (encoded === undefined) return DEFAULT_CLI_ARGS;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(encoded);
+  } catch {
+    throw new Error("LORELUM_CLI_ARGS must be a JSON array of strings.");
+  }
+  if (!Array.isArray(parsed) || parsed.some((argument) => typeof argument !== "string")) {
+    throw new Error("LORELUM_CLI_ARGS must be a JSON array of strings.");
+  }
+  return Object.freeze([...parsed]);
+}
 
 function isHookEvent(value: string | undefined): value is LorelumHookEvent {
   return value === "SessionStart" || value === "PostCompact";
@@ -19,17 +36,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function parseSummary(value: unknown): InstalledPackSummary | undefined {
-  if (!isRecord(value) || typeof value.name !== "string" || typeof value.version !== "string") {
+  if (
+    !isRecord(value) ||
+    typeof value.name !== "string" ||
+    typeof value.version !== "string" ||
+    !Array.isArray(value.appliesTo) ||
+    value.appliesTo.some((item) => typeof item !== "string")
+  ) {
     return undefined;
   }
-  const appliesTo = Array.isArray(value.appliesTo)
-    ? value.appliesTo.filter((item): item is string => typeof item === "string")
-    : [];
   return {
     name: value.name,
     version: value.version,
     ...(typeof value.description === "string" ? { description: value.description } : {}),
-    appliesTo,
+    appliesTo: value.appliesTo,
   };
 }
 
@@ -41,33 +61,45 @@ export function parsePackSummaryEnvelope(value: unknown): readonly InstalledPack
   if (!Array.isArray(packs)) {
     throw new Error("Lorelum metadata command returned an invalid Pack list.");
   }
-  const summaries = packs.map(parseSummary);
-  if (summaries.some((summary) => summary === undefined)) {
-    throw new Error("Lorelum metadata command returned an invalid Pack summary.");
+  const summaries: InstalledPackSummary[] = [];
+  for (const pack of packs) {
+    const summary = parseSummary(pack);
+    if (summary === undefined) {
+      throw new Error("Lorelum metadata command returned an invalid Pack summary.");
+    }
+    summaries.push(summary);
   }
-  return Object.freeze(summaries as InstalledPackSummary[]);
+  return Object.freeze(summaries);
 }
 
-export function createCliPackSummarySource(options: {
-  readonly command?: string;
-  readonly args?: readonly string[];
-  readonly cwd?: string;
-} = {}): PackSummarySource {
+export function createCliPackSummarySource(
+  options: {
+    readonly command?: string;
+    readonly args?: readonly string[];
+    readonly cwd?: string;
+    readonly timeoutMs?: number;
+  } = {},
+): PackSummarySource {
   const command = options.command ?? process.env.LORELUM_CLI_COMMAND ?? DEFAULT_CLI_COMMAND;
-  const args = options.args ?? DEFAULT_CLI_ARGS;
+  const args = options.args ?? configuredCliArgs();
   return {
     async readInstalledPackSummaries() {
       const processHandle = Bun.spawn([command, ...args], {
         cwd: options.cwd,
         stdout: "pipe",
         stderr: "pipe",
+        timeout: options.timeoutMs ?? DEFAULT_CLI_TIMEOUT_MS,
       });
-      const [stdout, exitCode] = await Promise.all([
+      const [stdout, stderr, exitCode] = await Promise.all([
         new Response(processHandle.stdout).text(),
+        new Response(processHandle.stderr).text(),
         processHandle.exited,
       ]);
       if (exitCode !== 0) {
-        throw new Error(`Lorelum metadata command failed with exit code ${exitCode}.`);
+        const detail = stderr.trim();
+        throw new Error(
+          `Lorelum metadata command failed with exit code ${exitCode}${detail === "" ? "." : `: ${detail}`}`,
+        );
       }
       return parsePackSummaryEnvelope(JSON.parse(stdout));
     },

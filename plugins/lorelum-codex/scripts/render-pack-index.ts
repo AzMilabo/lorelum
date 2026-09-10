@@ -57,9 +57,7 @@ export function renderPackIndex(
       uniquePacks.set(name, {
         name,
         version: normalizeText(pack.version),
-        ...(pack.description === undefined
-          ? {}
-          : { description: normalizeText(pack.description) }),
+        ...(pack.description === undefined ? {} : { description: normalizeText(pack.description) }),
         appliesTo: Object.freeze(pack.appliesTo.map(normalizeText).filter(Boolean)),
       });
     }
@@ -81,4 +79,3 @@ export function renderPackIndex(
     maxCharacters,
   );
 }
-
