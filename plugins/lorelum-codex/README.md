@@ -7,7 +7,7 @@ This is the first Codex integration for Lorelum. It uses a progressive-disclosur
 3. Codex calls the Lorelum query command only for a matching task and work moment.
 4. Codex retrieves a full Practice only when the compact query result makes it necessary.
 
-Codex discovers the default `hooks/hooks.json` bundled in the Plugin. The hook currently calls the provisional command `lore list packs`. The command name is intentionally isolated in `scripts/inject-pack-index.ts` until the CLI command tree is reviewed. Set `LORELUM_CLI_COMMAND` to test with a custom executable; pass a custom source in unit tests.
+Codex discovers the default `hooks/hooks.json` bundled in the Plugin. The hook calls `lore list packs`, the rich Pack metadata command defined by the list catalog contract (ADR 0014). The command invocation is isolated in `scripts/inject-pack-index.ts`; set `LORELUM_CLI_COMMAND` and `LORELUM_CLI_ARGS` (a JSON array of strings) to test with a custom executable, and pass a custom source in unit tests.
 
 Hooks are metadata-only. They do not run `lore query`, access the network, modify the Store, or read full Practice bodies. If the CLI is unavailable or returns malformed data, the hook writes a diagnostic to stderr and lets the host continue without additional context.
 
@@ -20,4 +20,11 @@ python "$env:USERPROFILE\.codex\skills\.system\plugin-creator\scripts\validate_p
 bun test plugins/lorelum-codex/scripts
 ```
 
-The dynamic CLI and Store integration will be connected after the Pack metadata command contract is finalized.
+The CLI and Store integration is connected end to end: the hook spawns `lore list packs` against the LocalStore and renders the returned summaries. To smoke-check it, install Packs into an isolated Store root, then run the command and pipe a hook event through the script:
+
+```powershell
+bun packages/cli/src/main.ts list packs --store-root D:\Temp\lore-e2e-store
+$env:LORELUM_CLI_COMMAND = "bun"
+$env:LORELUM_CLI_ARGS = '["packages/cli/src/main.ts","list","packs","--store-root","D:/Temp/lore-e2e-store"]'
+'{"hook_event_name":"SessionStart"}' | bun plugins/lorelum-codex/scripts/inject-pack-index.ts
+```
