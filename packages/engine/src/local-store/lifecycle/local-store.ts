@@ -3,6 +3,7 @@ import { resolveLorelumPaths } from "@lorelum/config";
 import type { ValidationIssue } from "@lorelum/format";
 
 import type { EffectivePractice, PackCandidate, RevisionDelta } from "../model";
+import { toInstalledPackDetails, type InstalledPackDetails } from "../model/pack-details";
 
 import { installOrUpgrade } from "./install";
 import {
@@ -44,6 +45,12 @@ export interface InstalledPackSummary {
   readonly version: string;
 }
 
+export interface InstalledPackDetailsResult {
+  readonly generation: number;
+  readonly effectiveRevision: number;
+  readonly packs: readonly InstalledPackDetails[];
+}
+
 export interface LocalStore {
   /** Consistent indexed point read; validates only the returned Practice and sources. */
   getEffectivePractice(
@@ -52,6 +59,8 @@ export interface LocalStore {
   ): Promise<EffectivePractice | undefined>;
   /** Cold open; throws StoreRecoveryRequiredError on any inconsistency. */
   open(root: StorageRoot): Promise<OpenResult>;
+  /** Verified Pack metadata from sealed projections without widening OpenResult.packs. */
+  readInstalledPackDetails(root: StorageRoot): Promise<InstalledPackDetailsResult>;
   install(
     root: StorageRoot,
     candidate: PackCandidate,
@@ -86,6 +95,8 @@ export interface LocalStore {
   onEffectiveRevisionAdvanced?: EffectiveRevisionHook | undefined;
 }
 
+export type { InstalledPackDetails } from "../model/pack-details";
+
 /**
  * The LocalStore public facade (ADR 0007 §13). Cross-medium commit ordering
  * lives only in lifecycle/; model/ stays pure and storage/ only reads and
@@ -112,6 +123,15 @@ export function createLocalStore(
         ),
         effectivePractices: result.effectivePractices,
       };
+    },
+    async readInstalledPackDetails(root: StorageRoot): Promise<InstalledPackDetailsResult> {
+      const result = await openLocalStore(root.rootPath);
+      const packs = result.packDetails.map(toInstalledPackDetails);
+      return Object.freeze({
+        generation: result.manifest.generation,
+        effectiveRevision: result.manifest.effectiveRevision,
+        packs: Object.freeze(packs),
+      });
     },
     install(
       root: StorageRoot,

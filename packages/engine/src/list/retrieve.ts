@@ -1,7 +1,10 @@
 import type { EffectivePractice } from "../local-store/index.js";
+import { toInstalledPackDetails } from "../local-store/model/pack-details.js";
 import type {
   ListedPack,
   ListedPractice,
+  RetrievePackDetailsInput,
+  RetrievePackDetailsResult,
   RetrievePackPracticesInput,
   RetrievePackPracticesResult,
   RetrievePacksInput,
@@ -44,6 +47,14 @@ export function retrievePacks(input: RetrievePacksInput): RetrievePacksResult {
         practiceCount: counts.get(pack.name) ?? 0,
       }),
     )
+    .sort((left, right) => compareCodeUnits(left.name, right.name));
+  return Object.freeze({ packs: Object.freeze(packs) });
+}
+
+/** Project verified Pack metadata into the rich Pack catalog. */
+export function retrievePackDetails(input: RetrievePackDetailsInput): RetrievePackDetailsResult {
+  const packs = input.packs
+    .map(toInstalledPackDetails)
     .sort((left, right) => compareCodeUnits(left.name, right.name));
   return Object.freeze({ packs: Object.freeze(packs) });
 }

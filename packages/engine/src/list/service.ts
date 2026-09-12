@@ -5,8 +5,9 @@ import {
   type StorageRoot,
 } from "../local-store/index.js";
 import { UnknownPackError } from "./errors.js";
-import { retrievePackPractices, retrievePacks } from "./retrieve.js";
+import { retrievePackDetails, retrievePackPractices, retrievePacks } from "./retrieve.js";
 import type {
+  ListPackDetailsResult,
   ListPackPracticesResult,
   ListPackRequest,
   ListPacksResult,
@@ -15,11 +16,14 @@ import type {
 
 export interface ListService {
   list(request?: ListRequest): Promise<ListPacksResult>;
+  listPackDetails(request?: ListRequest): Promise<ListPackDetailsResult>;
   listPack(request: ListPackRequest): Promise<ListPackPracticesResult>;
 }
 
+type ListStore = Pick<LocalStore, "open" | "readInstalledPackDetails">;
+
 export interface ListServiceOptions {
-  readonly store?: Pick<LocalStore, "open">;
+  readonly store?: ListStore;
   readonly storageRoot?: StorageRoot;
 }
 
@@ -36,6 +40,17 @@ export function createListService(options: ListServiceOptions = {}): ListService
           packs: opened.packs,
           effectivePractices: opened.effectivePractices,
         }),
+        generation: opened.generation,
+        effectiveRevision: opened.effectiveRevision,
+      });
+    },
+
+    async listPackDetails(request: ListRequest = {}): Promise<ListPackDetailsResult> {
+      const opened = await store.readInstalledPackDetails(
+        request.storageRoot ?? fallbackStorageRoot,
+      );
+      return Object.freeze({
+        ...retrievePackDetails({ packs: opened.packs }),
         generation: opened.generation,
         effectiveRevision: opened.effectiveRevision,
       });
