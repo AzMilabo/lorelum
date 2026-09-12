@@ -1,11 +1,14 @@
 import type { InstalledPackSummary } from "./types";
 
+// Headroom below the hooks.json `additionalContextLimit` (5000) so the frozen
+// envelope fields never push the delivered context over the host budget.
 export const DEFAULT_MAX_CHARACTERS = 4_000;
 
 export interface RenderPackIndexOptions {
   readonly maxCharacters?: number;
 }
 
+/** Replace control characters with spaces and collapse whitespace runs. */
 function normalizeText(value: string): string {
   return value
     .split("")
@@ -50,6 +53,8 @@ export function renderPackIndex(
     throw new RangeError("Pack Index character budget must be an integer of at least 64.");
   }
 
+  // The manifest guarantees unique active Pack names; keep the first entry in
+  // case a host delivers a duplicated list anyway.
   const uniquePacks = new Map<string, InstalledPackSummary>();
   for (const pack of packs) {
     const name = normalizeText(pack.name);

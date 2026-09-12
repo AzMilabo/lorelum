@@ -12,7 +12,7 @@ import {
 import type { PackSummarySource } from "./types";
 
 describe("inject-pack-index", () => {
-  test("parses the provisional metadata envelope", () => {
+  test("parses the metadata envelope", () => {
     expect(
       parsePackSummaryEnvelope({
         ok: true,
