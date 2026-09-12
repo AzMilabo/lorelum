@@ -9,7 +9,8 @@
             "type": "command",
             "command": "bun \"$PLUGIN_ROOT/scripts/inject-pack-index.ts\"",
             "timeout": 10,
-            "additionalContextLimit": 5000
+            "additionalContextLimit": 5000,
+            "commandWindows": "bun \"$env:PLUGIN_ROOT\\scripts\\inject-pack-index.ts\""
           }
         ]
       }
@@ -22,7 +23,7 @@
             "type": "command",
             "command": "bun \"$PLUGIN_ROOT/scripts/inject-pack-index.ts\"",
             "timeout": 10,
-            "additionalContextLimit": 5000
+            "commandWindows": "bun \"$env:PLUGIN_ROOT\\scripts\\inject-pack-index.ts\""
           }
         ]
       }

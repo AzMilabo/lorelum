@@ -11,6 +11,10 @@ Codex discovers the default `hooks/hooks.json` bundled in the Plugin. The hook c
 
 Hooks are metadata-only. They do not run `lore query`, access the network, modify the Store, or read full Practice bodies. If the CLI is unavailable or returns malformed data, the hook writes a diagnostic to stderr and lets the host continue without additional context.
 
+### Windows notes
+
+Codex runs hook commands through PowerShell on Windows, so `commandWindows` uses PowerShell syntax (`$env:PLUGIN_ROOT`), and `bun` must resolve to a real executable on `PATH` — the shim script that `npm install -g bun` creates will not run. Hooks are gated by review: after any change to `hooks.json`, re-trust them in the Codex plugin UI, otherwise Codex silently skips them. Current Codex versions cannot emit `additionalContext` for `PostCompact`, so compaction-time re-injection is a no-op until the host supports it; the hook entry is kept for forward compatibility.
+
 ## Local validation
 
 From the repository root:
