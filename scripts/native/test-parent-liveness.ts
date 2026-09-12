@@ -1,14 +1,24 @@
 import buildConfig from "../../native/embedding/build-config.json";
 import { llamaArguments } from "../../packages/backend/src/runtime/llama-options";
+import {
+  developmentEmbeddingArtifactDirectory,
+  resolveEmbeddingNativeArtifact,
+} from "../../packages/backend/src/runtime/native/embedding/catalog";
 /* eslint-disable no-await-in-loop -- Lifecycle states and process exits must be observed sequentially. */
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { materializePatchedLlamaSource } from "./source-tree";
 
 type TestMode = "startup" | "encoding" | "stalled-main";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
-const executable = join(repositoryRoot, "dist/native/darwin-arm64/llama-server");
+const artifact = resolveEmbeddingNativeArtifact(process.platform, process.arch);
+if (artifact === undefined)
+  throw new Error(
+    `native lifecycle tests currently support darwin-arm64, got ${process.platform}-${process.arch}`,
+  );
+const executable = join(developmentEmbeddingArtifactDirectory(artifact), "llama-server");
 const model = join(repositoryRoot, ".cache/embedding-validation", buildConfig.model.fileName);
 const harness = join(repositoryRoot, ".cache/native-liveness/stalled-llama-server");
 
@@ -31,14 +41,9 @@ async function reserveEphemeralPort(): Promise<number> {
   return port;
 }
 
-function ensureHarness(): void {
-  const patchedMain = join(repositoryRoot, ".cache/native-build/source/tools/server/main.cpp");
-  if (
-    !existsSync(patchedMain) ||
-    !readFileSync(patchedMain, "utf8").includes("start_parent_liveness_watcher")
-  ) {
-    throw new Error("run build-embedding.ts before the stalled-main lifecycle test");
-  }
+async function ensureHarness(): Promise<void> {
+  const sourceRoot = await materializePatchedLlamaSource(repositoryRoot);
+  const patchedMain = join(sourceRoot, "tools/server/main.cpp");
   mkdirSync(join(repositoryRoot, ".cache/native-liveness"), { recursive: true });
   const result = Bun.spawnSync(
     [
@@ -221,7 +226,7 @@ async function test(mode: TestMode): Promise<void> {
   }
 
   if (mode === "stalled-main") {
-    ensureHarness();
+    await ensureHarness();
   }
 
   const ownerProcess = Bun.spawn([process.execPath, import.meta.path, "--owner", "--mode", mode], {
