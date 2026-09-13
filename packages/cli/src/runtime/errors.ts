@@ -1,6 +1,7 @@
 export const cliErrorCodes = Object.freeze({
   packInvalid: "pack.invalid",
-  packUpgradeRequired: "pack.upgrade-required",
+  packNotInstalled: "pack.not-installed",
+  packUpdateRequired: "pack.update-required",
   practiceConflict: "practice.conflict",
   practiceNotFound: "practice.not-found",
   registryInvalid: "registry.invalid",
@@ -12,7 +13,6 @@ export const cliErrorCodes = Object.freeze({
   sourceUnavailable: "source.unavailable",
   storeBusy: "store.busy",
   storeRecoveryRequired: "store.recovery-required",
-  listPackNotFound: "list.pack-not-found",
   localizationInvalid: "localization.invalid",
   localizationPracticeNotFound: "localization.practice-not-found",
   queryUnavailable: "query.unavailable",

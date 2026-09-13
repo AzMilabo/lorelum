@@ -12,7 +12,7 @@ This is the index for day-to-day development topics that do not belong in the pr
 - [Issues, branches, and PRs](../../CONTRIBUTING.md#development-workflow)
 - [Local CLI and worktrees](#local-cli-and-multiple-worktrees)
 - [Embedding native runtime](#embedding-native-runtime)
-- [Discover installed Packs with `lore list`](../cli/list.md)
+- [Discover installed Packs with `lore pack list`](../cli/list.md)
 - [Read an installed Practice with `lore get`](../cli/get.md)
 - [Query installed Practices with `lore query`](../cli/query.md)
 - [Manage a Store semantic index with `lore index`](../cli/index.md)
@@ -101,7 +101,7 @@ The function anchors the source entrypoint to the current worktree while leaving
 ```zsh
 lore-dev query "responsibility boundary" --top-k 2
 lore-dev --store-root "$(git rev-parse --path-format=absolute --git-path lorelum/store)" \
-  install pack-creator --pack-version 0.1.0
+  pack install pack-creator@0.1.0
 ```
 
 The `ld` alias above is optional and specific to the zsh example.
