@@ -4,7 +4,8 @@ import { chmod, mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const version = "0.1.0";
+const version = "0.1.0-alpha.1";
+const stableVersion = "0.1.0";
 const repositoryRoot = join(import.meta.dir, "..", "..");
 
 // The POSIX installer runs under Git Bash on Windows hosts, where MSYS shasum emits
@@ -66,15 +67,15 @@ test.skipIf(!posixOnly)(
   "installer resolves the latest stable release when no version is supplied",
   async () => {
     const root = await mkdtemp(join(tmpdir(), "lore-install-latest-"));
-    const server = await createReleaseServer(root);
+    const server = await createReleaseServer(root, { version: stableVersion });
     try {
       const result = await runInstaller(root, server.url.origin, []);
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
-      expect(Bun.file(join(root, "share", "versions", version, "lore")).exists()).resolves.toBe(
-        true,
-      );
-      expect(result.stdout).toContain(`Installed lore ${version}`);
+      expect(
+        Bun.file(join(root, "share", "versions", stableVersion, "lore")).exists(),
+      ).resolves.toBe(true);
+      expect(result.stdout).toContain(`Installed lore ${stableVersion}`);
     } finally {
       server.stop(true);
       await rm(root, { recursive: true, force: true });
@@ -86,11 +87,15 @@ test.skipIf(!posixOnly)(
   "installer uses the exact tag returned for the latest release assets",
   async () => {
     const root = await mkdtemp(join(tmpdir(), "lore-install-latest-tag-"));
-    const server = await createReleaseServer(root, { latestTag: version, releaseTag: version });
+    const server = await createReleaseServer(root, {
+      version: stableVersion,
+      latestTag: stableVersion,
+      releaseTag: stableVersion,
+    });
     try {
       const result = await runInstaller(root, server.url.origin, []);
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain(`Installed lore ${version}`);
+      expect(result.stdout).toContain(`Installed lore ${stableVersion}`);
     } finally {
       server.stop(true);
       await rm(root, { recursive: true, force: true });
@@ -138,12 +143,18 @@ test.skipIf(!posixOnly)("installer leaves an unmanaged command untouched", async
 
 async function createReleaseServer(
   root: string,
-  options: { latestTag?: string; releaseTag?: string; platform?: InstallerPlatform } = {},
+  options: {
+    version?: string;
+    latestTag?: string;
+    releaseTag?: string;
+    platform?: InstallerPlatform;
+  } = {},
 ) {
+  const releaseVersion = options.version ?? version;
   const platform = options.platform ?? "darwin-arm64";
-  const archiveName = `lore-${version}-${platform}.tar.gz`;
+  const archiveName = `lore-${releaseVersion}-${platform}.tar.gz`;
   const packageName = archiveName.slice(0, -".tar.gz".length);
-  const releaseTag = options.releaseTag ?? `v${version}`;
+  const releaseTag = options.releaseTag ?? `v${releaseVersion}`;
   const releases = join(root, "releases", releaseTag);
   const packageDirectory = join(root, packageName);
   await mkdir(join(packageDirectory, "native", platform), { recursive: true });
@@ -175,7 +186,7 @@ async function createReleaseServer(
         return new Response(Bun.file(join(releases, "SHA256SUMS")));
       if (path === "/api/releases/latest")
         return Response.json({
-          tag_name: options.latestTag ?? `v${version}`,
+          tag_name: options.latestTag ?? `v${releaseVersion}`,
           prerelease: false,
           draft: false,
         });
