@@ -1,0 +1,30 @@
+{
+  "name": "lorelum",
+  "version": "0.1.0",
+  "description": "Surface relevant Lorelum engineering Practices in Codex when they can inform a task or decision.",
+  "author": {
+    "name": "Lorelum"
+  },
+  "homepage": "https://lorelum.com",
+  "license": "Apache-2.0",
+  "repository": "https://github.com/lorelum/lorelum",
+  "keywords": ["lorelum", "codex", "practices", "engineering-guidance"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Lorelum",
+    "shortDescription": "On-demand engineering Practices for Codex",
+    "longDescription": "Lorelum gives Codex a compact catalog of installed Knowledge Packs, then retrieves detailed Practices when they can inform the current task, decision, verification, or recovery.",
+    "developerName": "Lorelum",
+    "category": "Productivity",
+    "capabilities": ["Read"],
+    "websiteURL": "https://lorelum.com",
+    "brandColor": "#35B88F",
+    "composerIcon": "./assets/lorelum-icon.svg",
+    "logo": "./assets/lorelum-icon.svg",
+    "defaultPrompt": [
+      "Show relevant Lorelum Practices for this task",
+      "Check this plan against installed Practices",
+      "Find guidance for verifying this task before completion"
+    ]
+  }
+}
