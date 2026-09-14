@@ -1,9 +1,12 @@
 import { createHash } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
 import { join } from "node:path";
-import type { Database } from "bun:sqlite";
 import { ID_REGEX } from "@lorelum/format";
 
+import type {
+  LocalStoreRepository,
+  StoreMetadataSnapshot,
+} from "../../persistence/repositories/local-store";
 import {
   revisionDeltaPracticeIds,
   type EffectivePractice,
@@ -35,17 +38,8 @@ import {
   reclaimStaleMutationLock,
 } from "../storage/mutation-lock";
 import { listOperationJournals } from "../storage/journal/operation-journal";
-import { openStoreDatabase } from "../storage/sqlite/database";
-import {
-  readLocalStoreSnapshot,
-  readStoreMetadata,
-  readActivePackEntries,
-  materializeEffectivePractices,
-  materializeEffectivePracticesByIds,
-  type StoreMetadataSnapshot,
-} from "../storage/sqlite/snapshot-reader";
-import { readPractice } from "../storage/sqlite/practice-reader";
-import { readEffectiveRevisionLog } from "../storage/sqlite/revision-log";
+import { openLocalStoreRepository } from "../storage/sqlite/database";
+import { ensureCurrentStoreBaseline } from "../storage/sqlite/legacy-reset";
 import { InvalidPracticeIdError, StoreSnapshotChangedError } from "./errors";
 
 import { runStoreRecovery } from "./recovery";
@@ -109,11 +103,10 @@ function translateStoreErrors(error: unknown): never {
 }
 
 /** Open + migrate SQLite, mapping storage errors to the recovery contract. */
-async function openStoreForLifecycle(
-  rootPath: string,
-): Promise<Awaited<ReturnType<typeof openStoreDatabase>>> {
+async function openStoreForLifecycle(rootPath: string): Promise<LocalStoreRepository> {
   try {
-    return await openStoreDatabase(rootPath);
+    await ensureCurrentStoreBaseline(rootPath);
+    return await openLocalStoreRepository(rootPath);
   } catch (error) {
     return translateStoreErrors(error);
   }
@@ -195,25 +188,25 @@ async function verifyArtifactsAndSources(
 async function convergePendingJournals(rootPath: string): Promise<boolean> {
   if ((await listOperationJournals(rootPath)).length === 0) return false;
   const lock = await acquireMutationLock(rootPath);
-  let database: Awaited<ReturnType<typeof openStoreDatabase>> | undefined;
+  let repository: LocalStoreRepository | undefined;
   try {
-    database = await openStoreForLifecycle(rootPath);
-    await runStoreRecovery(rootPath, database);
+    repository = await openStoreForLifecycle(rootPath);
+    await runStoreRecovery(rootPath, repository);
     return true;
   } catch (error) {
     return translateStoreErrors(error);
   } finally {
-    database?.close();
+    repository?.close();
     await lock.release();
   }
 }
 
 async function verifyColdOpenSnapshot(rootPath: string): Promise<ColdOpenResult> {
-  const database = await openStoreForLifecycle(rootPath);
+  const repository = await openStoreForLifecycle(rootPath);
   try {
     for (let attempt = 0; attempt < MAX_OPEN_RETRIES; attempt++) {
       const manifestA = await tryReadManifest(rootPath);
-      const snapshot = readLocalStoreSnapshot(database);
+      const snapshot = repository.readLocalStoreSnapshot();
 
       if (manifestA === undefined && snapshot === undefined) {
         const manifestB = await tryReadManifest(rootPath);
@@ -289,7 +282,7 @@ async function verifyColdOpenSnapshot(rootPath: string): Promise<ColdOpenResult>
   } catch (error) {
     return translateStoreErrors(error);
   } finally {
-    database.close();
+    repository.close();
   }
 }
 
@@ -304,6 +297,11 @@ async function verifyColdOpenSnapshot(rootPath: string): Promise<ColdOpenResult>
  * §12).
  */
 export async function openLocalStore(rootPath: string): Promise<ColdOpenResult> {
+  try {
+    await ensureCurrentStoreBaseline(rootPath);
+  } catch (error) {
+    return translateStoreErrors(error);
+  }
   return readWithJournalRecovery(rootPath, () => verifyColdOpenSnapshot(rootPath));
 }
 
@@ -346,7 +344,7 @@ export async function readEffectivePractices(
 ): Promise<readonly EffectivePractice[]> {
   const snapshot = await readConsistentSnapshotWithActivePacks(
     rootPath,
-    (database, metadata) => materializeEffectivePractices(database, metadata),
+    (repository, metadata) => repository.materializeEffectivePractices(metadata),
     Object.freeze([]),
   );
   return snapshot.value;
@@ -423,7 +421,7 @@ export async function readEffectivePracticeSnapshot(
 ): Promise<EffectivePracticeSnapshot> {
   const snapshot = await readConsistentSnapshotWithActivePacks(
     rootPath,
-    (database, metadata) => materializeEffectivePractices(database, metadata),
+    (repository, metadata) => repository.materializeEffectivePractices(metadata),
     Object.freeze([]),
   );
   return Object.freeze({
@@ -449,13 +447,13 @@ export async function readEffectivePracticeChanges(
   }
   const snapshot = await readConsistentSnapshotWithActivePacks(
     rootPath,
-    (database, metadata) => {
+    (repository, metadata) => {
       if (afterEffectiveRevision > metadata.effectiveRevision) return undefined;
       let entries: readonly EffectivePracticeChange[];
       try {
-        entries = readEffectiveRevisionLog(database, afterEffectiveRevision).map((entry) =>
-          Object.freeze({ revision: entry.revision, delta: entry.delta }),
-        );
+        entries = repository
+          .readEffectiveRevisionLog(afterEffectiveRevision)
+          .map((entry) => Object.freeze({ revision: entry.revision, delta: entry.delta }));
       } catch (error) {
         if (error instanceof SqliteStateError) return undefined;
         throw error;
@@ -468,8 +466,7 @@ export async function readEffectivePracticeChanges(
       if (expected !== metadata.effectiveRevision + 1) return undefined;
       return Object.freeze({
         deltas: Object.freeze(entries),
-        currentPractices: materializeEffectivePracticesByIds(
-          database,
+        currentPractices: repository.materializeEffectivePracticesByIds(
           metadata,
           revisionDeltaPracticeIds(entries.map((entry) => entry.delta)),
         ),
@@ -497,7 +494,7 @@ export async function readEffectivePracticesAtSnapshot(
 ): Promise<readonly EffectivePractice[]> {
   const snapshot = await readConsistentSnapshotWithActivePacks(
     rootPath,
-    (database, metadata) => materializeEffectivePracticesByIds(database, metadata, ids),
+    (repository, metadata) => repository.materializeEffectivePracticesByIds(metadata, ids),
     Object.freeze([]),
   );
   const actual = snapshotIdentity(
@@ -512,22 +509,22 @@ export async function readEffectivePracticesAtSnapshot(
 /** Callbacks are synchronous, read-only, and may be retried. Connections stay private. */
 async function readConsistentSnapshot<T>(
   rootPath: string,
-  read: (database: Database, metadata: StoreMetadataSnapshot) => T,
+  read: (repository: LocalStoreRepository, metadata: StoreMetadataSnapshot) => T,
   empty: T,
 ): Promise<ConsistentSnapshot<T>> {
   const MAX_READ_RETRIES = 3;
-  const database = await openStoreForLifecycle(rootPath);
+  const repository = await openStoreForLifecycle(rootPath);
   try {
     for (let attempt = 0; attempt < MAX_READ_RETRIES; attempt++) {
       // eslint-disable-next-line no-await-in-loop -- bounded retry is inherently sequential
       const manifestA = await tryReadManifest(rootPath);
       let snapshot: { metadata: StoreMetadataSnapshot; value: T } | undefined;
       try {
-        snapshot = database.transaction(() => {
-          const metadata = readStoreMetadata(database);
+        snapshot = repository.transaction(() => {
+          const metadata = repository.readStoreMetadata();
           if (metadata === undefined) return undefined;
-          return { metadata, value: read(database, metadata) };
-        })();
+          return { metadata, value: read(repository, metadata) };
+        });
       } catch (error) {
         if (error instanceof SqliteStateError) throw error;
         throw new SqliteStateError("cannot read LocalStore snapshot", error);
@@ -587,20 +584,20 @@ async function readConsistentSnapshot<T>(
   } catch (error) {
     translateStoreErrors(error);
   } finally {
-    database.close();
+    repository.close();
   }
 }
 
 function readConsistentSnapshotWithActivePacks<T>(
   rootPath: string,
-  read: (database: Database, metadata: StoreMetadataSnapshot) => T,
+  read: (repository: LocalStoreRepository, metadata: StoreMetadataSnapshot) => T,
   empty: T,
 ): Promise<ConsistentSnapshot<T>> {
   return readConsistentSnapshot(
     rootPath,
-    (database, metadata) => {
-      readActivePackEntries(database);
-      return read(database, metadata);
+    (repository, metadata) => {
+      repository.readActivePackEntries();
+      return read(repository, metadata);
     },
     empty,
   );
@@ -615,7 +612,7 @@ export async function getEffectivePractice(
   return readWithJournalRecovery(rootPath, () =>
     readConsistentSnapshot(
       rootPath,
-      (database, metadata) => readPractice(database, metadata, practiceId),
+      (repository, metadata) => repository.readPractice(metadata, practiceId),
       undefined,
     ).then((snapshot) => snapshot.value),
   );

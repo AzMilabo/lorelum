@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -18,8 +18,8 @@ import {
 } from "../storage/journal/operation-journal";
 import { readManifest, writeManifest } from "../storage/manifest/manifest-store";
 import { sqlitePath, openStoreDatabase } from "../storage/sqlite/database";
-import { LOCAL_STORE_SCHEMA_VERSION } from "../storage/sqlite/migrations";
 import { writeDerivedState } from "../storage/sqlite/state-writer";
+import { testLocalStoreDatabase } from "../storage/sqlite/test-utils";
 
 async function removeStoreRoot(rootPath: string): Promise<void> {
   for (let attempt = 0; attempt < 10; attempt++) {
@@ -41,6 +41,31 @@ async function withRoot(run: (root: StorageRoot) => Promise<void>): Promise<void
     await run({ rootPath });
   } finally {
     await removeStoreRoot(rootPath);
+  }
+}
+
+async function replaceWithLegacyStoreDatabase(rootPath: string): Promise<void> {
+  const path = sqlitePath(rootPath);
+  await Promise.all([
+    rm(path, { force: true }),
+    rm(`${path}-wal`, { force: true }),
+    rm(`${path}-shm`, { force: true }),
+  ]);
+  const database = new Database(path);
+  try {
+    database.exec(
+      [
+        "CREATE TABLE local_store_metadata (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), schema_version INTEGER NOT NULL, installed_packs_generation INTEGER NOT NULL, effective_revision INTEGER NOT NULL)",
+        "CREATE TABLE active_packs (pack_name TEXT PRIMARY KEY, pack_version TEXT NOT NULL, artifact_digest TEXT NOT NULL, storage_key TEXT NOT NULL, installed_at TEXT NOT NULL)",
+        "CREATE TABLE effective_practices (practice_id TEXT PRIMARY KEY, content_digest TEXT NOT NULL, canonical_content TEXT NOT NULL, title TEXT NOT NULL, stage TEXT NOT NULL, tech_stack_json TEXT NOT NULL, applies_when TEXT NOT NULL, severity TEXT NOT NULL, effective_revision INTEGER NOT NULL)",
+        "CREATE TABLE practice_sources (pack_name TEXT NOT NULL, practice_id TEXT NOT NULL, content_digest TEXT NOT NULL, source_path TEXT NOT NULL, PRIMARY KEY (pack_name, practice_id))",
+        "CREATE TABLE effective_revision_outbox (revision INTEGER PRIMARY KEY, delta_json TEXT NOT NULL, created_at TEXT NOT NULL)",
+        "CREATE TABLE effective_revision_log (revision INTEGER PRIMARY KEY, delta_json TEXT NOT NULL, created_at TEXT NOT NULL)",
+        "PRAGMA user_version = 3",
+      ].join(";"),
+    );
+  } finally {
+    database.close();
   }
 }
 
@@ -325,7 +350,7 @@ test("cold open never converges a journal while its writer still owns the lock",
     expect((await readManifest(root.rootPath)).generation).toBe(targetManifest.generation);
 
     const database = await openStoreDatabase(root.rootPath);
-    writeDerivedState(database, {
+    writeDerivedState(testLocalStoreDatabase(database), {
       generation: targetManifest.generation,
       effectiveRevision: targetManifest.effectiveRevision,
       activePacks: targetManifest.packs,
@@ -486,20 +511,155 @@ test("journal recovery maps a missing metadata table to recovery-required", asyn
   });
 });
 
-test("reindex preserves a newer unsupported SQLite database", async () => {
+test("reindex preserves a SQLite file with unknown Drizzle migration history", async () => {
   await withRoot(async (root) => {
     const store = createLocalStore();
     await store.install(root, candidate("platform", platform));
     const raw = new Database(sqlitePath(root.rootPath));
-    raw.exec("PRAGMA user_version = " + (LOCAL_STORE_SCHEMA_VERSION + 1));
+    raw
+      .query("INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)")
+      .run("future-migration", Date.now());
     raw.close();
 
-    await expect(store.reindex(root)).rejects.toThrow("schema version is unsupported");
+    await expect(store.reindex(root)).rejects.toThrow("migration history is unsupported");
 
     const reopened = new Database(sqlitePath(root.rootPath));
-    expect(reopened.query("PRAGMA user_version").get()).toEqual({
-      user_version: LOCAL_STORE_SCHEMA_VERSION + 1,
+    expect(
+      reopened.query("SELECT hash FROM __drizzle_migrations ORDER BY id DESC LIMIT 1").get(),
+    ).toEqual({
+      hash: "future-migration",
     });
     reopened.close();
+  });
+});
+
+test("legacy reset rebuilds the SQLite projection from retained Pack artifacts without reading a journal", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    await store.install(root, candidate("platform", platform));
+    await replaceWithLegacyStoreDatabase(root.rootPath);
+
+    const legacyJournal = join(
+      root.rootPath,
+      "operations",
+      "00000000-0000-0000-0000-000000000000.json",
+    );
+    await mkdir(join(root.rootPath, "operations"), { recursive: true });
+    await writeFile(legacyJournal, "not JSON", "utf8");
+
+    const opened = await store.open(root);
+    expect(opened.packs).toEqual([{ name: "platform", version: "1.0.0" }]);
+    expect(opened.effectivePractices.map((practice) => practice.practiceId)).toEqual([
+      "platform.api",
+      "platform.auth",
+    ]);
+    await expect(access(legacyJournal)).rejects.toThrow();
+
+    const database = new Database(sqlitePath(root.rootPath), { readonly: true });
+    try {
+      expect(database.query("SELECT COUNT(*) AS count FROM __drizzle_migrations").get()).toEqual({
+        count: 1,
+      });
+      expect(database.query("SELECT practice_id FROM effective_practices").all()).toEqual([
+        { practice_id: "platform.api" },
+        { practice_id: "platform.auth" },
+      ]);
+    } finally {
+      database.close();
+    }
+  });
+});
+
+test("legacy reset replaces pending notifications with a fresh durable full refresh", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    await store.install(root, candidate("platform", platform));
+    const before = await readManifest(root.rootPath);
+    await replaceWithLegacyStoreDatabase(root.rootPath);
+
+    const legacy = new Database(sqlitePath(root.rootPath));
+    try {
+      legacy
+        .query(
+          "INSERT INTO effective_revision_outbox (revision, delta_json, created_at) VALUES (?, ?, ?)",
+        )
+        .run(
+          before.effectiveRevision,
+          JSON.stringify({ added: ["stale.practice"], changed: [], invalidated: [] }),
+          "2026-09-14T00:00:00.000Z",
+        );
+    } finally {
+      legacy.close();
+    }
+
+    await store.open(root);
+    const after = await readManifest(root.rootPath);
+    expect(after.generation).toBe(before.generation + 1);
+    expect(after.effectiveRevision).toBe(before.effectiveRevision + 1);
+
+    const rebuilt = new Database(sqlitePath(root.rootPath), { readonly: true });
+    try {
+      const row = rebuilt
+        .query("SELECT revision, delta_json FROM effective_revision_outbox")
+        .get() as { readonly revision: number; readonly delta_json: string };
+      expect(row.revision).toBe(after.effectiveRevision);
+      expect(JSON.parse(row.delta_json)).toEqual({
+        added: ["platform.api", "platform.auth"],
+        changed: [],
+        invalidated: [],
+      });
+    } finally {
+      rebuilt.close();
+    }
+  });
+});
+
+test("reindex owns the only full-refresh revision when it first hydrates a legacy Store", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    await store.install(root, candidate("platform", platform));
+    const before = await readManifest(root.rootPath);
+    await replaceWithLegacyStoreDatabase(root.rootPath);
+
+    const reindexed = await store.reindex(root);
+    expect(reindexed.generation).toBe(before.generation + 1);
+    expect(reindexed.effectiveRevision).toBe(before.effectiveRevision + 1);
+    expect(reindexed.delta.added).toEqual(["platform.api", "platform.auth"]);
+  });
+});
+
+test("legacy reset retains its SQLite projection when a referenced Pack artifact is missing", async () => {
+  await withRoot(async (root) => {
+    const store = createLocalStore();
+    await store.install(root, candidate("platform", platform));
+    const manifest = await readManifest(root.rootPath);
+    const entry = manifest.packs[0]!;
+    await replaceWithLegacyStoreDatabase(root.rootPath);
+    await rm(join(root.rootPath, "packs", entry.storageKey, entry.artifactDigest), {
+      recursive: true,
+      force: true,
+    });
+
+    await expect(store.open(root)).rejects.toBeInstanceOf(StoreRecoveryRequiredError);
+
+    const database = new Database(sqlitePath(root.rootPath), { readonly: true });
+    try {
+      expect(
+        database
+          .query(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations'",
+          )
+          .get(),
+      ).toBeNull();
+      expect(
+        database
+          .query(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'local_store_metadata'",
+          )
+          .get(),
+      ).toEqual({ name: "local_store_metadata" });
+    } finally {
+      database.close();
+    }
   });
 });
