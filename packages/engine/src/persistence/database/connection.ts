@@ -11,6 +11,19 @@ export interface OpenSqliteConnectionOptions {
   readonly readonly?: boolean;
 }
 
+/**
+ * Bun's `sqlite3_close_v2` leaves the connection as a zombie while statements
+ * are outstanding, and drizzle-orm's bun-sqlite driver never finalizes the
+ * statements it prepares. Those statements are only reclaimed by GC, so on
+ * Windows the database file keeps an open handle — blocking rename or unlink —
+ * until a collection happens. A synchronous collection at close releases the
+ * handle deterministically; POSIX never blocked, so this stays Windows-only.
+ */
+export function closeSqliteClient(client: Database): void {
+  client.close();
+  if (process.platform === "win32") Bun.gc(true);
+}
+
 /** Wrap a caller-owned bun:sqlite client without changing its lifecycle. */
 export function createSqliteConnection<Schema extends Record<string, unknown>>(
   client: Database,
@@ -21,7 +34,7 @@ export function createSqliteConnection<Schema extends Record<string, unknown>>(
     client,
     orm,
     close() {
-      client.close();
+      closeSqliteClient(client);
     },
   });
 }

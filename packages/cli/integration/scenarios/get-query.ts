@@ -45,7 +45,7 @@ export async function verifyGetAndQueryScenario(
     {
       packName: "integration-pack",
       sourcePath: "practices/retrieval-demo.md",
-      packRoot: "selected-store",
+      packRoot: join(fixture.storageRoot, "packs", "p-integration-pack", "current"),
     },
   ]);
 

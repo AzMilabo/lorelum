@@ -18,13 +18,13 @@ import { createListService } from "./service.js";
 
 async function removeStoreRoot(rootPath: string): Promise<void> {
   /* eslint-disable no-await-in-loop -- Windows may release SQLite handles asynchronously. */
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
     try {
       await rm(rootPath, { force: true, recursive: true });
       return;
     } catch (error) {
-      if (attempt === 9) throw error;
-      await Bun.sleep(50);
+      if (attempt === 29) throw error;
+      await Bun.sleep(100);
     }
   }
   /* eslint-enable no-await-in-loop */
@@ -113,7 +113,7 @@ test("ListService reads the Pack catalog and a selected Pack through LocalStore"
         {
           name: "local-list-fixture",
           version: "0.1.0",
-          packRoot: expect.stringContaining("/packs/p-local-list-fixture/"),
+          packRoot: expect.stringMatching(/[\\/]packs[\\/]p-local-list-fixture[\\/]/),
           practiceCount: 2,
         },
       ],
@@ -128,7 +128,7 @@ test("ListService reads the Pack catalog and a selected Pack through LocalStore"
       pack: {
         name: "local-list-fixture",
         version: "0.1.0",
-        packRoot: expect.stringContaining("/packs/p-local-list-fixture/"),
+        packRoot: expect.stringMatching(/[\\/]packs[\\/]p-local-list-fixture[\\/]/),
       },
       practices: [
         {
@@ -156,7 +156,7 @@ test("ListService reads the Pack catalog and a selected Pack through LocalStore"
         {
           name: "local-list-fixture",
           version: "0.1.0",
-          packRoot: expect.stringContaining("/packs/p-local-list-fixture/"),
+          packRoot: expect.stringMatching(/[\\/]packs[\\/]p-local-list-fixture[\\/]/),
           description: "Local list service fixture.",
           applies_to: ["react", "typescript"],
         },

@@ -128,7 +128,9 @@ async function publishRebuiltDatabase(rootPath: string, fullRefresh: boolean): P
         "Legacy LocalStore rebuild did not produce a valid snapshot",
       );
     }
-    database.close();
+    // Close through the connection wrapper: the staging file is renamed right
+    // after this, and Windows needs the wrapper's deterministic statement cleanup.
+    connection.close();
     database = undefined;
 
     await discardLegacyDerivedState(rootPath);

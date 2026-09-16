@@ -30,15 +30,15 @@ import { writeDerivedState } from "../storage/sqlite/state-writer";
 import { testLocalStoreDatabase } from "../storage/sqlite/test-utils";
 
 async function removeStoreRoot(rootPath: string): Promise<void> {
-  for (let attempt = 0; attempt < 10; attempt++) {
+  for (let attempt = 0; attempt < 30; attempt++) {
     try {
       // eslint-disable-next-line no-await-in-loop -- cleanup retries must run sequentially
       await rm(rootPath, { recursive: true, force: true });
       return;
     } catch (error) {
-      if (attempt === 9) throw error;
+      if (attempt === 29) throw error;
       // eslint-disable-next-line no-await-in-loop -- retries must back off serially
-      await Bun.sleep(50);
+      await Bun.sleep(100);
     }
   }
 }

@@ -25,15 +25,15 @@ import { openStoreDatabase } from "../storage/sqlite/database";
  * cleanup — the production code never deletes a store root it just closed.
  */
 async function removeStoreRoot(rootPath: string): Promise<void> {
-  for (let attempt = 0; attempt < 10; attempt++) {
+  for (let attempt = 0; attempt < 30; attempt++) {
     try {
       // eslint-disable-next-line no-await-in-loop -- retries must back off serially
       await rm(rootPath, { recursive: true, force: true });
       return;
     } catch (error) {
-      if (attempt === 9) throw error;
+      if (attempt === 29) throw error;
       // eslint-disable-next-line no-await-in-loop -- backoff must be sequential
-      await Bun.sleep(50);
+      await Bun.sleep(100);
     }
   }
 }
