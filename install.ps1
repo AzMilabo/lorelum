@@ -21,6 +21,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 renders Invoke-WebRequest progress per received chunk, which makes
+# multi-megabyte release downloads tens of times slower and looks frozen; keep the progress
+# UI off and report progress through Write-Output instead.
+$ProgressPreference = 'SilentlyContinue'
 $repository = 'https://github.com/lorelum/lorelum'
 $releaseBase = if ($env:LORELUM_INSTALL_RELEASE_BASE_URL) { $env:LORELUM_INSTALL_RELEASE_BASE_URL } else { "$repository/releases/download" }
 $releaseApiBase = if ($env:LORELUM_INSTALL_RELEASE_API_BASE_URL) { $env:LORELUM_INSTALL_RELEASE_API_BASE_URL } else { 'https://api.github.com/repos/lorelum/lorelum/releases' }
