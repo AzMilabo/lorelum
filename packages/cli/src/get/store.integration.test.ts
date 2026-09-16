@@ -118,12 +118,12 @@ test("returns canonical defaults, author order and merged sources independent of
       {
         packName: "a-pack",
         sourcePath: "practices/read.md",
-        packRoot: expect.stringContaining("/packs/p-a-pack/"),
+        packRoot: expect.stringMatching(/[\\/]packs[\\/]p-a-pack[\\/]/),
       },
       {
         packName: "z-pack",
         sourcePath: "practices/read.md",
-        packRoot: expect.stringContaining("/packs/p-z-pack/"),
+        packRoot: expect.stringMatching(/[\\/]packs[\\/]p-z-pack[\\/]/),
       },
     ]);
     const reverse = await get(directory, "reverse");

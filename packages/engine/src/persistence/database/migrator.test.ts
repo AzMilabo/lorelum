@@ -51,13 +51,14 @@ test("Drizzle keyword init includes the owned FTS5 virtual table", () => {
   try {
     migrateSqlite(connection, keywordIndexDatabaseDefinition);
 
-    expect(
-      connection.client
-        .query("SELECT sql FROM sqlite_master WHERE name = 'keyword_documents'")
-        .get(),
-    ).toEqual({
-      sql: "CREATE VIRTUAL TABLE keyword_documents USING fts5(\n  practice_id UNINDEXED,\n  content_digest UNINDEXED,\n  id,\n  title,\n  applies_when,\n  tech_stack,\n  stage,\n  anti_patterns,\n  body,\n  tokenize = 'unicode61 remove_diacritics 0'\n)",
-    });
+    const row = connection.client
+      .query("SELECT sql FROM sqlite_master WHERE name = 'keyword_documents'")
+      .get() as { sql: string };
+    // Git checkouts may deliver the migration file with CRLF line endings,
+    // which SQLite preserves verbatim in sqlite_master.
+    expect(row.sql.replace(/\r\n/g, "\n")).toBe(
+      "CREATE VIRTUAL TABLE keyword_documents USING fts5(\n  practice_id UNINDEXED,\n  content_digest UNINDEXED,\n  id,\n  title,\n  applies_when,\n  tech_stack,\n  stage,\n  anti_patterns,\n  body,\n  tokenize = 'unicode61 remove_diacritics 0'\n)",
+    );
   } finally {
     connection.close();
   }
