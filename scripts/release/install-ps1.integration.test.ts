@@ -11,6 +11,9 @@ const upgradeVersion = "0.1.1";
 const target = "win32-x64";
 const repositoryRoot = join(import.meta.dir, "..", "..");
 const installer = join(repositoryRoot, "install.ps1");
+// The stop fixture is a compiled Bun runtime (~86MB), and Windows real-time antivirus
+// rescans it on every spawn, so one backend stop can take seconds on its own.
+const stopFixtureTimeout = 120_000;
 
 interface InstallerRun {
   readonly stdout: string;
@@ -136,6 +139,7 @@ test.skipIf(!windowsOnly)(
       await rm(root, { recursive: true, force: true });
     }
   },
+  stopFixtureTimeout,
 );
 
 test.skipIf(!windowsOnly)(
@@ -175,6 +179,7 @@ test.skipIf(!windowsOnly)(
       await rm(root, { recursive: true, force: true });
     }
   },
+  stopFixtureTimeout,
 );
 
 test.skipIf(!windowsOnly)(
@@ -223,6 +228,7 @@ test.skipIf(!windowsOnly)(
       await rm(root, { recursive: true, force: true });
     }
   },
+  stopFixtureTimeout,
 );
 
 test.skipIf(!windowsOnly)(
@@ -264,6 +270,7 @@ test.skipIf(!windowsOnly)(
       await rm(root, { recursive: true, force: true });
     }
   },
+  stopFixtureTimeout,
 );
 
 test.skipIf(!windowsOnly)("windows same-release reinstall does not stop the Backend", async () => {
@@ -284,7 +291,7 @@ test.skipIf(!windowsOnly)("windows same-release reinstall does not stop the Back
     server.stop(true);
     await rm(root, { recursive: true, force: true });
   }
-});
+}, stopFixtureTimeout);
 
 test.skipIf(!windowsOnly)("windows installer never executes a malformed managed shim", async () => {
   const root = await mkdtemp(join(tmpdir(), "lore-install-win-malformed-shim-"));
@@ -322,7 +329,7 @@ test.skipIf(!windowsOnly)("windows installer never executes a malformed managed 
     server.stop(true);
     await rm(root, { recursive: true, force: true });
   }
-});
+}, stopFixtureTimeout);
 
 test.skipIf(!windowsOnly)(
   "windows installer throws without terminating an interactive caller",
