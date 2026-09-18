@@ -8,10 +8,10 @@ own manifest, marketplace format, lifecycle events, and permission model.
 
 | Concept | Rule | Current examples |
 | --- | --- | --- |
-| Product ID | Always `lorelum`; this is the user-facing Plugin and Skill identity. | Codex and ZCode manifests both use `lorelum`. |
-| Host key | Lowercase kebab-case; it identifies the host adapter, not the product. | `codex`, `zcode` |
-| Source root | `plugins/<hostKey>/lorelum/` | [`plugins/codex/lorelum`](../../plugins/codex/lorelum), [`plugins/zcode/lorelum`](../../plugins/zcode/lorelum) |
-| Marketplace | A host-owned registration file with its host-native schema. | [Codex registration](../../.agents/plugins/marketplace.json), [ZCode registration](../../marketplace.json) |
+| Product ID | Always `lorelum`; this is the user-facing Plugin and Skill identity. | Codex, ZCode, and Cursor manifests all use `lorelum`. |
+| Host key | Lowercase kebab-case; it identifies the host adapter, not the product. | `codex`, `zcode`, `cursor` |
+| Source root | `plugins/<hostKey>/lorelum/` | [`plugins/codex/lorelum`](../../plugins/codex/lorelum), [`plugins/zcode/lorelum`](../../plugins/zcode/lorelum), [`plugins/cursor/lorelum`](../../plugins/cursor/lorelum) |
+| Marketplace | A host-owned registration file with its host-native schema. | [Codex registration](../../.agents/plugins/marketplace.json), [ZCode registration](../../marketplace.json), [Cursor registration](../../.cursor-plugin/marketplace.json) |
 | Selector | Unique inside the host marketplace. It is not a global key across hosts. | `lorelum@lorelum-plugins` |
 | Release version | Each host uses its native version fields. When the marketplace participates in update detection, its entry version MUST equal the native manifest version. | ZCode `marketplace.json` and `.zcode-plugin/plugin.json` |
 
