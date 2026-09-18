@@ -11,9 +11,12 @@ import { resolveInvocationStorageRoot } from "../store/storage-root.js";
 import { renderPackCatalog } from "./pack-catalog.js";
 
 /** Hosts with a versioned raw session Hook ABI (`lore hook <host>`). */
-export type HostHookName = "codex" | "zcode";
+export type HostHookName = "codex" | "zcode" | "cursor";
 
 export type HostHookEvent = "SessionStart";
+
+/** Cursor's native session Hook spells the event in camelCase. */
+export type CursorHookEvent = "sessionStart";
 
 export interface HostHookInput {
   readonly hook_event_name?: string;
@@ -25,6 +28,11 @@ export interface HostHookResponse {
     readonly additionalContext: string;
   };
   readonly continue?: boolean;
+}
+
+/** Cursor consumes a flat snake_case envelope instead of `hookSpecificOutput`. */
+export interface CursorHookResponse {
+  readonly additional_context: string;
 }
 
 export interface TextInput {
@@ -98,7 +106,7 @@ export function parseHostHookInvocation(
 export async function runHostHook(options: RunHostHookOptions): Promise<0> {
   try {
     const input = parseHostHookInput(await options.stdin.text(), options.host);
-    const response = await createHostHookResponse(
+    const response = await respondToHostHook(
       input,
       options.host,
       options.services ?? defaultServices,
@@ -112,18 +120,44 @@ export async function runHostHook(options: RunHostHookOptions): Promise<0> {
   return 0;
 }
 
+function respondToHostHook(
+  input: HostHookInput,
+  host: HostHookName,
+  services: HostHookServices,
+  storeRoot?: string,
+): Promise<HostHookResponse | CursorHookResponse> {
+  if (input.hook_event_name !== supportedSessionEvent(host)) {
+    throw new Error(`Lorelum ${hostLabel(host)} Hook received an unsupported event.`);
+  }
+  const storageRoot = resolveInvocationStorageRoot(storeRoot, services.storageRoot);
+  return services.list
+    .listPackDetails({ storageRoot })
+    .then((details) =>
+      host === "cursor"
+        ? buildCursorHookResponse(details)
+        : buildHostHookResponse("SessionStart", details),
+    );
+}
+
+export async function createHostHookResponse(
+  input: HostHookInput,
+  host: "cursor",
+  services?: HostHookServices,
+  storeRoot?: string,
+): Promise<CursorHookResponse>;
+export async function createHostHookResponse(
+  input: HostHookInput,
+  host: "codex" | "zcode",
+  services?: HostHookServices,
+  storeRoot?: string,
+): Promise<HostHookResponse>;
 export async function createHostHookResponse(
   input: HostHookInput,
   host: HostHookName,
   services: HostHookServices = defaultServices,
   storeRoot?: string,
-): Promise<HostHookResponse> {
-  if (input.hook_event_name !== "SessionStart") {
-    throw new Error(`Lorelum ${hostLabel(host)} Hook received an unsupported event.`);
-  }
-  const storageRoot = resolveInvocationStorageRoot(storeRoot, services.storageRoot);
-  const details = await services.list.listPackDetails({ storageRoot });
-  return buildHostHookResponse(input.hook_event_name, details);
+): Promise<HostHookResponse | CursorHookResponse> {
+  return respondToHostHook(input, host, services, storeRoot);
 }
 
 export function buildHostHookResponse(
@@ -133,17 +167,28 @@ export function buildHostHookResponse(
   return {
     hookSpecificOutput: {
       hookEventName: eventName,
-      additionalContext: renderPackCatalog(
-        details.packs.map((pack) => ({
-          name: pack.name,
-          version: pack.version,
-          packRoot: pack.packRoot,
-          ...(pack.description === undefined ? {} : { description: pack.description }),
-          appliesTo: pack.applies_to ?? [],
-        })),
-      ),
+      additionalContext: renderPackCatalog(catalogEntries(details)),
     },
   };
+}
+
+export function buildCursorHookResponse(details: ListPackDetailsResult): CursorHookResponse {
+  return { additional_context: renderPackCatalog(catalogEntries(details)) };
+}
+
+function catalogEntries(details: ListPackDetailsResult) {
+  return details.packs.map((pack) => ({
+    name: pack.name,
+    version: pack.version,
+    packRoot: pack.packRoot,
+    ...(pack.description === undefined ? {} : { description: pack.description }),
+    appliesTo: pack.applies_to ?? [],
+  }));
+}
+
+/** The native event literal each host sends on its raw session Hook. */
+function supportedSessionEvent(host: HostHookName): HostHookEvent | CursorHookEvent {
+  return host === "cursor" ? "sessionStart" : "SessionStart";
 }
 
 function parseHostHookInput(serialized: string, host: HostHookName): HostHookInput {
@@ -154,8 +199,8 @@ function parseHostHookInput(serialized: string, host: HostHookName): HostHookInp
   return parsed;
 }
 
-function hostLabel(host: HostHookName): "Codex" | "Zcode" {
-  return host === "codex" ? "Codex" : "Zcode";
+function hostLabel(host: HostHookName): "Codex" | "Zcode" | "Cursor" {
+  return host === "codex" ? "Codex" : host === "zcode" ? "Zcode" : "Cursor";
 }
 
 function diagnosticMessage(error: unknown): string {
