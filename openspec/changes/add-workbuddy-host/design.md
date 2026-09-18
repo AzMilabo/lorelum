@@ -22,7 +22,7 @@ CLI 侧 raw Hook ABI 已按宿主参数化（`host-hook.ts` 的 `parseHostHookIn
 
 ## Decisions
 
-1. **Hook 配置镜像 codex 形态**（command 字符串 + `commandWindows` PowerShell 变体 + fallback `{"continue":true}` + `additionalContextLimit`）。备选是 zcode 的 `process` 型——但 WorkBuddy Hook schema 只接受 codex 型字段（`type/process` 非其事件 schema），且实测 `command` 型已在 Windows 桌面端触发。matcher 采用非锚定列表 `startup|resume|clear|compact`——WorkBuddy 对 SessionStart matcher 的解析是按 `|` 切分后逐 token 精确匹配，锚定正则形式在真机（5.5.6）上永不匹配（实测）；codex/zcode 的事件集合合保持不变。
+1. **Hook 配置镜像 codex 形态**（command 字符串 + `commandWindows` PowerShell 变体 + fallback `{"continue":true}` + `additionalContextLimit`）。备选是 zcode 的 `process` 型——但 WorkBuddy Hook schema 只接受 codex 型字段（`type/process` 非其事件 schema），且实测 `command` 型已在 Windows 桌面端触发。matcher 采用非锚定列表 `startup|resume|clear|compact`——WorkBuddy 对 SessionStart matcher 的解析是按 `|` 切分后逐 token 精确匹配，锚定正则形式在真机（5.5.6）上永不匹配（实测）；codex/zcode 的事件集合保持不变。
 2. **`HostHookName` 追加 `"workbuddy"`**，`hostLabel` 返回 `"Workbuddy"`；诊断前缀遵循既有 `lore hook <host> degraded:` 模式。薄包装 `workbuddy.ts` 与 `codex.ts`/`zcode.ts` 同构，仅宿主常量不同。
 3. **manifest 使用 `.codebuddy-plugin/plugin.json`**，字段沿用实测被接受的最小集：`name/version/description/author/homepage/license/repository/keywords` + `commands`/`skills` 指针；Hook 声明仅保留 `hooks/hooks.json` 自动发现路径（manifest 内不写 `hooks` 字段——Claude 系 schema 的 `hooks` 字段语义是"内联对象或精确文件路径"，WorkBuddy 会自动加载插件的 `hooks/hooks.json`，与 ZCode 的自动发现陷阱同理，避免双路径）。备选的字段集（`interface` 块等）为 codex 专有 UI 扩展，无证据表明 WorkBuddy 消费，故不引入。
 4. **marketplace 注册**：仓库根 `.codebuddy-plugin/marketplace.json`，`{name:"lorelum-plugins", plugins:[{name:"lorelum", source:"./plugins/workbuddy/lorelum", version 与 manifest 一致, ...}]}`，与 zcode 根 `marketplace.json` 同角色同版本纪律。三份 registration（Codex/WorkBuddy/ZCode）互不引用对方 artifact。

@@ -11,7 +11,7 @@
 ## 2. WorkBuddy Plugin
 
 - [x] 2.1 新增 `plugins/workbuddy/lorelum/.codebuddy-plugin/plugin.json`（版本 `0.1.0-alpha.3`，`commands`/`skills` 指针，无 `hooks` 字段）
-- [x] 2.2 新增 `plugins/workbuddy/lorelum/hooks/hooks.json`（SessionStart，command 型 + `commandWindows` 变体 + fallback + `additionalContextLimit`，matcher `^(startup|resume|clear|compact)$`）
+- [x] 2.2 新增 `plugins/workbuddy/lorelum/hooks/hooks.json`（SessionStart，command 型 + `commandWindows` 变体 + fallback + `additionalContextLimit`，matcher `startup|resume|clear|compact`（非锚定，WorkBuddy 逐 token 匹配语义））
 - [x] 2.3 新增 `plugins/workbuddy/lorelum/skills/lorelum/SKILL.md` 宿主化副本与 `references/semantic-query-recovery.md`，满足 skill-guidance-fixtures 全部场景
 - [x] 2.4 新增 `plugins/workbuddy/lorelum/commands/lore.md`、`assets/lorelum-icon.svg`、`README.md`
 - [x] 2.5 新增 `plugins/workbuddy/lorelum/scripts/hooks-config.test.ts` 与 `marketplace-config.test.ts`
