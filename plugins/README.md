@@ -8,6 +8,7 @@ users install in that host's marketplace.
 | --- | --- | --- |
 | Codex | [`codex/lorelum`](./codex/lorelum) | [`.agents/plugins/marketplace.json`](../.agents/plugins/marketplace.json) |
 | ZCode | [`zcode/lorelum`](./zcode/lorelum) | [`marketplace.json`](../marketplace.json) |
+| Cursor | [`cursor/lorelum`](./cursor/lorelum) | [`.cursor-plugin/marketplace.json`](../.cursor-plugin/marketplace.json) |
 
 Read [Host Plugin conventions](../docs/development/plugin-conventions.md)
 before changing an artifact, registration, public ID, or version. Both

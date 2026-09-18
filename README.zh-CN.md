@@ -146,12 +146,12 @@ lore get <practice-id>
 | Codex                  | 官方 Plugin，包含 Skill 和 Pack 目录 Hook              |
 | ZCode                  | 官方 Plugin，包含 Skill、`/lore` 命令和 Pack 目录 Hook |
 | Claude Code            | 项目级或个人级 Lorelum Skill                           |
-| Cursor                 | 项目级 Lorelum Skill                                   |
+| Cursor                 | 官方 Plugin，包含 Skill、`/lore` 命令和 Pack 目录 Hook |
 | 其他能执行命令的 Agent | 宿主支持的 Skill 或项目指令                            |
 
 安装选定的 Skill 或 Plugin 后，启动一个新任务，要求 Agent 在确定重要计划或实现决定前使用 Lorelum。每个宿主页都提供各自的更新步骤和最短排查路径。
 
-安装与验证步骤见[接入 Agent](https://lorelum.com/zh/docs/agent-setup)、[Codex 配置](https://lorelum.com/zh/docs/codex)和 [ZCode 配置](https://lorelum.com/zh/docs/zcode)。
+安装与验证步骤见[接入 Agent](https://lorelum.com/zh/docs/agent-setup)、[Codex 配置](https://lorelum.com/zh/docs/codex)、[ZCode 配置](https://lorelum.com/zh/docs/zcode)和 [Cursor 配置](https://lorelum.com/zh/docs/cursor)。
 
 ## 选择或创建 Knowledge Pack
 

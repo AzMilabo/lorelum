@@ -1,0 +1,58 @@
+---
+title: Cursor
+description: Install Lorelum in Cursor and use the /lore command in a new task.
+icon: Plug
+---
+
+The Lorelum Plugin adds engineering guidance and the `/lore` command to Cursor.
+
+## Before you start
+
+Complete [Quickstart](./quickstart). The `lore` command must be available to
+Cursor, and you need at least one installed Pack.
+
+## Install
+
+1. In Cursor, open **Customize**.
+2. Install **Lorelum** from `lorelum-plugins` when it is listed in the
+   marketplace, or add the Lorelum repository (`lorelum/lorelum`) or your local
+   checkout as a marketplace.
+3. Install **Lorelum** from `lorelum-plugins`.
+4. Start a new conversation.
+
+To try a local copy without a marketplace, place the Plugin directory in
+`~/.cursor/plugins/local/lorelum` and reload Cursor. Use a real copy rather
+than a symlink to a checkout: Cursor only loads symlinks whose target resolves
+inside that folder.
+
+## Use Lorelum
+
+Check that `/lore` appears in the command menu. You can run:
+
+```text
+/lore How should I verify this change?
+```
+
+Or ask Cursor to use Lorelum before it finalizes an important decision.
+
+Cursor injects the Installed Pack Catalog when a new conversation starts
+without waiting for it, so the Catalog may not be visible right away. The
+Lorelum Skill reuses a visible Catalog and otherwise builds one with a single
+`lore pack list --details`; you do not need to run it yourself.
+
+## Update
+
+Open **Customize**, select Lorelum, and install the offered update. A
+marketplace backed by the Lorelum repository picks up updates from the branch
+it tracks; for a local copy, replace the directory under
+`~/.cursor/plugins/local/` and reload Cursor.
+
+## Troubleshoot
+
+If `/lore` or guidance is missing:
+
+1. Confirm Lorelum is installed and enabled under **Customize**.
+2. Confirm `lore --version` works in the environment used by Cursor.
+3. Start a new conversation after installing or updating.
+
+For retrieval or model problems, see [Troubleshooting](./troubleshooting).

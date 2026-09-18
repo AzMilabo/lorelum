@@ -8,6 +8,11 @@ import {
   type CodexHookServices,
   type TextInput,
 } from "./hook/codex.js";
+import {
+  parseCursorHookInvocation,
+  runCursorHook,
+  type CursorHookServices,
+} from "./hook/cursor.js";
 import { parseZcodeHookInvocation, runZcodeHook, type ZcodeHookServices } from "./hook/zcode.js";
 import { resolveOutputFormat } from "./output/format-selection.js";
 import { renderHelpText } from "./output/presentation.js";
@@ -35,6 +40,8 @@ export interface RunOptions {
   codexHookServices?: CodexHookServices;
   /** Override the raw ZCode Hook Store adapter in source-level tests. */
   zcodeHookServices?: ZcodeHookServices;
+  /** Override the raw Cursor Hook Store adapter in source-level tests. */
+  cursorHookServices?: CursorHookServices;
   stderr?: OutputWriter;
   stdout?: OutputWriter;
 }
@@ -61,6 +68,16 @@ export async function run(arguments_: string[], options: RunOptions = {}): Promi
       stderr,
       ...(options.zcodeHookServices === undefined ? {} : { services: options.zcodeHookServices }),
       ...(zcodeHook.storeRoot === undefined ? {} : { storeRoot: zcodeHook.storeRoot }),
+    });
+  }
+  const cursorHook = parseCursorHookInvocation(arguments_);
+  if (cursorHook !== undefined) {
+    return runCursorHook({
+      stdin: options.stdin ?? standardInput,
+      stdout,
+      stderr,
+      ...(options.cursorHookServices === undefined ? {} : { services: options.cursorHookServices }),
+      ...(cursorHook.storeRoot === undefined ? {} : { storeRoot: cursorHook.storeRoot }),
     });
   }
   let command: KnownCommand | "unknown" = "unknown";

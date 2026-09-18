@@ -13,7 +13,7 @@ Lorelum 帮助编码 Agent 在工作过程中找到相关的工程指导。请�
 | Codex | 安装 [Lorelum Plugin](./codex)。 |
 | ZCode | 安装 [Lorelum Plugin](./zcode)。 |
 | Claude Code | 将 Lorelum Skill 放入项目或个人 Skills 目录。 |
-| Cursor | 将 Lorelum Skill 放入项目。 |
+| Cursor | 安装 [Lorelum Plugin](./cursor)。 |
 | 其他能执行命令的 Agent | 使用宿主支持的 Skill 机制或项目指令。 |
 
 ## 安装 Skill
@@ -29,13 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/lorelum/lorelum/main/skills/lorelum
 Claude Code 的个人级安装使用同一文件，路径为
 `~/.claude/skills/lorelum/SKILL.md`。
 
-Cursor 的项目级安装：
-
-```sh
-mkdir -p .cursor/skills/lorelum
-curl -fsSL https://raw.githubusercontent.com/lorelum/lorelum/main/skills/lorelum/SKILL.md \
-  -o .cursor/skills/lorelum/SKILL.md
-```
+Cursor 请安装 [Lorelum Plugin](./cursor)，而不是文件式 Skill。
 
 ## 其他 Agent
 
@@ -62,4 +56,4 @@ curl -fsSL https://raw.githubusercontent.com/lorelum/lorelum/main/skills/lorelum
 
 ## 更新
 
-文件安装的 Skill 直接用最新版 `SKILL.md` 替换即可。Codex 和 ZCode 用户在宿主应用中更新 Plugin；具体步骤见各自的安装页。
+文件安装的 Skill 直接用最新版 `SKILL.md` 替换即可。Codex、ZCode 和 Cursor 用户在宿主应用中更新 Plugin；具体步骤见各自的安装页。

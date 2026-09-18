@@ -1,0 +1,25 @@
+{
+  "name": "lorelum-plugins",
+  "owner": {
+    "name": "Lorelum"
+  },
+  "metadata": {
+    "description": "On-demand engineering Practices for Cursor: a compact installed Knowledge Pack catalog with targeted semantic retrieval."
+  },
+  "plugins": [
+    {
+      "name": "lorelum",
+      "source": "./plugins/cursor/lorelum",
+      "version": "0.1.0-alpha.3",
+      "description": "Surface relevant Lorelum engineering Practices in Cursor when they can inform a task or decision.",
+      "author": {
+        "name": "Lorelum",
+        "url": "https://lorelum.com"
+      },
+      "homepage": "https://lorelum.com",
+      "license": "Apache-2.0",
+      "keywords": ["lorelum", "cursor", "practices", "engineering-guidance"],
+      "category": "productivity"
+    }
+  ]
+}

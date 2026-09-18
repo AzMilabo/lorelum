@@ -28,6 +28,18 @@ export {
   type RunZcodeHookOptions,
 } from "./hook/zcode.js";
 export {
+  buildCursorHookResponse,
+  createCursorHookResponse,
+  parseCursorHookInvocation,
+  runCursorHook,
+  type CursorHookEvent,
+  type CursorHookInput,
+  type CursorHookResponse,
+  type CursorHookServices,
+  type CursorHookInvocation,
+  type RunCursorHookOptions,
+} from "./hook/cursor.js";
+export {
   DEFAULT_MAX_CHARACTERS as CODEX_HOOK_CATALOG_MAX_CHARACTERS,
   renderPackCatalog,
   type InstalledPackCatalogEntry,

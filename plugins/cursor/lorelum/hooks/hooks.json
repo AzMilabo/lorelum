@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "lore hook cursor",
+        "timeout": 10
+      }
+    ]
+  }
+}
