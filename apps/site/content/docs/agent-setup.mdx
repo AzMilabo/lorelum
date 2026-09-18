@@ -15,7 +15,7 @@ least one Pack are available to the agent.
 | Codex | Install the [Lorelum Plugin](./codex). |
 | ZCode | Install the [Lorelum Plugin](./zcode). |
 | Claude Code | Add the Lorelum Skill to the project or your personal Skills folder. |
-| Cursor | Add the Lorelum Skill to the project. |
+| Cursor | Install the [Lorelum Plugin](./cursor). |
 | Another command-capable agent | Use its supported Skill mechanism or project instructions. |
 
 ## Add the Skill
@@ -31,13 +31,8 @@ curl -fsSL https://raw.githubusercontent.com/lorelum/lorelum/main/skills/lorelum
 For personal Claude Code use, put the same file in
 `~/.claude/skills/lorelum/SKILL.md`.
 
-For Cursor, add it to the project:
-
-```sh
-mkdir -p .cursor/skills/lorelum
-curl -fsSL https://raw.githubusercontent.com/lorelum/lorelum/main/skills/lorelum/SKILL.md \
-  -o .cursor/skills/lorelum/SKILL.md
-```
+For Cursor, install the [Lorelum Plugin](./cursor) instead of a file-based
+Skill.
 
 ## Other agents
 
@@ -66,6 +61,6 @@ implementation, verification, or recovery decision.
 
 ## Update
 
-For a file-based Skill, replace `SKILL.md` with the latest version. For Codex
-and ZCode, update the Plugin in the host application; their installation pages
-explain the exact steps.
+For a file-based Skill, replace `SKILL.md` with the latest version. For Codex,
+ZCode, and Cursor, update the Plugin in the host application; their
+installation pages explain the exact steps.

@@ -1,0 +1,46 @@
+---
+title: Cursor
+description: 在 Cursor 中安装 Lorelum，并在新任务里使用 /lore 命令。
+icon: Plug
+---
+
+Lorelum Plugin 会为 Cursor 提供工程指导和 `/lore` 命令。
+
+## 开始前
+
+请先完成[快速开始](./quickstart)。运行 Cursor 的环境需要能使用 `lore` 命令，并且至少安装了一个 Pack。
+
+## 安装
+
+1. 在 Cursor 中打开 **Customize**。
+2. 当 marketplace 中出现 **Lorelum** 时直接安装，或将 Lorelum 仓库（`lorelum/lorelum`）或本地 checkout 添加为 marketplace。
+3. 在 `lorelum-plugins` 中安装 **Lorelum**。
+4. 启动一个新会话。
+
+想在 marketplace 之外试用本地副本时，把 Plugin 目录放到 `~/.cursor/plugins/local/lorelum` 并重新加载 Cursor。请使用真实副本而不是指向 checkout 的符号链接：Cursor 只加载目标位于该目录内部的符号链接。
+
+## 使用 Lorelum
+
+确认命令菜单中出现 `/lore`。你可以运行：
+
+```text
+/lore 这个改动应该怎样验证？
+```
+
+也可以要求 Cursor 在确定重要决定前使用 Lorelum。
+
+Cursor 在新会话开始时注入 Installed Pack Catalog，但不等待注入完成，因此 Catalog 可能不会立刻可见。Lorelum Skill 会复用可见的 Catalog；不可见时用一次 `lore pack list --details` 自行建立，无需你手动执行。
+
+## 更新
+
+在 **Customize** 中选择 Lorelum，安装可用更新。以 Lorelum 仓库为源的 marketplace 会从其跟踪分支获取更新；本地副本则替换 `~/.cursor/plugins/local/` 下的目录并重新加载 Cursor。
+
+## 排查问题
+
+如果没有出现 `/lore` 或工程指导：
+
+1. 确认 Lorelum 已在 **Customize** 中安装并启用。
+2. 确认 Cursor 运行环境中的 `lore --version` 可用。
+3. 安装或更新后启动一个新会话。
+
+检索或模型问题请查看[故障排查](./troubleshooting)。

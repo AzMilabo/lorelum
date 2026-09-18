@@ -148,14 +148,14 @@ you use:
 | Codex | Official Plugin, including the Skill and a Pack-catalog Hook |
 | ZCode | Official Plugin, including the Skill, a `/lore` command, and a Pack-catalog Hook |
 | Claude Code | Project or personal Lorelum Skill |
-| Cursor | Project Lorelum Skill |
+| Cursor | Official Plugin, including the Skill, a `/lore` command, and a Pack-catalog Hook |
 | Other command-capable agents | Host-supported Skill or project instructions |
 
 Install the selected Skill or Plugin, then start a new task and tell the agent to
 use Lorelum before it finalizes an important plan or implementation decision.
 Each host guide includes its own update steps and the shortest recovery path.
 
-See [Agent integration](https://lorelum.com/en/docs/agent-setup), [Codex setup](https://lorelum.com/en/docs/codex), and [ZCode setup](https://lorelum.com/en/docs/zcode) for installation and verification.
+See [Agent integration](https://lorelum.com/en/docs/agent-setup), [Codex setup](https://lorelum.com/en/docs/codex), [ZCode setup](https://lorelum.com/en/docs/zcode), and [Cursor setup](https://lorelum.com/en/docs/cursor) for installation and verification.
 
 ## Choose or create a Knowledge Pack
 
