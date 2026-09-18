@@ -1,0 +1,56 @@
+---
+title: WorkBuddy
+description: Install Lorelum in WorkBuddy and use the /lore command in a new task.
+icon: Plug
+---
+
+The Lorelum Plugin adds engineering guidance and the `/lore` command to
+WorkBuddy.
+
+## Before you start
+
+Complete [Quickstart](./quickstart). The `lore` command must be available to
+WorkBuddy, and you need at least one installed Pack.
+
+## Install
+
+1. Add the Lorelum repository (`lorelum/lorelum` on GitHub) or a local
+   checkout as a third-party marketplace in WorkBuddy's plugin/marketplace
+   management, or run the equivalent commands with the CodeBuddy CLI that
+   WorkBuddy embeds:
+
+   ```sh
+   codebuddy plugin marketplace add /absolute/path/to/lorelum
+   codebuddy plugin install lorelum@lorelum-plugins
+   ```
+
+2. Install **Lorelum** from `lorelum-plugins` if you used the client UI.
+3. Start a new task. WorkBuddy receives the installed Pack Catalog at the
+   session start.
+
+## Use Lorelum
+
+Check that `/lore` appears where WorkBuddy surfaces plugin commands. You can
+run:
+
+```text
+/lore How should I verify this change?
+```
+
+Or ask WorkBuddy to use Lorelum before it finalizes an important decision.
+
+## Update
+
+Open the plugin management surface, select Lorelum, and install the offered
+update. For a local checkout, uninstall and reinstall it from your marketplace
+after you change Plugin files.
+
+## Troubleshoot
+
+If `/lore` or guidance is missing:
+
+1. Confirm Lorelum is installed and enabled in the plugin management surface.
+2. Confirm `lore --version` works in the environment used by WorkBuddy.
+3. Start a new task after installing or updating.
+
+For retrieval or model problems, see [Troubleshooting](./troubleshooting).
