@@ -1,0 +1,47 @@
+---
+title: WorkBuddy
+description: 在 WorkBuddy 中安装 Lorelum，并在新任务中使用 /lore 命令。
+icon: Plug
+---
+
+Lorelum Plugin 为 WorkBuddy 带来工程指引与 `/lore` 命令。
+
+## 开始之前
+
+先完成[快速开始](./quickstart)。`lore` 命令必须对 WorkBuddy 可用，并且至少安装一个 Pack。
+
+## 安装
+
+1. 在 WorkBuddy 的插件/市场管理中，将 Lorelum 仓库（GitHub 上的 `lorelum/lorelum`）或本地检出目录添加为第三方市场；或用 WorkBuddy 内嵌的 CodeBuddy CLI 执行等价命令：
+
+   ```sh
+   codebuddy plugin marketplace add /absolute/path/to/lorelum
+   codebuddy plugin install lorelum@lorelum-plugins
+   ```
+
+2. 如果使用客户端界面，请从 `lorelum-plugins` 安装 **Lorelum**。
+3. 开始一个新任务。WorkBuddy 会在会话开始时收到已安装的 Pack 目录。
+
+## 使用 Lorelum
+
+确认 `/lore` 出现在 WorkBuddy 展示插件命令的位置。你可以运行：
+
+```text
+/lore 这个改动应该如何验证？
+```
+
+或在 WorkBuddy 最终确定重要决策之前，让它先用 Lorelum 检索相关指引。
+
+## 更新
+
+打开插件管理界面，选择 Lorelum 并安装提供的更新。对本地检出而言，修改 Plugin 文件后请从你的市场卸载并重装。
+
+## 排障
+
+如果 `/lore` 或指引缺失：
+
+1. 确认 Lorelum 已在插件管理中安装并启用。
+2. 确认 `lore --version` 在 WorkBuddy 使用的环境中可用。
+3. 安装或更新后，开始一个新任务。
+
+检索或模型问题参见[故障排查](./troubleshooting)。
