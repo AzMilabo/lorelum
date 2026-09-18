@@ -25,7 +25,10 @@ test("restores the Pack Catalog through SessionStart after compaction", async ()
 
   expect(configuration.hooks.SessionStart).toEqual([
     {
-      matcher: "^(startup|resume|clear|compact)$",
+      // WorkBuddy matches SessionStart sources by exact token after splitting
+      // the matcher on "|". Anchored regex forms ("^(startup|...)$") never
+      // match on the live host, so the matcher stays unanchored (zCode style).
+      matcher: "startup|resume|clear|compact",
       hooks: [expect.objectContaining({ additionalContextLimit: 5_000, timeout: 10, type: "command" })],
     },
   ]);
