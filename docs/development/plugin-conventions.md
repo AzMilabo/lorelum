@@ -70,6 +70,12 @@ unavailable — with a `commandWindows` PowerShell variant for Windows sessions,
 mirroring the Codex Hook shape. Keep the matcher and command configuration only
 in `hooks/hooks.json`.
 
+WorkBuddy resolves SessionStart matchers by splitting the matcher on `|` and
+exact-matching each token against the session source. Anchored regex forms such
+as `^(startup|resume|clear|compact)$` therefore never match on the live host;
+declare the unanchored list `startup|resume|clear|compact` (verified against
+WorkBuddy 5.5.6).
+
 ## Add a host only when it has a real integration need
 
 1. Confirm the host's official install root, manifest/marketplace contract,

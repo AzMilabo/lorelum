@@ -31,5 +31,5 @@
 - [x] 4.2 `bun test plugins/scripts plugins/workbuddy/lorelum/scripts packages/cli/src/hook` 通过
 - [x] 4.3 `bun test` 全量、`bun run typecheck`、`bun run lint` 通过
 - [x] 4.4 隔离 Store 冒烟：`lore hook workbuddy` 正常注入 Catalog、异常降级 `{"continue":true}` 且退出码 0
-- [ ] 4.5 （可选，留作人工验收）真实宿主 headless `--plugin-dir` 验证，仅限 `--plugin-dir`，不写任何注册表
+- [x] 4.5 真实宿主验证：WorkBuddy 桌面端 5.5.6 内嵌 CLI + `--plugin-dir`，SessionStart hook 3/3 触发，`additionalContext` 3/3 注入并被模型原句引用；未写任何注册表
 - [x] 4.6 Checker 独立复跑全部验收并出具 verdict
