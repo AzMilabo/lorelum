@@ -14,17 +14,26 @@ WorkBuddy, and you need at least one installed Pack.
 
 ## Install
 
-1. Add the Lorelum repository (`lorelum/lorelum` on GitHub) or a local
-   checkout as a third-party marketplace in WorkBuddy's plugin/marketplace
-   management, or run the equivalent commands with the CodeBuddy CLI that
-   WorkBuddy embeds:
+1. In WorkBuddy's plugin/marketplace management, add the Lorelum repository
+   (`lorelum/lorelum` on GitHub) as a third-party marketplace, then install
+   **Lorelum** from the `lorelum-plugins` marketplace.
+
+2. Alternatively use the CodeBuddy CLI embedded in WorkBuddy. Two caveats:
+   running it bare writes the standalone CLI registry (`~/.codebuddy`), while
+   the desktop client reads `~/.workbuddy`, so redirect the config directory
+   first; and fully quit and restart WorkBuddy after installing, because a
+   resident process only reloads the plugin registry on startup:
 
    ```sh
-   codebuddy plugin marketplace add /absolute/path/to/lorelum
+   export WORKBUDDY_CONFIG_DIR=~/.workbuddy CODEBUDDY_CONFIG_DIR=~/.workbuddy
+   codebuddy plugin marketplace add /absolute/path/to/lorelum  # repository root, contains .codebuddy-plugin/marketplace.json
    codebuddy plugin install lorelum@lorelum-plugins
    ```
 
-2. Install **Lorelum** from `lorelum-plugins` if you used the client UI.
+   `codebuddy` is the CLI bundled inside the WorkBuddy install (under
+   `resources/app.asar.unpacked/cli/bin/codebuddy` on Windows); adjust the
+   invocation path for your platform.
+
 3. Start a new task. WorkBuddy receives the installed Pack Catalog at the
    session start.
 

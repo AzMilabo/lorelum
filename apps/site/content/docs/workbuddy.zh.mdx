@@ -12,14 +12,19 @@ Lorelum Plugin 为 WorkBuddy 带来工程指引与 `/lore` 命令。
 
 ## 安装
 
-1. 在 WorkBuddy 的插件/市场管理中，将 Lorelum 仓库（GitHub 上的 `lorelum/lorelum`）或本地检出目录添加为第三方市场；或用 WorkBuddy 内嵌的 CodeBuddy CLI 执行等价命令：
+1. 在 WorkBuddy 的插件/市场管理中，将 Lorelum 仓库（GitHub 上的 `lorelum/lorelum`）添加为第三方市场，然后从 `lorelum-plugins` 市场安装 **Lorelum**。
+
+2. 或者使用 WorkBuddy 内嵌的 CodeBuddy CLI。注意：不带环境变量直接运行只会写入独立 CLI 的注册表（`~/.codebuddy`），而桌面端客户端读取的是 `~/.workbuddy`，所以必须先重定向配置目录；安装完成后还要完全退出并重启 WorkBuddy，常驻进程才会重新加载插件注册表：
 
    ```sh
-   codebuddy plugin marketplace add /absolute/path/to/lorelum
+   export WORKBUDDY_CONFIG_DIR=~/.workbuddy CODEBUDDY_CONFIG_DIR=~/.workbuddy
+   codebuddy plugin marketplace add /absolute/path/to/lorelum  # 仓库根目录，内含 .codebuddy-plugin/marketplace.json
    codebuddy plugin install lorelum@lorelum-plugins
    ```
 
-2. 如果使用客户端界面，请从 `lorelum-plugins` 安装 **Lorelum**。
+   `codebuddy` 是 WorkBuddy 安装目录内嵌的 CLI（Windows 位于安装目录下的
+   `resources/app.asar.unpacked/cli/bin/codebuddy`），按你的平台调整调用路径。
+
 3. 开始一个新任务。WorkBuddy 会在会话开始时收到已安装的 Pack 目录。
 
 ## 使用 Lorelum

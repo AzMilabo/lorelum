@@ -75,9 +75,16 @@ selector.
 WorkBuddy discovers the checkout through the root
 `.codebuddy-plugin/marketplace.json`. Add the repository root as a third-party
 marketplace in the WorkBuddy plugin/marketplace UI, or from a terminal with the
-CodeBuddy CLI that WorkBuddy embeds:
+CodeBuddy CLI that WorkBuddy embeds. The CLI form has two requirements: bare
+invocations write the standalone registry `~/.codebuddy`, which the desktop
+client never reads, so redirect both config variables to the desktop registry;
+and fully quit and restart WorkBuddy after installing, because the resident CLI
+host reloads the registry only on startup. `marketplace add` expects the
+repository root (it discovers the metadata directory inside); passing
+`.codebuddy-plugin` itself or the manifest file path is rejected.
 
 ```sh
+export WORKBUDDY_CONFIG_DIR=~/.workbuddy CODEBUDDY_CONFIG_DIR=~/.workbuddy
 codebuddy plugin marketplace add "$PWD"
 codebuddy plugin install lorelum@lorelum-plugins
 ```
