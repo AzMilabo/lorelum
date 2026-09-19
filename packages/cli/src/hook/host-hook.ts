@@ -11,7 +11,6 @@ import { resolveInvocationStorageRoot } from "../store/storage-root.js";
 import { renderPackCatalog } from "./pack-catalog.js";
 
 /** Hosts with a versioned raw session Hook ABI (`lore hook <host>`). */
-/** Hosts with a versioned raw session Hook ABI (`lore hook <host>`). */
 export type HostHookName = "codex" | "cursor" | "workbuddy" | "zcode";
 
 export type HostHookEvent = "SessionStart";
