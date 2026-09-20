@@ -18,21 +18,25 @@ WorkBuddy, and you need at least one installed Pack.
    (`lorelum/lorelum` on GitHub) as a third-party marketplace, then install
    **Lorelum** from the `lorelum-plugins` marketplace.
 
-2. Alternatively use the CodeBuddy CLI embedded in WorkBuddy. Two caveats:
-   running it bare writes the standalone CLI registry (`~/.codebuddy`), while
-   the desktop client reads `~/.workbuddy`, so redirect the config directory
-   first; and fully quit and restart WorkBuddy after installing, because a
-   resident process only reloads the plugin registry on startup:
+2. Alternatively use the CodeBuddy CLI embedded in WorkBuddy to install
+   straight from GitHub, without cloning the repository first:
 
    ```sh
    export WORKBUDDY_CONFIG_DIR=~/.workbuddy CODEBUDDY_CONFIG_DIR=~/.workbuddy
-   codebuddy plugin marketplace add /absolute/path/to/lorelum  # repository root, contains .codebuddy-plugin/marketplace.json
+   codebuddy plugin marketplace add https://github.com/lorelum/lorelum
    codebuddy plugin install lorelum@lorelum-plugins
    ```
 
-   `codebuddy` is the CLI bundled inside the WorkBuddy install (under
-   `resources/app.asar.unpacked/cli/bin/codebuddy` on Windows); adjust the
-   invocation path for your platform.
+   Two caveats: running the CLI bare writes the standalone registry
+   (`~/.codebuddy`), while the desktop client reads `~/.workbuddy`, so
+   redirect the config directory first; and fully quit and restart WorkBuddy
+   after installing, because a resident process only reloads the plugin
+   registry on startup. For a local checkout (developer preview), replace the
+   repository URL with the local repository-root path (the directory must
+   contain `.codebuddy-plugin/marketplace.json`; the metadata directory or
+   the manifest file path is rejected). `codebuddy` is the CLI bundled inside
+   the WorkBuddy install (under `resources/app.asar.unpacked/cli/bin/codebuddy`
+   on Windows); adjust the invocation path for your platform.
 
 3. Start a new task. WorkBuddy receives the installed Pack Catalog at the
    session start.

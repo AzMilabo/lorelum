@@ -27,13 +27,15 @@ This Plugin is deliberately CLI-first: it uses the compiled `lore` executable to
 
 This Plugin is a WorkBuddy adapter. The `lore` command must be available on the `PATH` inherited by WorkBuddy; the Plugin does not embed, build, or update the CLI. Bun is only required for maintainers running the source and test workflows.
 
-Install from the WorkBuddy client: add the Lorelum repository (`lorelum/lorelum` on GitHub, or a local checkout directory) as a third-party plugin marketplace, then install **Lorelum** (`lorelum`) from `lorelum-plugins`. The repository root `.codebuddy-plugin/marketplace.json` is the marketplace registration; the installed identity is `lorelum@lorelum-plugins`, matching the Codex and ZCode plugin identities. From a terminal, the CodeBuddy CLI that WorkBuddy embeds performs the same flow. Bare invocations write the standalone CLI registry (`~/.codebuddy`), which the desktop client does not read — redirect both config variables to the desktop registry, pass the repository root (not `.codebuddy-plugin` or the manifest file), and fully quit and restart WorkBuddy afterwards so the resident CLI host reloads the registry:
+Install from the WorkBuddy client: add the Lorelum repository (`lorelum/lorelum` on GitHub) as a third-party plugin marketplace, then install **Lorelum** (`lorelum`) from `lorelum-plugins`. The repository root `.codebuddy-plugin/marketplace.json` is the marketplace registration; the installed identity is `lorelum@lorelum-plugins`, matching the Codex and ZCode plugin identities. From a terminal, the CodeBuddy CLI that WorkBuddy embeds installs straight from GitHub. Bare invocations write the standalone CLI registry (`~/.codebuddy`), which the desktop client does not read — redirect both config variables to the desktop registry, and fully quit and restart WorkBuddy afterwards so the resident CLI host reloads the registry:
 
 ```sh
 export WORKBUDDY_CONFIG_DIR=~/.workbuddy CODEBUDDY_CONFIG_DIR=~/.workbuddy
-codebuddy plugin marketplace add /absolute/path/to/lorelum
+codebuddy plugin marketplace add https://github.com/lorelum/lorelum
 codebuddy plugin install lorelum@lorelum-plugins
 ```
+
+A local checkout directory can replace the repository URL for developer preview: pass the repository root (it must contain `.codebuddy-plugin/marketplace.json`; the metadata directory or the manifest file path is rejected).
 
 See the [WorkBuddy installation guide](https://lorelum.com/en/docs/workbuddy) for details and [the development guide](../../../docs/development/plugins.md) for a checkout-backed development install.
 
