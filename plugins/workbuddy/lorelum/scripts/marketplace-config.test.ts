@@ -45,13 +45,15 @@ test("WorkBuddy marketplace exposes the lorelum Plugin from the lorelum-plugins 
   // `hooks` entry means an inline Hook object or an exact Hook-file path, so a
   // directory value would be diagnosed as an unreadable Hook file.
   expect(manifest.hooks).toBeUndefined();
+  expect(manifest.commands).toBeDefined();
+  expect(manifest.skills).toBeDefined();
   const componentDirectories = await Promise.all(
     [manifest.commands, manifest.skills].map((component) =>
-      stat(join(import.meta.dir, "..", component ?? "")),
+      stat(join(import.meta.dir, "..", component!)),
     ),
   );
   for (const directory of componentDirectories) {
-    expect(directory).toBeTruthy();
+    expect(directory.isDirectory()).toBe(true);
   }
   const hookConfiguration = await stat(join(import.meta.dir, "../hooks/hooks.json"));
   expect(hookConfiguration.isFile()).toBe(true);
