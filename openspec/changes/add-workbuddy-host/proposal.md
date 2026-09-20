@@ -10,7 +10,7 @@ WorkBuddy（腾讯云代码助手团队的 AI Agent 办公工作台）的插件�
 - CLI 新增 `lore hook workbuddy` raw Hook ABI：扩展 `HostHookName` 封闭联合，新增 per-host 薄包装与集成场景测试；envelope 复用同一 `hookSpecificOutput` 语义与 `{"continue":true}` 降级契约。
 - 仓库根新增 `.codebuddy-plugin/marketplace.json`（WorkBuddy 原生 marketplace，名称 `lorelum-plugins`，仅含单一 `lorelum` 条目，entry version 与 manifest 一致）。
 - 扩展 `plugins/scripts/plugin-layout.test.ts` 覆盖 workbuddy 的身份/布局/版本一致性断言；更新 `plugins/README.md` 宿主表与 `docs/development/plugin-conventions.md` 中 hostKey 枚举及宿主示例。
-- 新增用户文档英中双语 `apps/site/content/docs/workbuddy.mdx` / `workbuddy.zh.mdx`（安装、首次使用、更新、排障）与站点 agent logo。
+- 新增用户文档英中双语 `apps/site/content/docs/workbuddy.mdx` / `workbuddy.zh.mdx`（安装、首次使用、更新、排障）。站点 agent logo 不随本变更交付（不伪造品牌图标，随正式品牌素材另行补充）。
 
 ### 开放问题的决策（issue #205）
 

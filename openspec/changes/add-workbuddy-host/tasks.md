@@ -23,7 +23,7 @@
 - [x] 3.2 更新 `plugins/README.md` 宿主表；更新 `docs/development/plugin-conventions.md` 的 hostKey 枚举、示例与 Hook 说明
 - [x] 3.3 更新 `docs/development/plugins.md`：WorkBuddy 的验证与 checkout 安装命令
 - [x] 3.4 新增 `apps/site/content/docs/workbuddy.mdx` + `workbuddy.zh.mdx`，并更新 `meta.json` / `meta.zh.json` 导航
-- [x] 3.5 新增 `apps/site/public/logos/agents/workbuddy.svg`
+- [ ] 3.5 新增 `apps/site/public/logos/agents/workbuddy.svg`（可选，未执行：本 PR 不伪造品牌图标，站点页使用宿主图标名，随正式品牌素材另行补充）
 
 ## 4. 验证
 
