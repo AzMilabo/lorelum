@@ -4,6 +4,13 @@ import darwinArm64Manifest from "./darwin-arm64.json";
 import linuxX64Manifest from "./linux-x64.json";
 import win32X64Manifest from "./win32-x64.json";
 
+declare const LORELUM_RELEASE_NATIVE_MANIFEST: string | undefined;
+
+interface ReleaseManifestInjection {
+  readonly artifactId: string;
+  readonly manifest: unknown;
+}
+
 const backendPackageRoot = resolve(import.meta.dir, "../../../..");
 const developmentEmbeddingArtifactRoot = join(
   backendPackageRoot,
@@ -12,27 +19,49 @@ const developmentEmbeddingArtifactRoot = join(
   "embedding",
 );
 
+function manifestForRelease(
+  artifactId: string,
+  fallback: ReturnType<typeof parseNativeArtifactManifest>,
+): ReturnType<typeof parseNativeArtifactManifest> {
+  const serialized =
+    typeof LORELUM_RELEASE_NATIVE_MANIFEST === "string"
+      ? LORELUM_RELEASE_NATIVE_MANIFEST
+      : undefined;
+  if (serialized === undefined) return fallback;
+  let candidate: unknown;
+  try {
+    candidate = JSON.parse(serialized);
+  } catch {
+    return fallback;
+  }
+  if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate))
+    return fallback;
+  const injection = candidate as ReleaseManifestInjection;
+  if (injection.artifactId !== artifactId) return fallback;
+  return parseNativeArtifactManifest(injection.manifest);
+}
+
 const embeddingNativeArtifacts = [
   {
     id: "darwin-arm64",
     platform: "darwin",
     arch: "arm64",
     compileTarget: "bun-darwin-arm64",
-    manifest: parseNativeArtifactManifest(darwinArm64Manifest),
+    manifest: manifestForRelease("darwin-arm64", parseNativeArtifactManifest(darwinArm64Manifest)),
   },
   {
     id: "linux-x64",
     platform: "linux",
     arch: "x64",
     compileTarget: "bun-linux-x64",
-    manifest: parseNativeArtifactManifest(linuxX64Manifest),
+    manifest: manifestForRelease("linux-x64", parseNativeArtifactManifest(linuxX64Manifest)),
   },
   {
     id: "win32-x64",
     platform: "win32",
     arch: "x64",
     compileTarget: "bun-windows-x64",
-    manifest: parseNativeArtifactManifest(win32X64Manifest),
+    manifest: manifestForRelease("win32-x64", parseNativeArtifactManifest(win32X64Manifest)),
   },
 ] as const satisfies readonly {
   readonly id: string;
@@ -67,7 +96,7 @@ export function installedEmbeddingArtifactDirectory(
   return join(releaseRoot, "native", artifact.id);
 }
 
-/** The compiler replaces this static JSON input with the verified candidate manifest. */
+/** The compiler replaces this source manifest or inlines a verified manifest for the Windows CLI path. */
 export function trustedEmbeddingManifestPath(artifact: EmbeddingNativeArtifact): string {
   return join(import.meta.dir, `${artifact.id}.json`);
 }

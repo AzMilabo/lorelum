@@ -8,6 +8,26 @@ icon: Wrench
 
 Run `lore --version` in the environment that starts the agent. If it works in your terminal but fails in the agent, check that the agent inherits `~/.local/bin` on `PATH`, then restart the application. See [Installation](./installation).
 
+## A command fails
+
+A normal CLI failure prints its code, message, recovery guidance, and `diagnostics.traceId` on stderr. That trace belongs to the original invocation, so copy it before retrying anything:
+
+```sh
+lore logs --trace-id <traceId> --limit 100
+```
+
+This reads only Lorelum-managed records already associated with that call. It does not start a Backend or model, download anything, rerun the query, or inspect another invocation. Treat `missingEvidence` as a limit on what was retained: a missing, rotated, damaged, or non-debug log is not proof of a different cause.
+
+If the records do not explain the problem and you control a safe minimal reproduction, rerun that reproduction with `--debug`:
+
+```sh
+lore --debug query "the same minimal task description"
+```
+
+The reproduction has a new trace. Do not present its records as if they came from the original failure. Use `--json` only when you need protocol fields or a script needs the JSON envelope; do not rerun solely to obtain the original trace.
+
+Host Hook stdout remains the host's raw protocol and does not include ordinary CLI diagnostics. Do not parse it for a trace. For a recurring Hook problem, enable `logging.level: debug` or reproduce the Hook through the host's supported path, then inspect the resulting local evidence deliberately.
+
 ## A query returns `preparing`
 
 This is a successful response with exit code `1`: model preparation was accepted but is not ready within the CLI observation interval. Check its state and wait:
@@ -48,4 +68,14 @@ Keyword search matches terms rather than meaning. Continue with the default natu
 
 ## Report a problem
 
-Include `lore --version`, your platform, the command, and the returned error code in a [GitHub issue](https://github.com/lorelum/lorelum/issues). Remove private Pack content and local credentials from examples. Report security issues through [SECURITY.md](https://github.com/lorelum/lorelum/blob/main/SECURITY.md).
+First create a local, reviewable draft from the selected trace if it helps explain the problem:
+
+```sh
+lore feedback draft --trace-id <traceId> --kind bug
+```
+
+This only creates `report.json` and `report.md` below `~/.lorelum/feedback/`. It does not upload data, open a URL, or create an Issue. By default, the draft keeps the retained same-trace `error`, `warn`, and `info` call chain: normal query/result context, correlation IDs, paths, and recorded Error stacks are useful local evidence. `--include-logs info` is the same default selection; use `--include-logs debug` only to add debug records that were already written. If no prior debug record exists, the draft reports `debug-records-not-found` rather than inventing detail.
+
+Creating a draft does not need a disclosure prompt for ordinary local evidence. If you later choose to create an Issue or upload material, that is a separate explicit action. Check for credentials, secrets, or information you do not want public; ordinary query, result, path, and stack evidence does not need blanket redaction.
+
+If you decide to submit an Issue, include `lore --version`, your platform, the command, the returned error code, and only the reviewed evidence that helps maintainers reproduce it. Report security issues through [SECURITY.md](https://github.com/lorelum/lorelum/blob/main/SECURITY.md).

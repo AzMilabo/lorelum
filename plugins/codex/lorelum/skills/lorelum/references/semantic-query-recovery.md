@@ -1,6 +1,32 @@
-# Semantic query recovery in Codex
+# Diagnostic and semantic query recovery in Codex
 
-Read this reference only after a semantic `lore query ...` has reported `state: "preparing"` or an error. Do not use it as a preflight checklist before the first query. Default text is sufficient to detect that recovery is needed; rerun the query with `--json` only when diagnosing exact envelope fields. The injected Pack Catalog remains available while recovery is in progress; do not rerun `lore pack list --details` unless the catalog itself is missing or truncated.
+Read this reference only after either an original Lorelum failure has a `diagnostics.traceId`, or a semantic `lore query ...` has reported `state: "preparing"` or an error. Do not use it as a preflight checklist before the first query. Default text is sufficient to detect that recovery is needed; use `--json` only when exact protocol fields are required. The injected Pack Catalog remains available while recovery is in progress; do not rerun `lore pack list --details` unless the catalog itself is missing or truncated.
+
+## Original trace evidence
+
+First inspect only the original trace:
+
+```sh
+lore logs --trace-id <traceId>
+```
+
+Report verifiable records, including normal local context already present in the original trace, and `missingEvidence`. Do not scan another trace, an arbitrary directory, or fetch new environment/configuration, HTTP, or native content merely to enrich this evidence. Do not preflight Backend, model, index, or status before this trace read, and do not rerun merely to obtain more detail. If the original failure has no trace, state that limit rather than manufacturing one. For a non-query command, follow its visible error recovery after this bounded observation.
+
+## Controlled reproduction and local feedback
+
+If the current trace remains insufficient, explain the evidence limit. Run `lore --debug <command>` only when the user explicitly asks for reproduction/diagnosis or the task already authorizes a safe minimal reproduction; its trace is a new invocation, not evidence from the original failure.
+
+When the original trace establishes a Lorelum bug or missing feature during a long-running user task, keep the task moving. At completion or another safe stopping point, ask whether the user wants a local feedback draft; do not interrupt the task or create one automatically.
+
+Only after the user explicitly agrees to prepare a local draft, run:
+
+```sh
+lore feedback draft --trace-id <traceId> --kind <bug|improvement>
+```
+
+The default draft contains the complete retained same-trace `error`, `warn`, and `info` call chain, including normal context, correlation IDs, and recorded Error stacks. `--include-logs info` is equivalent to the default; use `--include-logs debug` only to add debug records that were already written. If no debug record exists, report `debug-records-not-found`; a new debug reproduction is a new trace, not recovered evidence.
+
+Show the artifact paths, included evidence classes, `externalReview`, and `missingEvidence`. A draft is local only, not a submission, upload, public Issue, triage result, or authorization to change product behavior. Uploading logs or creating/updating an Issue requires a separate explicit authorization for that external action. Ordinary local query, result, path, native output, and Error-stack evidence do not need an extra privacy prompt; ask for a review or propose private support only if the material actually contains credential-like or clearly sensitive content. If the user declines or does not respond, do not create a draft or repeat the offer in the task. SessionStart and recoverable Hook paths remain metadata-only and never create feedback artifacts.
 
 ## Model preparation or embedding errors
 

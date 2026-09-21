@@ -39,6 +39,20 @@ lore backend lease renew <lease-id>
 lore backend lease release <lease-id>
 ```
 
+## Diagnose current-trace failures and offer local feedback without interrupting the main task
+
+A normal `lore` text failure displays `diagnostics.traceId`; the `--json` envelope carries the same local correlation ID. It identifies one invocation chain, not a credential, user identity, or public sharing ID.
+
+If a clear Lorelum bug, retrieval/guidance gap, or requested capability does not block the task and the user did not ask for diagnosis, retain only a candidate—no extra logs, draft, upload, or Issue—and finish the task. Make at most one non-blocking feedback offer at the final summary or a visible milestone.
+
+If the failure blocks the task, or the user explicitly asks for diagnosis, inspect only its original trace:
+
+```sh
+lore logs --trace-id <traceId>
+```
+
+Do not scan another trace or arbitrary location, and do not preflight Backend, model, index, or status before this read. Then read [diagnostic recovery](references/semantic-query-recovery.md). It owns evidence limits, controlled debug reproduction, consented local feedback, and semantic-query lifecycle recovery including progressive index operations.
+
 ## Use Pack resources when a retrieved Practice points to them
 
 Packs may include optional `references/`, `assets/`, and `scripts/` directories. A Practice can point to one with a normal Markdown link whose target begins with `resource:`, for example:
