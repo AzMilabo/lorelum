@@ -85,7 +85,7 @@ The agent decides when to query and which Practices apply. Lorelum retrieves the
 - **Local semantic retrieval.** Search installed Practices by task and moment with `lore query`. The local Backend reuses the embedding model across requests.
 - **Full Practice reads.** Use `lore get` to read complete guidance and its applicability conditions before acting on a summary.
 - **Versioned Knowledge Packs.** Install, inspect, update, and remove Packs. Keep separate collections with `--store-root`.
-- **Agent integration.** Use the Lorelum Skill in command-capable agents, or the official Codex and ZCode Plugins with their host-native Pack catalogs.
+- **Agent integration.** Use the Lorelum Skill in command-capable agents, or the official Codex, WorkBuddy, ZCode, and Cursor Plugins with their host-native Pack catalogs.
 - **An explicit offline path.** Use `lore query --mode keyword` for term matching without a model or Backend.
 - **Pack authoring tools.** Validate source files, format Practices, and maintain localization with the CLI.
 
@@ -146,6 +146,7 @@ you use:
 | Host | Setup |
 | --- | --- |
 | Codex | Official Plugin, including the Skill and a Pack-catalog Hook |
+| WorkBuddy | Official Plugin, including the Skill, a `/lore` command, and a Pack-catalog Hook |
 | ZCode | Official Plugin, including the Skill, a `/lore` command, and a Pack-catalog Hook |
 | Claude Code | Project or personal Lorelum Skill |
 | Cursor | Official Plugin, including the Skill, a `/lore` command, and a Pack-catalog Hook |
@@ -155,7 +156,7 @@ Install the selected Skill or Plugin, then start a new task and tell the agent t
 use Lorelum before it finalizes an important plan or implementation decision.
 Each host guide includes its own update steps and the shortest recovery path.
 
-See [Agent integration](https://lorelum.com/en/docs/agent-setup), [Codex setup](https://lorelum.com/en/docs/codex), [ZCode setup](https://lorelum.com/en/docs/zcode), and [Cursor setup](https://lorelum.com/en/docs/cursor) for installation and verification.
+See [Agent integration](https://lorelum.com/en/docs/agent-setup), [Codex setup](https://lorelum.com/en/docs/codex), [WorkBuddy setup](https://lorelum.com/en/docs/workbuddy), [ZCode setup](https://lorelum.com/en/docs/zcode), and [Cursor setup](https://lorelum.com/en/docs/cursor) for installation and verification.
 
 ## Choose or create a Knowledge Pack
 
@@ -205,7 +206,7 @@ Keep each Practice independently understandable: an agent may retrieve it withou
 
 Lorelum Core does not manage your task, inspect the full transcript, or decide that an implementation is accepted. A retrieved Practice is guidance, not verification evidence.
 
-The Codex and ZCode Plugins supply a Pack catalog at their supported session events. Broader guidance before and after compaction depends on host capabilities and remains [research](https://github.com/lorelum/lorelum/issues/32). The current user integration is through the CLI and Skill.
+The Codex, WorkBuddy, ZCode, and Cursor Plugins supply a Pack catalog at their supported session events. Broader guidance before and after compaction depends on host capabilities and remains [research](https://github.com/lorelum/lorelum/issues/32). The current user integration is through the CLI and Skill.
 
 ## Documentation and contributing
 
