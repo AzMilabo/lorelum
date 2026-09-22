@@ -196,9 +196,15 @@ function optionalText(value: string | undefined): string | undefined {
   return value === undefined || value.length === 0 ? undefined : value;
 }
 
+/**
+ * Bounds a detail string to its budget. Real CR/LF characters are escaped to
+ * their literal two-character form first, so a multi-line received value can
+ * never break the one-line-per-detail text rendering — in either format.
+ */
 function truncate(value: string, maxLength: number): string {
-  const codePoints = [...value];
+  const singleLine = value.replace(/\r/gu, "\\r").replace(/\n/gu, "\\n");
+  const codePoints = [...singleLine];
   return codePoints.length <= maxLength
-    ? value
+    ? singleLine
     : `${codePoints.slice(0, maxLength - 3).join("")}...`;
 }

@@ -216,6 +216,22 @@ describe("formatErrorDetail text compression", () => {
       "--private-token is required. Provide the token through the documented environment channel.",
     );
   });
+
+  test("keeps the one-line text contract for multi-line received values", () => {
+    const detail = createErrorDetail({
+      kind: "configuration",
+      subject: "query.maxWaitMs",
+      reason: "invalid-type",
+      received: "nope\nsecond line\r\nthird",
+      expected: { kind: "integer-range", min: 0, max: 120_000 },
+    });
+
+    expect(detail.received).toBe("nope\\nsecond line\\r\\nthird");
+    expect(validateJsonSchema(detail, errorDetailSchema)).toEqual([]);
+    const text = formatErrorDetail(detail);
+    expect(text).not.toMatch(/[\r\n]/u);
+    expect(text).toContain("(received: nope\\nsecond line\\r\\nthird)");
+  });
 });
 
 describe("errorDetailSchema closure", () => {
