@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 
+import { createErrorDetail } from "./error-details.js";
 import { protocolResponseSchema, toolVersion } from "./protocol.js";
 import { renderResult } from "./render.js";
 import { validateProtocolSchema } from "./protocol-schema.test-helper.js";
@@ -91,6 +92,55 @@ test("renders a default text error with every public error field", () => {
     retry: original-command
 diagnostics:
   traceId: 00000000-0000-4000-8000-000000000002
+`);
+});
+
+test("renders failure details as structured JSON and compressed text", () => {
+  const detail = createErrorDetail({
+    kind: "usage",
+    subject: "--min-coverage-percent",
+    reason: "out-of-range",
+    received: "101",
+    expected: { kind: "integer-range", min: 0, max: 100 },
+  });
+
+  const jsonWriter = new MemoryWriter();
+  renderResult(jsonWriter, "json", {
+    kind: "failure",
+    command: "query",
+    code: "usage.invalid",
+    message: "The command invocation is invalid.",
+    details: [detail],
+    diagnostics: { traceId: "00000000-0000-4000-8000-000000000004" as never },
+  });
+  const response = JSON.parse(jsonWriter.value);
+  expect(response.error.details).toEqual([
+    {
+      kind: "usage",
+      subject: "--min-coverage-percent",
+      reason: "out-of-range",
+      received: "101",
+      expected: { kind: "integer-range", min: 0, max: 100 },
+    },
+  ]);
+  expect(validateProtocolSchema(response, protocolResponseSchema)).toEqual([]);
+
+  const textWriter = new MemoryWriter();
+  renderResult(textWriter, "text", {
+    kind: "failure",
+    command: "query",
+    code: "usage.invalid",
+    message: "The command invocation is invalid.",
+    details: [detail],
+    diagnostics: { traceId: "00000000-0000-4000-8000-000000000004" as never },
+  });
+  expect(textWriter.value).toBe(`error:
+  code: usage.invalid
+  message: The command invocation is invalid.
+  details:
+    - --min-coverage-percent must be an integer from 0 through 100 (received: 101).
+diagnostics:
+  traceId: 00000000-0000-4000-8000-000000000004
 `);
 });
 

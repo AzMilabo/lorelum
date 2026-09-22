@@ -1,6 +1,13 @@
 import packageManifest from "../../package.json";
 import { createTraceId, type TraceId } from "@lorelum/log";
 
+import {
+  capErrorDetails,
+  errorDetailBudgets,
+  errorDetailSchema,
+  type ErrorDetail,
+} from "./error-details.js";
+
 /** Version of the process-envelope contract. */
 export const protocolVersion = 2;
 /** Version of the CLI implementation emitting the envelope. */
@@ -17,6 +24,8 @@ export type JsonSchema = {
   items?: JsonSchema;
   minItems?: number;
   maxItems?: number;
+  minLength?: number;
+  maxLength?: number;
 };
 
 export type JsonValue =
@@ -53,6 +62,7 @@ export interface ProtocolFailure extends EnvelopeBase {
     code: string;
     message: string;
     recovery?: ErrorRecovery;
+    details?: readonly ErrorDetail[];
   };
 }
 
@@ -117,6 +127,12 @@ export const protocolResponseSchema = {
                 retry: { const: "original-command" },
               },
             },
+            details: {
+              type: "array",
+              minItems: 1,
+              maxItems: errorDetailBudgets.maxDetails,
+              items: errorDetailSchema,
+            },
           },
         },
       },
@@ -146,6 +162,7 @@ export function createFailureEnvelope(
   message: string,
   recovery?: ErrorRecovery,
   diagnostics: ProtocolDiagnostics = { traceId: createTraceId() },
+  details?: readonly ErrorDetail[],
 ): ProtocolFailure {
   return {
     protocolVersion,
@@ -153,7 +170,14 @@ export function createFailureEnvelope(
     command,
     diagnostics,
     ok: false,
-    error: { code, message, ...(recovery === undefined ? {} : { recovery }) },
+    error: {
+      code,
+      message,
+      ...(recovery === undefined ? {} : { recovery }),
+      ...(details === undefined || details.length === 0
+        ? {}
+        : { details: capErrorDetails(details) }),
+    },
   };
 }
 

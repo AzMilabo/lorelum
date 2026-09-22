@@ -125,7 +125,8 @@ function parseLeaseTtl(value: unknown): number {
 }
 
 function lifecycleError(error: unknown): never {
-  if (error instanceof BackendError) throw new CliError(error.code, error.message);
+  if (error instanceof BackendError)
+    throw new CliError(error.code, error.message, undefined, error.details);
   throw error;
 }
 

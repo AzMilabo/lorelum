@@ -1,4 +1,7 @@
 import { expect, test } from "bun:test";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { isInternalBackendDaemonLaunch, isInternalBackendServeInvocation, run } from "./main.js";
 import { protocolResponseSchema, toolVersion, type JsonSchema } from "./output/protocol.js";
@@ -210,6 +213,7 @@ test("validates invalid calls before help and version responses", async () => {
         ok: false,
         error: { code: "usage.invalid", message: "The command invocation is invalid." },
       });
+      expect(JSON.parse(stdout.value).error.details).toBeUndefined();
       expect(stdout.value).not.toContain("private-token");
       expect(stderr.value).toBe("");
       expect(stderr.value).not.toContain("private-token");
@@ -236,4 +240,103 @@ test("writes default failures to stderr as complete text", async () => {
 diagnostics:
   traceId: 00000000-0000-4000-8000-000000000004
 `);
+});
+
+test("carries query-option details from the owning validator to both formats", async () => {
+  const stdout = new MemoryWriter();
+  const stderr = new MemoryWriter();
+
+  expect(
+    await run(["--json", "query", "release validation", "--min-coverage-percent", "101"], {
+      stderr,
+      stdout,
+    }),
+  ).toBe(2);
+  const response = JSON.parse(stdout.value);
+  expect(response).toMatchObject({
+    protocolVersion: 2,
+    command: "query",
+    ok: false,
+    error: {
+      code: "usage.invalid",
+      message: "The command invocation is invalid.",
+      details: [
+        {
+          kind: "usage",
+          subject: "--min-coverage-percent",
+          reason: "out-of-range",
+          received: "101",
+          expected: { kind: "integer-range", min: 0, max: 100 },
+        },
+      ],
+    },
+  });
+  expect(validateProtocolSchema(response, protocolResponseSchema)).toEqual([]);
+
+  const textStdout = new MemoryWriter();
+  const textStderr = new MemoryWriter();
+  expect(
+    await run(["query", "release validation", "--min-coverage-percent", "101"], {
+      stderr: textStderr,
+      stdout: textStdout,
+    }),
+  ).toBe(2);
+  expect(textStdout.value).toBe("");
+  expect(textStderr.value).toContain("code: usage.invalid");
+  expect(textStderr.value).toContain(
+    "  details:\n    - --min-coverage-percent must be an integer from 0 through 100 (received: 101).\n",
+  );
+});
+
+test("carries configuration-setting details from the owning validator to both formats", async () => {
+  const home = await mkdtemp(join(tmpdir(), "lorelum-error-details-"));
+  await mkdir(join(home, ".lorelum"));
+  await writeFile(join(home, ".lorelum", "config.yaml"), "query:\n  maxWaitMs: nope\n");
+  const previousHome = process.env.HOME;
+  const previousUserProfile = process.env.USERPROFILE;
+  process.env.HOME = home;
+  process.env.USERPROFILE = home;
+  try {
+    const stdout = new MemoryWriter();
+    const stderr = new MemoryWriter();
+    expect(await run(["--json", "query", "release validation"], { stderr, stdout })).toBe(2);
+    const response = JSON.parse(stdout.value);
+    expect(response).toMatchObject({
+      protocolVersion: 2,
+      command: "query",
+      ok: false,
+      error: {
+        code: "query.config-invalid",
+        message: "The query configuration is invalid.",
+        details: [
+          {
+            kind: "configuration",
+            subject: "query.maxWaitMs",
+            reason: "invalid-type",
+            received: "nope",
+            expected: { kind: "integer-range", min: 0, max: 120_000 },
+            hint: "Fix or remove query.maxWaitMs in ~/.lorelum/config.yaml.",
+          },
+        ],
+      },
+    });
+    expect(validateProtocolSchema(response, protocolResponseSchema)).toEqual([]);
+
+    const textStdout = new MemoryWriter();
+    const textStderr = new MemoryWriter();
+    expect(
+      await run(["query", "release validation"], { stderr: textStderr, stdout: textStdout }),
+    ).toBe(2);
+    expect(textStdout.value).toBe("");
+    expect(textStderr.value).toContain("code: query.config-invalid");
+    expect(textStderr.value).toContain(
+      "  details:\n    - query.maxWaitMs must be an integer from 0 through 120000 (received: nope). Fix or remove query.maxWaitMs in ~/.lorelum/config.yaml.\n",
+    );
+  } finally {
+    if (previousHome === undefined) delete process.env.HOME;
+    else process.env.HOME = previousHome;
+    if (previousUserProfile === undefined) delete process.env.USERPROFILE;
+    else process.env.USERPROFILE = previousUserProfile;
+    await rm(home, { recursive: true, force: true });
+  }
 });

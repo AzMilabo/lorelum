@@ -7,6 +7,7 @@ import {
   type OutputWriter,
   type ProtocolDiagnostics,
 } from "./protocol.js";
+import { capErrorDetails, formatErrorDetail, type ErrorDetail } from "./error-details.js";
 import { createTraceId } from "@lorelum/log";
 import { renderStructuredText, type StructuredTextRenderer } from "./structured-text.js";
 
@@ -29,6 +30,7 @@ export type RenderableResult =
       code: string;
       message: string;
       recovery?: ErrorRecovery;
+      details?: readonly ErrorDetail[];
       diagnostics?: ProtocolDiagnostics;
     }>;
 
@@ -69,6 +71,7 @@ export function renderResult(
           result.message,
           result.recovery,
           result.diagnostics ?? { traceId: createTraceId() },
+          result.details,
         ),
       ),
     );
@@ -81,6 +84,9 @@ export function renderResult(
         code: result.code,
         message: result.message,
         ...(result.recovery === undefined ? {} : { recovery: result.recovery }),
+        ...(result.details === undefined || result.details.length === 0
+          ? {}
+          : { details: capErrorDetails(result.details).map(formatErrorDetail) }),
       },
       diagnostics: result.diagnostics ?? { traceId: createTraceId() },
     }),

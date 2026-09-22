@@ -78,4 +78,17 @@ export {
   type ProtocolFailure,
   type ProtocolSuccess,
 } from "./output/protocol.js";
+export {
+  capErrorDetails,
+  createErrorDetail,
+  errorDetailBudgets,
+  errorDetailKinds,
+  errorDetailReasons,
+  formatErrorDetail,
+  type ErrorDetail,
+  type ErrorDetailExpected,
+  type ErrorDetailInput,
+  type ErrorDetailKind,
+  type ErrorDetailReason,
+} from "./output/error-details.js";
 export { renderResult, type OutputFormat, type TextRenderer } from "./output/render.js";

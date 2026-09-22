@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { CliError } from "../runtime/errors";
 import { DEFAULT_QUERY_SETTINGS, loadQuerySettings } from "./settings";
 
 async function fixture(run: (home: string, file: string) => Promise<void>): Promise<void> {
@@ -34,11 +35,55 @@ test("loads project-independent user query settings", async () => {
   });
 });
 
-test("rejects invalid user query settings without exposing YAML details", async () => {
+test("rejects invalid user query settings with validator-owned details", async () => {
   await fixture(async (home, file) => {
     await writeFile(file, "query:\n  maxWaitMs: nope\n");
     await expect(loadQuerySettings({ homeDirectory: home })).rejects.toMatchObject({
       code: "query.config-invalid",
+      details: [
+        {
+          kind: "configuration",
+          subject: "query.maxWaitMs",
+          reason: "invalid-type",
+          received: "nope",
+          expected: { kind: "integer-range", min: 0, max: 120_000 },
+          hint: "Fix or remove query.maxWaitMs in ~/.lorelum/config.yaml.",
+        },
+      ],
     });
+  });
+});
+
+test("distinguishes out-of-range settings through the same detail channel", async () => {
+  await fixture(async (home, file) => {
+    await writeFile(file, "query:\n  minCoveragePercent: 200\n");
+    await expect(loadQuerySettings({ homeDirectory: home })).rejects.toMatchObject({
+      code: "query.config-invalid",
+      details: [
+        {
+          kind: "configuration",
+          subject: "query.minCoveragePercent",
+          reason: "out-of-range",
+          received: "200",
+          expected: { kind: "integer-range", min: 0, max: 100 },
+          hint: "Fix or remove query.minCoveragePercent in ~/.lorelum/config.yaml.",
+        },
+      ],
+    });
+  });
+});
+
+test("keeps failures without verified facts detail-free", async () => {
+  await fixture(async (home, file) => {
+    await writeFile(file, "query:\n  maxWaitMs: [broken\n");
+    let caught: unknown;
+    try {
+      await loadQuerySettings({ homeDirectory: home });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(CliError);
+    expect((caught as CliError).code).toBe("query.config-invalid");
+    expect((caught as CliError).details).toBeUndefined();
   });
 });

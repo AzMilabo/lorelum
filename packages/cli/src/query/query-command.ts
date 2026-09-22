@@ -24,6 +24,7 @@ import {
 } from "@lorelum/engine";
 
 import type { JsonValue } from "../output/protocol.js";
+import { createErrorDetail, type ErrorDetailReason } from "../output/error-details.js";
 import type { CommandDefinition, CommandInvocation } from "../registry.js";
 import {
   CliError,
@@ -102,12 +103,44 @@ function parseTopK(value: unknown): number | undefined {
   return Number(value);
 }
 
-function parseIntegerOption(value: unknown, min: number, max: number): number | undefined {
+function parseIntegerOption(
+  value: unknown,
+  option: string,
+  min: number,
+  max: number,
+): number | undefined {
   if (value === undefined) return undefined;
-  if (typeof value !== "string" || !/^[0-9]+$/.test(value)) throw invalidInvocationError();
+  if (typeof value !== "string" || !/^[0-9]+$/.test(value)) {
+    throw integerOptionError(option, "invalid-type", describeOptionValue(value), min, max);
+  }
   const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) throw invalidInvocationError();
+  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
+    throw integerOptionError(option, "out-of-range", value, min, max);
+  }
   return parsed;
+}
+
+/** This parser owns the integer-range rule, so its rejection carries the verified facts. */
+function integerOptionError(
+  option: string,
+  reason: Extract<ErrorDetailReason, "invalid-type" | "out-of-range">,
+  received: string,
+  min: number,
+  max: number,
+): CliError {
+  return new CliError(cliErrorCodes.usageInvalid, "The command invocation is invalid.", undefined, [
+    createErrorDetail({
+      kind: "usage",
+      subject: option,
+      reason,
+      received,
+      expected: { kind: "integer-range", min, max },
+    }),
+  ]);
+}
+
+function describeOptionValue(value: unknown): string {
+  return typeof value === "string" ? value : (JSON.stringify(value) ?? String(value));
 }
 
 function toQueryResult(
@@ -193,6 +226,7 @@ function throwVisibleQueryError(error: unknown): never {
       error.code,
       error.message,
       error instanceof BackendError ? error.recovery : undefined,
+      error instanceof BackendError ? error.details : undefined,
     );
   }
   if (error instanceof BackendRemoteError) {
@@ -288,9 +322,15 @@ export function createQueryCommand(services: QueryCommandServices): CommandDefin
         if (text === undefined) throw invalidInvocationError();
         const mode = parseMode(invocation.options.mode);
         const limit = parseTopK(invocation.options.topK);
-        const maxWaitOverride = parseIntegerOption(invocation.options.maxWaitMs, 0, 120_000);
+        const maxWaitOverride = parseIntegerOption(
+          invocation.options.maxWaitMs,
+          "--max-wait-ms",
+          0,
+          120_000,
+        );
         const minCoverageOverride = parseIntegerOption(
           invocation.options.minCoveragePercent,
+          "--min-coverage-percent",
           0,
           100,
         );

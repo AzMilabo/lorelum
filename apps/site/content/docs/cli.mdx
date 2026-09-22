@@ -86,8 +86,32 @@ Every `--json` CLI envelope includes `protocolVersion`, `toolVersion`, `command`
 | `data` | Command-specific result on success. |
 | `error.code` | Stable error identifier on failure. |
 | `error.message` | Human-readable explanation on failure. |
+| `error.details` | Optional structured diagnostic facts on failure: `kind`, `subject`, `reason`, and when known `received`, `expected`, and `hint`. |
 
 Branch on error codes instead of parsing messages. Within a successful result, inspect command-specific state before treating asynchronous work as complete.
+
+Failures may also carry an optional `error.details` array. Each entry is a closed, schema-defined object: `kind` (`usage` or `configuration`), a stable `subject` such as an option flag or a config key, a small `reason` enum, and — when the component that owns the rule knows them — the `received` value, an `expected` fact (allowed enum values, an integer range, or a type name), and one actionable `hint`. Read these fields instead of parsing `error.message`; the array is omitted entirely when no verified facts exist, and default text failures print the same facts as one actionable line per entry on stderr.
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "usage.invalid",
+    "message": "The command invocation is invalid.",
+    "details": [
+      {
+        "kind": "usage",
+        "subject": "--min-coverage-percent",
+        "reason": "out-of-range",
+        "received": "101",
+        "expected": { "kind": "integer-range", "min": 0, "max": 100 }
+      }
+    ]
+  }
+}
+```
+
+`error.details` is an optional addition within `protocolVersion: 2`, following the same policy as the earlier optional `error.recovery` field. Consumers that validate responses against a frozen copy of the envelope schema must re-sync to the schema exported by the installed CLI; consumers that ignore unknown fields need no change.
 
 ## Exit codes
 
