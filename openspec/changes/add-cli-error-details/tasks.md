@@ -46,3 +46,4 @@
 - 6.2:`bun run typecheck` 通过;`bun run lint` 0 errors(仓库既有 33 warnings,本变更文件 0 warnings / 0 errors)。
 - 6.3:`openspec validate add-cli-error-details --strict` 通过。
 - 对抗性复核(独立 checker,以 thermo-nuclear-code-quality-review 方法论试图反驳 PR 完成说辞,严重度按"维护者会行动"校准):10 条说辞初判 8 条存活,2 条(C2/C5"每条 detail 一行")被真实反例部分驳倒——`received` 含真实 CR/LF 时(YAML block scalar / 含换行 CLI 参数可达)text 输出退化为多行 `- |` 块。修复:`truncate()` 在计量预算前将 CR/LF 转义为字面 `\r`/`\n`(覆盖全部受预算字符串)并新增回归测试;checker 增量复核 RESOLVED,`bun test packages/cli` 298 pass / 0 fail。两条 minor(transport 层运行时校验缺失、空数组守卫三处重复)记录为非阻塞改进项。
+- CI 修复:config fixture 在 Linux 上失败——运行中修改 `HOME` 环境变量不影响已启动进程的 `os.homedir()` 解析,导致 CLI 读到真实 HOME、未命中临时 config 而走到 `backend.failed`。改为 `Bun.spawn` 以隔离 HOME 启动真实入口进程(跨平台一致的启动期环境),断言不变;`bun test packages/cli/src/main.test.ts` 10/10、全包 298/0。

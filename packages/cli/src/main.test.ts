@@ -19,6 +19,26 @@ class MemoryWriter {
   }
 }
 
+interface CliProcessResult {
+  readonly exitCode: number;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+async function runCliProcess(arguments_: string[], home: string): Promise<CliProcessResult> {
+  const child = Bun.spawn([process.execPath, join(import.meta.dir, "main.ts"), ...arguments_], {
+    env: { ...process.env, HOME: home, USERPROFILE: home },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+    child.exited,
+  ]);
+  return { exitCode, stdout, stderr };
+}
+
 test("recognizes only the exact private backend daemon invocation", () => {
   expect(isInternalBackendServeInvocation(["--internal-backend-serve"])).toBe(true);
   expect(isInternalBackendServeInvocation([])).toBe(false);
@@ -292,15 +312,12 @@ test("carries configuration-setting details from the owning validator to both fo
   const home = await mkdtemp(join(tmpdir(), "lorelum-error-details-"));
   await mkdir(join(home, ".lorelum"));
   await writeFile(join(home, ".lorelum", "config.yaml"), "query:\n  maxWaitMs: nope\n");
-  const previousHome = process.env.HOME;
-  const previousUserProfile = process.env.USERPROFILE;
-  process.env.HOME = home;
-  process.env.USERPROFILE = home;
   try {
-    const stdout = new MemoryWriter();
-    const stderr = new MemoryWriter();
-    expect(await run(["--json", "query", "release validation"], { stderr, stdout })).toBe(2);
-    const response = JSON.parse(stdout.value);
+    // os.homedir() consults the environment only at process start on some
+    // platforms, so the isolated HOME must be given to a real child process.
+    const json = await runCliProcess(["--json", "query", "release validation"], home);
+    expect(json.exitCode).toBe(2);
+    const response = JSON.parse(json.stdout);
     expect(response).toMatchObject({
       protocolVersion: 2,
       command: "query",
@@ -322,21 +339,14 @@ test("carries configuration-setting details from the owning validator to both fo
     });
     expect(validateProtocolSchema(response, protocolResponseSchema)).toEqual([]);
 
-    const textStdout = new MemoryWriter();
-    const textStderr = new MemoryWriter();
-    expect(
-      await run(["query", "release validation"], { stderr: textStderr, stdout: textStdout }),
-    ).toBe(2);
-    expect(textStdout.value).toBe("");
-    expect(textStderr.value).toContain("code: query.config-invalid");
-    expect(textStderr.value).toContain(
+    const text = await runCliProcess(["query", "release validation"], home);
+    expect(text.exitCode).toBe(2);
+    expect(text.stdout).toBe("");
+    expect(text.stderr).toContain("code: query.config-invalid");
+    expect(text.stderr).toContain(
       "  details:\n    - query.maxWaitMs must be an integer from 0 through 120000 (received: nope). Fix or remove query.maxWaitMs in ~/.lorelum/config.yaml.\n",
     );
   } finally {
-    if (previousHome === undefined) delete process.env.HOME;
-    else process.env.HOME = previousHome;
-    if (previousUserProfile === undefined) delete process.env.USERPROFILE;
-    else process.env.USERPROFILE = previousUserProfile;
     await rm(home, { recursive: true, force: true });
   }
 });
