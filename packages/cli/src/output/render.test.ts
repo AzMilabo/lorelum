@@ -144,6 +144,34 @@ diagnostics:
 `);
 });
 
+test("escapes terminal controls in text details while preserving JSON values", () => {
+  const received = "\u001b[2J";
+  const detail = createErrorDetail({
+    kind: "usage",
+    subject: "--value",
+    reason: "invalid-value",
+    received,
+  });
+  const jsonWriter = new MemoryWriter();
+  const textWriter = new MemoryWriter();
+  const result = {
+    kind: "failure" as const,
+    command: "query",
+    code: "usage.invalid",
+    message: "The command invocation is invalid.",
+    details: [detail],
+    diagnostics: { traceId: "00000000-0000-4000-8000-000000000004" as never },
+  };
+
+  renderResult(jsonWriter, "json", result);
+  renderResult(textWriter, "text", result);
+
+  expect(JSON.parse(jsonWriter.value).error.details[0].received).toBe(received);
+  expect(jsonWriter.value).not.toContain(received);
+  expect(textWriter.value).toContain("(received: \\u001b[2J)");
+  expect(textWriter.value).not.toContain(received);
+});
+
 test("renders JSON failures as one envelope with the supplied trace", () => {
   const writer = new MemoryWriter();
 

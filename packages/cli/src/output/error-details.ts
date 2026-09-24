@@ -34,8 +34,6 @@ export interface ErrorDetail {
   readonly hint?: string;
 }
 
-export type ErrorDetailInput = ErrorDetail;
-
 /**
  * Output budgets for public details. `createErrorDetail` enforces them so every
  * emitted detail validates against `errorDetailSchema`.
@@ -56,7 +54,7 @@ export const errorDetailBudgets = Object.freeze({
  * and drops empty optional strings, so identical input always yields identical
  * output and the result always satisfies the public schema.
  */
-export function createErrorDetail(input: ErrorDetailInput): ErrorDetail {
+export function createErrorDetail(input: ErrorDetail): ErrorDetail {
   if (input.subject.length === 0) throw new TypeError("Error detail subject must not be empty.");
   const received = optionalText(input.received);
   const hint = optionalText(input.hint);
@@ -85,15 +83,19 @@ export function capErrorDetails(details: readonly ErrorDetail[]): readonly Error
  * people without parsing the message.
  */
 export function formatErrorDetail(detail: ErrorDetail): string {
-  const received = detail.received === undefined ? "" : ` (received: ${detail.received})`;
+  const subject = escapeTerminalControls(detail.subject);
+  const received =
+    detail.received === undefined ? "" : ` (received: ${escapeTerminalControls(detail.received)})`;
   const core =
     detail.expected === undefined
       ? detail.reason === "missing"
-        ? `${detail.subject} is required`
-        : `${detail.subject} was rejected (${detail.reason})`
-      : `${detail.subject} ${expectedClause(detail.expected)}`;
+        ? `${subject} is required`
+        : `${subject} was rejected (${detail.reason})`
+      : `${subject} ${expectedClause(detail.expected)}`;
   const statement = `${core}${received}.`;
-  return detail.hint === undefined ? statement : `${statement} ${detail.hint}`;
+  return detail.hint === undefined
+    ? statement
+    : `${statement} ${escapeTerminalControls(detail.hint)}`;
 }
 
 /** JSON Schema for one detail entry; composed into the public failure schema. */
@@ -154,12 +156,43 @@ export const errorDetailSchema = {
 function expectedClause(expected: ErrorDetailExpected): string {
   switch (expected.kind) {
     case "enum":
-      return `must be one of: ${expected.values.join(", ")}`;
+      return `must be one of: ${expected.values.map(escapeTerminalControls).join(", ")}`;
     case "integer-range":
       return `must be an integer from ${expected.min} through ${expected.max}`;
     case "type":
-      return `must be of type ${expected.name}`;
+      return `must be of type ${escapeTerminalControls(expected.name)}`;
   }
+}
+
+/** Keeps untrusted detail text printable when written directly to a terminal. */
+function escapeTerminalControls(value: string): string {
+  return [...value]
+    .map((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      if (!isTerminalControl(codePoint)) return character;
+
+      switch (character) {
+        case "\n":
+          return "\\n";
+        case "\r":
+          return "\\r";
+        case "\t":
+          return "\\t";
+        default:
+          return `\\u${codePoint.toString(16).padStart(4, "0")}`;
+      }
+    })
+    .join("");
+}
+
+function isTerminalControl(codePoint: number): boolean {
+  return (
+    codePoint <= 0x1f ||
+    (codePoint >= 0x7f && codePoint <= 0x9f) ||
+    (codePoint >= 0x2028 && codePoint <= 0x2029) ||
+    (codePoint >= 0x202a && codePoint <= 0x202e) ||
+    (codePoint >= 0x2066 && codePoint <= 0x2069)
+  );
 }
 
 function constrainExpected(expected: ErrorDetailExpected): ErrorDetailExpected {

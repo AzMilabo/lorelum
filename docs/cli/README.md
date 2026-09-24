@@ -59,7 +59,7 @@ lore pack list --details --json
 }
 ```
 
-失败 envelope 还可携带可选的 `error.details` 数组：由 owning validator 产生的结构化诊断事实，每项为 `kind`/`reason` 封闭枚举、非空 `subject` 定位符，以及可选的 `received`、`expected`（enum / integer-range / type 三变体）与一条 `hint`。契约、封闭枚举与输出预算（entry 上限、字段长度、确定性截断）由 `packages/cli/src/output/error-details.ts` 唯一定义，公共 schema 对每层保持 `additionalProperties: false`。无已验证事实的失败整体省略该字段；text 模式把同一事实压缩为每条一行的可行动提示写 stderr。`error.details` 是 `protocolVersion: 2` 内的可选演进，与 `error.recovery` 同策略；冻结 schema 副本做严格校验的 consumer 需改用随所装 CLI 导出的 `protocolResponseSchema`。面向用户的字段说明与示例见[站点 JSON envelope 说明](../../apps/site/content/docs/cli.mdx)。
+失败 envelope 还可携带可选的 `error.details` 数组：由 owning validator 产生的结构化诊断事实，每项为 `kind`/`reason` 封闭枚举、非空 `subject` 定位符，以及可选的 `received`、`expected`（enum / integer-range / type 三变体）与一条 `hint`。当前首批 producer 仅包括 query 整数选项与 query 整数设置，其他命令的 validator 尚未逐项接入。契约、封闭枚举与输出预算（entry 上限、字段长度、确定性截断）由 `packages/cli/src/output/error-details.ts` 唯一定义，公共 schema 对每层保持 `additionalProperties: false`。无已验证事实的失败整体省略该字段；text 模式在 `error` 区块下显示 `details`，即 JSON 中的同一 `error.details` 路径，但会把每项压缩成一行人类可读提示，并不逐字段镜像 JSON。`error.details` 是 `protocolVersion: 2` 内的可选演进，与 `error.recovery` 同策略；冻结 schema 副本做严格校验的 consumer 需改用随所装 CLI 导出的 `protocolResponseSchema`。面向用户的字段说明与示例见[站点 JSON envelope 说明](../../apps/site/content/docs/cli.mdx)。
 
 `model load` 的 stdout 在任务最终完成前保持沉默；stderr 使用 `model: resolving`、`model: downloading 50% (attempt 1)`、`model: verifying` 和 `model: starting` 这样的文案，只输出发生变化的阶段、百分比或 attempt。被取消、下载失败或 native 启动失败在默认格式以 text error 返回，在 `--json` 格式以最终 failure envelope 返回；两者都不把 202 接受状态当作命令成功。
 

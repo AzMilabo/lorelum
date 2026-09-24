@@ -308,6 +308,34 @@ test("carries query-option details from the owning validator to both formats", a
   );
 });
 
+test("classifies negative integer query options as out of range", async () => {
+  await Promise.all(
+    (
+      [
+        ["--max-wait-ms", 120_000],
+        ["--min-coverage-percent", 100],
+      ] as const
+    ).map(async ([option, max]) => {
+      const stdout = new MemoryWriter();
+      const stderr = new MemoryWriter();
+
+      expect(
+        await run(["--json", "query", "release validation", option, "-1"], { stderr, stdout }),
+      ).toBe(2);
+      expect(JSON.parse(stdout.value).error.details).toEqual([
+        {
+          kind: "usage",
+          subject: option,
+          reason: "out-of-range",
+          received: "-1",
+          expected: { kind: "integer-range", min: 0, max },
+        },
+      ]);
+      expect(stderr.value).toBe("");
+    }),
+  );
+});
+
 test("carries configuration-setting details from the owning validator to both formats", async () => {
   const home = await mkdtemp(join(tmpdir(), "lorelum-error-details-"));
   await mkdir(join(home, ".lorelum"));

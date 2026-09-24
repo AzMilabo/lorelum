@@ -110,7 +110,7 @@ function parseIntegerOption(
   max: number,
 ): number | undefined {
   if (value === undefined) return undefined;
-  if (typeof value !== "string" || !/^[0-9]+$/.test(value)) {
+  if (typeof value !== "string" || !/^-?[0-9]+$/.test(value)) {
     throw integerOptionError(option, "invalid-type", describeOptionValue(value), min, max);
   }
   const parsed = Number(value);

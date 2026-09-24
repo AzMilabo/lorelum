@@ -232,6 +232,24 @@ describe("formatErrorDetail text compression", () => {
     expect(text).not.toMatch(/[\r\n]/u);
     expect(text).toContain("(received: nope\\nsecond line\\r\\nthird)");
   });
+
+  test("escapes terminal controls across every rendered detail string", () => {
+    const text = formatErrorDetail({
+      kind: "configuration",
+      subject: "query.\u001b[2JmaxWaitMs",
+      reason: "invalid-value",
+      received: "nope\u001b[2J\u0085\u2028\u202e",
+      expected: { kind: "enum", values: ["\u009b31mred"] },
+      hint: "Fix this value.\u001b[2J",
+    });
+
+    expect(text).toBe(
+      "query.\\u001b[2JmaxWaitMs must be one of: \\u009b31mred (received: nope\\u001b[2J\\u0085\\u2028\\u202e). Fix this value.\\u001b[2J",
+    );
+    for (const control of ["\u001b", "\u0085", "\u2028", "\u202e"]) {
+      expect(text).not.toContain(control);
+    }
+  });
 });
 
 describe("errorDetailSchema closure", () => {
