@@ -24,32 +24,6 @@ export interface BackendCompatibilityRecovery {
   readonly retry: "original-command";
 }
 
-/**
- * Validator-owned diagnostic facts carried by backend failures. Structurally
- * identical to the CLI envelope's `ErrorDetail` contract; keep both shapes in
- * sync (same mirror approach as `BackendCompatibilityRecovery`).
- */
-export interface BackendErrorDetail {
-  readonly kind: "usage" | "configuration";
-  readonly subject: string;
-  readonly reason:
-    | "missing"
-    | "invalid-type"
-    | "invalid-value"
-    | "out-of-range"
-    | "conflicting-options"
-    | "unknown-option"
-    | "unknown-command"
-    | "unknown-key"
-    | "syntax";
-  readonly received?: string;
-  readonly expected?:
-    | { readonly kind: "enum"; readonly values: readonly string[] }
-    | { readonly kind: "integer-range"; readonly min: number; readonly max: number }
-    | { readonly kind: "type"; readonly name: string };
-  readonly hint?: string;
-}
-
 const messages: Record<BackendErrorCode, string> = {
   "backend.unavailable": "The local backend is not running.",
   "backend.port-conflict": "The local backend address is occupied by an unverified service.",
@@ -71,9 +45,9 @@ export class BackendError extends Error {
     readonly code: BackendErrorCode,
     options?: ErrorOptions,
     readonly recovery?: BackendCompatibilityRecovery,
-    readonly details?: readonly BackendErrorDetail[],
+    message = messages[code],
   ) {
-    super(messages[code], options);
+    super(message, options);
     this.name = "BackendError";
   }
 }

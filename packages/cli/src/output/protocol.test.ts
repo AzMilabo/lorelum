@@ -1,6 +1,5 @@
 import { expect, test } from "bun:test";
 
-import { createErrorDetail, errorDetailBudgets } from "./error-details.js";
 import {
   createFailureEnvelope,
   createSuccessEnvelope,
@@ -90,94 +89,14 @@ test("creates optional machine recovery without widening unrelated failures", ()
   expect(validateProtocolSchema(response, protocolResponseSchema)).toEqual([]);
 });
 
-const configurationDetail = createErrorDetail({
-  kind: "configuration",
-  subject: "query.maxWaitMs",
-  reason: "invalid-type",
-  received: "nope",
-  expected: { kind: "integer-range", min: 0, max: 120_000 },
-  hint: "Fix or remove query.maxWaitMs in ~/.lorelum/config.yaml.",
-});
-
-test("creates failures carrying validator-owned details", () => {
-  const response = createFailureEnvelope(
-    "query",
-    "query.config-invalid",
-    "The query configuration is invalid.",
-    undefined,
-    { traceId },
-    [configurationDetail],
-  );
-
-  expect(response.error.details).toEqual([configurationDetail]);
+test("rejects an undeclared details field with the exported schema", () => {
+  const response = createFailureEnvelope("query", "usage.invalid", "Invalid input.", undefined, {
+    traceId,
+  });
   expect(validateProtocolSchema(response, protocolResponseSchema)).toEqual([]);
-});
-
-test("omits empty detail lists and caps over-budget lists", () => {
-  expect(
-    createFailureEnvelope("query", "usage.invalid", "m", undefined, { traceId }, []).error.details,
-  ).toBeUndefined();
-
-  const repeated = createErrorDetail({ kind: "usage", subject: "--x", reason: "missing" });
-  const capped = createFailureEnvelope("query", "usage.invalid", "m", undefined, { traceId }, [
-    ...Array.from({ length: errorDetailBudgets.maxDetails + 3 }, () => repeated),
-  ]);
-  expect(capped.error.details).toHaveLength(errorDetailBudgets.maxDetails);
-  expect(validateProtocolSchema(capped, protocolResponseSchema)).toEqual([]);
-});
-
-test("rejects malformed details with the exported JSON Schema", () => {
-  const base = createFailureEnvelope("query", "usage.invalid", "m", undefined, { traceId }, [
-    createErrorDetail({
-      kind: "usage",
-      subject: "--top-k",
-      reason: "out-of-range",
-      received: "0",
-      expected: { kind: "integer-range", min: 1, max: 50 },
-    }),
-  ]);
-
-  const mutate = (path: (error: Record<string, unknown>) => void): unknown => {
-    const clone = JSON.parse(JSON.stringify(base)) as typeof base;
-    path(clone.error);
-    return clone;
-  };
-
   expect(
     validateProtocolSchema(
-      mutate((error) => {
-        (error.details as Record<string, unknown>[])[0]!.unexpected = true;
-      }),
-      protocolResponseSchema,
-    ),
-  ).not.toEqual([]);
-  expect(
-    validateProtocolSchema(
-      mutate((error) => {
-        (error.details as Record<string, unknown>[])[0]!.kind = "runtime";
-      }),
-      protocolResponseSchema,
-    ),
-  ).not.toEqual([]);
-  expect(
-    validateProtocolSchema(
-      mutate((error) => {
-        (error.details as Record<string, unknown>[])[0]!.reason = "too-big";
-      }),
-      protocolResponseSchema,
-    ),
-  ).not.toEqual([]);
-  expect(
-    validateProtocolSchema(
-      mutate((error) => {
-        (error.details as Record<string, unknown>[])[0]!.expected = { kind: "range", min: 1 };
-      }),
-      protocolResponseSchema,
-    ),
-  ).not.toEqual([]);
-  expect(
-    validateProtocolSchema(
-      mutate((error) => (error.details = [])),
+      { ...response, error: { ...response.error, details: [{ subject: "--top-k" }] } },
       protocolResponseSchema,
     ),
   ).not.toEqual([]);

@@ -26,16 +26,7 @@ function validate(value: unknown, schema: JsonSchema, path: string): string[] {
   }
 
   if (schema.type === "string") {
-    if (typeof value !== "string") return [`${path} must be a string`];
-    // JSON Schema string lengths count Unicode code points, not UTF-16 units.
-    const length = [...value].length;
-    if (schema.minLength !== undefined && length < schema.minLength) {
-      return [`${path} must contain at least ${schema.minLength} characters`];
-    }
-    if (schema.maxLength !== undefined && length > schema.maxLength) {
-      return [`${path} must contain at most ${schema.maxLength} characters`];
-    }
-    return [];
+    return typeof value === "string" ? [] : [`${path} must be a string`];
   }
 
   if (schema.type === "boolean") {

@@ -9,7 +9,7 @@ import {
   validateJsonSchema,
   validateProtocolSchema,
 } from "./output/protocol-schema.test-helper.js";
-import { describeCommand } from "./registry.js";
+import { commandRegistry, describeCommand } from "./registry.js";
 
 class MemoryWriter {
   value = "";
@@ -231,9 +231,10 @@ test("validates invalid calls before help and version responses", async () => {
       expect(await run(["--json", ...args], { stderr, stdout })).toBe(2);
       expect(JSON.parse(stdout.value)).toMatchObject({
         ok: false,
-        error: { code: "usage.invalid", message: "The command invocation is invalid." },
+        error: { code: "usage.invalid", message: expect.any(String) },
       });
       expect(JSON.parse(stdout.value).error.details).toBeUndefined();
+      expect(JSON.parse(stdout.value).error.message).not.toBe("The command invocation is invalid.");
       expect(stdout.value).not.toContain("private-token");
       expect(stderr.value).toBe("");
       expect(stderr.value).not.toContain("private-token");
@@ -256,13 +257,59 @@ test("writes default failures to stderr as complete text", async () => {
   expect(stdout.value).toBe("");
   expect(stderr.value).toBe(`error:
   code: usage.invalid
-  message: The command invocation is invalid.
+  message: Unknown command or extra argument. Run lore --help to see valid arguments.
 diagnostics:
   traceId: 00000000-0000-4000-8000-000000000004
 `);
 });
 
-test("carries query-option details from the owning validator to both formats", async () => {
+test("every registered command has one actionable message for invalid invocation", async () => {
+  for (const definition of commandRegistry) {
+    const command = definition.name.split(".");
+    const args = [...command, "--not-a-lore-option"];
+    const stdout = new MemoryWriter();
+    const stderr = new MemoryWriter();
+
+    expect(await run(["--json", ...args], { stdout, stderr })).toBe(2);
+    const response = JSON.parse(stdout.value);
+    expect(response).toMatchObject({
+      ok: false,
+      error: { code: "usage.invalid" },
+    });
+    const message = response.error.message as string;
+    expect(message).toContain(`Run lore ${command.join(" ")} --help to see valid arguments.`);
+    expect(message).not.toBe("The command invocation is invalid.");
+    expect(Object.keys(response.error)).toEqual(["code", "message"]);
+    expect(validateProtocolSchema(response, protocolResponseSchema)).toEqual([]);
+
+    const text = new MemoryWriter();
+    expect(await run(args, { stdout: new MemoryWriter(), stderr: text })).toBe(2);
+    expect(text.value).toContain(`message: ${message}`);
+  }
+});
+
+test.each([
+  { args: ["get", "bad-id"], message: "Practice ID" },
+  { args: ["pack", "install", "BadName"], message: "Pack name" },
+  { args: ["pack", "list", "bad.name"], message: "Pack name" },
+  { args: ["pack", "remove", "bad.name"], message: "Pack name" },
+  { args: ["logs", "--limit", "1001"], message: "--limit must be an integer from 1 through 1000" },
+  { args: ["feedback", "draft"], message: "exactly one of --trace-id or --input" },
+  { args: ["backend", "lease", "acquire", "--ttl-ms", "0"], message: "--ttl-ms must be an integer from 1000 through 300000" },
+  { args: ["query", "text", "--require-complete", "--min-coverage-percent", "1"], message: "Use --require-complete or --min-coverage-percent" },
+])("retains validator-owned correction for $args", async ({ args, message }) => {
+  const stdout = new MemoryWriter();
+  expect(await run(["--json", ...args], { stdout })).toBe(2);
+  const response = JSON.parse(stdout.value);
+  expect(response.error).toEqual({ code: "usage.invalid", message: expect.stringContaining(message) });
+  expect(validateProtocolSchema(response, protocolResponseSchema)).toEqual([]);
+
+  const stderr = new MemoryWriter();
+  expect(await run(args, { stderr })).toBe(2);
+  expect(stderr.value).toContain(`message: ${response.error.message}`);
+});
+
+test("returns a query option's valid range in one message in both formats", async () => {
   const stdout = new MemoryWriter();
   const stderr = new MemoryWriter();
 
@@ -279,16 +326,7 @@ test("carries query-option details from the owning validator to both formats", a
     ok: false,
     error: {
       code: "usage.invalid",
-      message: "The command invocation is invalid.",
-      details: [
-        {
-          kind: "usage",
-          subject: "--min-coverage-percent",
-          reason: "out-of-range",
-          received: "101",
-          expected: { kind: "integer-range", min: 0, max: 100 },
-        },
-      ],
+      message: "--min-coverage-percent must be an integer from 0 through 100.",
     },
   });
   expect(validateProtocolSchema(response, protocolResponseSchema)).toEqual([]);
@@ -304,11 +342,11 @@ test("carries query-option details from the owning validator to both formats", a
   expect(textStdout.value).toBe("");
   expect(textStderr.value).toContain("code: usage.invalid");
   expect(textStderr.value).toContain(
-    "  details:\n    - --min-coverage-percent must be an integer from 0 through 100 (received: 101).\n",
+    "  message: --min-coverage-percent must be an integer from 0 through 100.\n",
   );
 });
 
-test("classifies negative integer query options as out of range", async () => {
+test("negative integer query options show the accepted range", async () => {
   await Promise.all(
     (
       [
@@ -322,22 +360,17 @@ test("classifies negative integer query options as out of range", async () => {
       expect(
         await run(["--json", "query", "release validation", option, "-1"], { stderr, stdout }),
       ).toBe(2);
-      expect(JSON.parse(stdout.value).error.details).toEqual([
-        {
-          kind: "usage",
-          subject: option,
-          reason: "out-of-range",
-          received: "-1",
-          expected: { kind: "integer-range", min: 0, max },
-        },
-      ]);
+      expect(JSON.parse(stdout.value).error).toEqual({
+        code: "usage.invalid",
+        message: `${option} must be an integer from 0 through ${max}.`,
+      });
       expect(stderr.value).toBe("");
     }),
   );
 });
 
-test("carries configuration-setting details from the owning validator to both formats", async () => {
-  const home = await mkdtemp(join(tmpdir(), "lorelum-error-details-"));
+test("returns a configuration repair target in one message in both formats", async () => {
+  const home = await mkdtemp(join(tmpdir(), "lorelum-error-messages-"));
   await mkdir(join(home, ".lorelum"));
   await writeFile(join(home, ".lorelum", "config.yaml"), "query:\n  maxWaitMs: nope\n");
   try {
@@ -352,17 +385,8 @@ test("carries configuration-setting details from the owning validator to both fo
       ok: false,
       error: {
         code: "query.config-invalid",
-        message: "The query configuration is invalid.",
-        details: [
-          {
-            kind: "configuration",
-            subject: "query.maxWaitMs",
-            reason: "invalid-type",
-            received: "nope",
-            expected: { kind: "integer-range", min: 0, max: 120_000 },
-            hint: "Fix or remove query.maxWaitMs in ~/.lorelum/config.yaml.",
-          },
-        ],
+        message:
+          "query.maxWaitMs must be an integer from 0 through 120000. Fix or remove it in ~/.lorelum/config.yaml.",
       },
     });
     expect(validateProtocolSchema(response, protocolResponseSchema)).toEqual([]);
@@ -372,7 +396,7 @@ test("carries configuration-setting details from the owning validator to both fo
     expect(text.stdout).toBe("");
     expect(text.stderr).toContain("code: query.config-invalid");
     expect(text.stderr).toContain(
-      "  details:\n    - query.maxWaitMs must be an integer from 0 through 120000 (received: nope). Fix or remove query.maxWaitMs in ~/.lorelum/config.yaml.\n",
+      "  message: query.maxWaitMs must be an integer from 0 through 120000. Fix or remove it in ~/.lorelum/config.yaml.\n",
     );
   } finally {
     await rm(home, { recursive: true, force: true });

@@ -21,12 +21,7 @@ export function lifecycleCommand(
         return { data: await execute(invocation) };
       } catch (error) {
         if (error instanceof BackendError || error instanceof EmbeddingError)
-          throw new CliError(
-            error.code,
-            error.message,
-            undefined,
-            error instanceof BackendError ? error.details : undefined,
-          );
+          throw new CliError(error.code, error.message);
         throw error;
       }
     },

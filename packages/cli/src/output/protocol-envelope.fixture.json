@@ -17,25 +17,5 @@
       "code": "usage.invalid",
       "message": "The command invocation is invalid."
     }
-  },
-  {
-    "protocolVersion": 2,
-    "toolVersion": "0.1.0-alpha.4",
-    "command": "fixture.failure-details",
-    "diagnostics": { "traceId": "00000000-0000-4000-8000-000000000013" },
-    "ok": false,
-    "error": {
-      "code": "usage.invalid",
-      "message": "The command invocation is invalid.",
-      "details": [
-        {
-          "kind": "usage",
-          "subject": "--min-coverage-percent",
-          "reason": "out-of-range",
-          "received": "101",
-          "expected": { "kind": "integer-range", "min": 0, "max": 100 }
-        }
-      ]
-    }
   }
 ]

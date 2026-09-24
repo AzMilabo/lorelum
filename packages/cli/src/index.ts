@@ -78,10 +78,4 @@ export {
   type ProtocolFailure,
   type ProtocolSuccess,
 } from "./output/protocol.js";
-export type {
-  ErrorDetail,
-  ErrorDetailExpected,
-  ErrorDetailKind,
-  ErrorDetailReason,
-} from "./output/error-details.js";
 export { renderResult, type OutputFormat, type TextRenderer } from "./output/render.js";

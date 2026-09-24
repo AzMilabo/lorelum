@@ -86,43 +86,31 @@ lore logs prune
 | `data` | 成功时的命令结果。 |
 | `error.code` | 失败时的稳定错误标识。 |
 | `error.message` | 失败时供人阅读的原因说明。 |
-| `error.details` | 失败时可选的结构化诊断事实：`kind`、`subject`、`reason`，以及已知时的 `received`、`expected` 与 `hint`。 |
+| `error.recovery` | 可用时提供 Backend 恢复操作。 |
 
 程序应按错误码分支，不解析错误消息。响应成功时，仍需检查命令的具体状态，才能判断异步工作是否完成。
 
-失败响应还可以携带可选的 `error.details` 数组。每一项都是封闭的 schema 定义对象：`kind`（`usage` 或 `configuration`）、稳定的 `subject` 定位符（例如 option flag 或 config key）、小而稳定的 `reason` 枚举，以及当规则的 owning 组件确实知道时——收到的 `received` 值、`expected` 事实（允许的枚举值、整数范围或类型名）与一条可执行的 `hint`。请读取这些字段而不是解析 `error.message`；没有已验证事实时整个数组省略。当前首批 producer 是 query 整数选项（`--max-wait-ms`、`--min-coverage-percent`）和 query 整数设置（`query.maxWaitMs`、`query.minCoveragePercent`）；其他命令的 validator 目前尚未输出 details。
-
-默认 text 输出会把 `details` 放在 `error` 区块下，因此它与 JSON envelope 中的 `error.details` 是同一字段路径：
+可纠正的失败会直接在 `error.message` 说明已知选项、允许范围或配置修复目标。默认 text 的 stderr 展示同一消息：
 
 ```text
 error:
   code: usage.invalid
-  details:
-    - --min-coverage-percent must be an integer from 0 through 100 (received: 101).
+  message: --min-coverage-percent must be an integer from 0 through 100.
 ```
 
-text 会将每项压缩成一行便于人阅读的提示，并不逐字段镜像 JSON；需要单独读取 `kind`、`reason` 等字段时请使用 `--json`。
+对应的 JSON 失败响应没有第二个 details 字段：
 
 ```json
 {
   "ok": false,
   "error": {
     "code": "usage.invalid",
-    "message": "The command invocation is invalid.",
-    "details": [
-      {
-        "kind": "usage",
-        "subject": "--min-coverage-percent",
-        "reason": "out-of-range",
-        "received": "101",
-        "expected": { "kind": "integer-range", "min": 0, "max": 100 }
-      }
-    ]
+    "message": "--min-coverage-percent must be an integer from 0 through 100."
   }
 }
 ```
 
-`error.details` 是 `protocolVersion: 2` 内的可选演进，与更早的可选字段 `error.recovery` 遵循同一策略。用冻结的 envelope schema 副本做严格校验的 consumer 需要改用所装 CLI 导出的 schema；忽略未知字段的 consumer 无需任何改动。
+协议仍为 version 2。未知失败使用安全的通用消息；程序应继续按 `error.code` 分支，不解析面向人的 message。
 
 ## 退出码
 

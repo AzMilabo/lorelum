@@ -1,6 +1,5 @@
 import { ConfigError, loadConfig, type LoadConfigOptions } from "@lorelum/config";
 
-import { createErrorDetail, type ErrorDetailReason } from "../output/error-details";
 import { CliError } from "../runtime/errors";
 
 export interface QuerySettings {
@@ -13,28 +12,18 @@ export const DEFAULT_QUERY_SETTINGS: QuerySettings = Object.freeze({
   minCoveragePercent: 0,
 });
 
-function invalid(): never {
-  throw new CliError("query.config-invalid", "The query configuration is invalid.");
+function invalid(subject = "query"): never {
+  throw new CliError(
+    "query.config-invalid",
+    `Invalid ${subject} in ~/.lorelum/config.yaml. Fix or remove the setting.`,
+  );
 }
 
-/** This validator owns the integer rule for its settings, so it reports the verified facts. */
-function invalidSetting(
-  key: string,
-  value: unknown,
-  min: number,
-  max: number,
-  reason: Extract<ErrorDetailReason, "invalid-type" | "out-of-range">,
-): never {
-  throw new CliError("query.config-invalid", "The query configuration is invalid.", undefined, [
-    createErrorDetail({
-      kind: "configuration",
-      subject: key,
-      reason,
-      received: typeof value === "string" ? value : (JSON.stringify(value) ?? String(value)),
-      expected: { kind: "integer-range", min, max },
-      hint: `Fix or remove ${key} in ~/.lorelum/config.yaml.`,
-    }),
-  ]);
+function invalidSetting(key: string, min: number, max: number): never {
+  throw new CliError(
+    "query.config-invalid",
+    `${key} must be an integer from ${min} through ${max}. Fix or remove it in ~/.lorelum/config.yaml.`,
+  );
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -43,9 +32,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function integer(value: unknown, key: string, min: number, max: number): number | undefined {
   if (value === undefined) return undefined;
-  if (typeof value !== "number" || !Number.isSafeInteger(value))
-    invalidSetting(key, value, min, max, "invalid-type");
-  if (value < min || value > max) invalidSetting(key, value, min, max, "out-of-range");
+  if (typeof value !== "number" || !Number.isSafeInteger(value)) invalidSetting(key, min, max);
+  if (value < min || value > max) invalidSetting(key, min, max);
   return value;
 }
 
@@ -59,7 +47,7 @@ export async function loadQuerySettings(options: LoadConfigOptions = {}): Promis
     throw error;
   }
   if (document.query === undefined) return DEFAULT_QUERY_SETTINGS;
-  if (!isPlainObject(document.query)) invalid();
+  if (!isPlainObject(document.query)) invalid("query section");
   return Object.freeze({
     maxWaitMs:
       integer(document.query.maxWaitMs, "query.maxWaitMs", 0, 120_000) ??

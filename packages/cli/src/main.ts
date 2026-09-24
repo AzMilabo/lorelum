@@ -267,7 +267,7 @@ export async function run(arguments_: string[], options: RunOptions = {}): Promi
     await processRuntime?.flush();
     return commandExitCode;
   } catch (error) {
-    const cliError = toVisibleCliError(error, visibleErrorCodes);
+    const cliError = toVisibleCliError(error, visibleErrorCodes, command);
     diagnostics.emit({
       time: new Date().toISOString(),
       level: "info",
@@ -298,7 +298,6 @@ export async function run(arguments_: string[], options: RunOptions = {}): Promi
       code: cliError.code,
       message: cliError.message,
       ...(cliError.recovery === undefined ? {} : { recovery: cliError.recovery }),
-      ...(cliError.details === undefined ? {} : { details: cliError.details }),
       diagnostics: { traceId },
     });
     return cliError.exitCode;

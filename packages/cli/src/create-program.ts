@@ -147,7 +147,7 @@ async function executeCommand(
   const versionOption = enabledFrameworkOption(command, definition, "version");
 
   if (helpOption !== undefined && versionOption !== undefined) {
-    throw invalidInvocationError();
+    throw invalidInvocationError("Use --help or --version, not both.");
   }
   if (versionOption !== undefined) {
     const response = versionOption.response;
@@ -174,7 +174,9 @@ async function executeCommand(
   assertApplicableFrameworkOptions(command, definition);
   for (const option of definition.options) {
     if (option.optionRequired && !hasParsedOption(command, option)) {
-      throw invalidInvocationError();
+      throw invalidInvocationError(
+        `${option.longFlag} is required for lore ${definition.name.replaceAll(".", " ")}.`,
+      );
     }
   }
 
@@ -209,7 +211,10 @@ function assertApplicableFrameworkOptions(command: Command, definition: CommandD
     ) {
       continue;
     }
-    if (!commandOptionAppliesTo(option, definition)) throw invalidInvocationError();
+    if (!commandOptionAppliesTo(option, definition))
+      throw invalidInvocationError(
+        `${option.longFlag} is not available for lore ${definition.name.replaceAll(".", " ")}.`,
+      );
   }
 }
 
@@ -261,7 +266,10 @@ function enabledFrameworkOption(
 ): CommandOption | undefined {
   const option = frameworkOption(behavior);
   if (command.optsWithGlobals()[commandOptionKey(option)] !== true) return undefined;
-  if (!commandOptionAppliesTo(option, definition)) throw invalidInvocationError();
+  if (!commandOptionAppliesTo(option, definition))
+    throw invalidInvocationError(
+      `${option.longFlag} is not available for lore ${definition.name.replaceAll(".", " ")}.`,
+    );
   return option;
 }
 

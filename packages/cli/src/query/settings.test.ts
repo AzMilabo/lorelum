@@ -35,45 +35,29 @@ test("loads project-independent user query settings", async () => {
   });
 });
 
-test("rejects invalid user query settings with validator-owned details", async () => {
+test("rejects invalid user query settings with an actionable message", async () => {
   await fixture(async (home, file) => {
     await writeFile(file, "query:\n  maxWaitMs: nope\n");
     await expect(loadQuerySettings({ homeDirectory: home })).rejects.toMatchObject({
       code: "query.config-invalid",
-      details: [
-        {
-          kind: "configuration",
-          subject: "query.maxWaitMs",
-          reason: "invalid-type",
-          received: "nope",
-          expected: { kind: "integer-range", min: 0, max: 120_000 },
-          hint: "Fix or remove query.maxWaitMs in ~/.lorelum/config.yaml.",
-        },
-      ],
+      message:
+        "query.maxWaitMs must be an integer from 0 through 120000. Fix or remove it in ~/.lorelum/config.yaml.",
     });
   });
 });
 
-test("distinguishes out-of-range settings through the same detail channel", async () => {
+test("identifies the out-of-range setting in the same message", async () => {
   await fixture(async (home, file) => {
     await writeFile(file, "query:\n  minCoveragePercent: 200\n");
     await expect(loadQuerySettings({ homeDirectory: home })).rejects.toMatchObject({
       code: "query.config-invalid",
-      details: [
-        {
-          kind: "configuration",
-          subject: "query.minCoveragePercent",
-          reason: "out-of-range",
-          received: "200",
-          expected: { kind: "integer-range", min: 0, max: 100 },
-          hint: "Fix or remove query.minCoveragePercent in ~/.lorelum/config.yaml.",
-        },
-      ],
+      message:
+        "query.minCoveragePercent must be an integer from 0 through 100. Fix or remove it in ~/.lorelum/config.yaml.",
     });
   });
 });
 
-test("keeps failures without verified facts detail-free", async () => {
+test("keeps YAML syntax failures safe and actionable", async () => {
   await fixture(async (home, file) => {
     await writeFile(file, "query:\n  maxWaitMs: [broken\n");
     let caught: unknown;
@@ -84,6 +68,6 @@ test("keeps failures without verified facts detail-free", async () => {
     }
     expect(caught).toBeInstanceOf(CliError);
     expect((caught as CliError).code).toBe("query.config-invalid");
-    expect((caught as CliError).details).toBeUndefined();
+    expect((caught as CliError).message).toContain("~/.lorelum/config.yaml");
   });
 });

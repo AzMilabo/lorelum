@@ -1,6 +1,5 @@
 import { expect, test } from "bun:test";
 
-import { createErrorDetail } from "./error-details.js";
 import { protocolResponseSchema, toolVersion } from "./protocol.js";
 import { renderResult } from "./render.js";
 import { validateProtocolSchema } from "./protocol-schema.test-helper.js";
@@ -95,81 +94,29 @@ diagnostics:
 `);
 });
 
-test("renders failure details as structured JSON and compressed text", () => {
-  const detail = createErrorDetail({
-    kind: "usage",
-    subject: "--min-coverage-percent",
-    reason: "out-of-range",
-    received: "101",
-    expected: { kind: "integer-range", min: 0, max: 100 },
-  });
-
-  const jsonWriter = new MemoryWriter();
-  renderResult(jsonWriter, "json", {
-    kind: "failure",
-    command: "query",
-    code: "usage.invalid",
-    message: "The command invocation is invalid.",
-    details: [detail],
-    diagnostics: { traceId: "00000000-0000-4000-8000-000000000004" as never },
-  });
-  const response = JSON.parse(jsonWriter.value);
-  expect(response.error.details).toEqual([
-    {
-      kind: "usage",
-      subject: "--min-coverage-percent",
-      reason: "out-of-range",
-      received: "101",
-      expected: { kind: "integer-range", min: 0, max: 100 },
-    },
-  ]);
-  expect(validateProtocolSchema(response, protocolResponseSchema)).toEqual([]);
-
-  const textWriter = new MemoryWriter();
-  renderResult(textWriter, "text", {
-    kind: "failure",
-    command: "query",
-    code: "usage.invalid",
-    message: "The command invocation is invalid.",
-    details: [detail],
-    diagnostics: { traceId: "00000000-0000-4000-8000-000000000004" as never },
-  });
-  expect(textWriter.value).toBe(`error:
-  code: usage.invalid
-  message: The command invocation is invalid.
-  details:
-    - --min-coverage-percent must be an integer from 0 through 100 (received: 101).
-diagnostics:
-  traceId: 00000000-0000-4000-8000-000000000004
-`);
-});
-
-test("escapes terminal controls in text details while preserving JSON values", () => {
-  const received = "\u001b[2J";
-  const detail = createErrorDetail({
-    kind: "usage",
-    subject: "--value",
-    reason: "invalid-value",
-    received,
-  });
+test("renders the same bounded, terminal-safe failure message in both formats", () => {
+  const raw = `Invalid --value \u001b[2J\u202e${"x".repeat(500)}`;
   const jsonWriter = new MemoryWriter();
   const textWriter = new MemoryWriter();
   const result = {
     kind: "failure" as const,
     command: "query",
     code: "usage.invalid",
-    message: "The command invocation is invalid.",
-    details: [detail],
+    message: raw,
     diagnostics: { traceId: "00000000-0000-4000-8000-000000000004" as never },
   };
 
   renderResult(jsonWriter, "json", result);
   renderResult(textWriter, "text", result);
 
-  expect(JSON.parse(jsonWriter.value).error.details[0].received).toBe(received);
-  expect(jsonWriter.value).not.toContain(received);
-  expect(textWriter.value).toContain("(received: \\u001b[2J)");
-  expect(textWriter.value).not.toContain(received);
+  const message = JSON.parse(jsonWriter.value).error.message as string;
+  expect(message).toContain("\\u001b[2J\\u202e");
+  expect(message).toEndWith("...");
+  expect(message.length).toBeLessThanOrEqual(400);
+  expect(textWriter.value).toContain(message);
+  expect(textWriter.value).not.toContain("\u001b");
+  expect(textWriter.value).not.toContain("\u202e");
+  expect(validateProtocolSchema(JSON.parse(jsonWriter.value), protocolResponseSchema)).toEqual([]);
 });
 
 test("renders JSON failures as one envelope with the supplied trace", () => {

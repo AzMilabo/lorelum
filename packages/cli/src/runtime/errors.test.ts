@@ -1,38 +1,53 @@
 import { describe, expect, test } from "bun:test";
 
-import { createErrorDetail } from "../output/error-details.js";
 import { CliError, toVisibleCliError } from "./errors.js";
 
-const detail = createErrorDetail({
-  kind: "usage",
-  subject: "--top-k",
-  reason: "out-of-range",
-});
-
-describe("toVisibleCliError details handling", () => {
-  test("preserves details when the error code stays visible", () => {
-    const error = new CliError("usage.invalid", "The command invocation is invalid.", undefined, [
-      detail,
-    ]);
-
-    expect(toVisibleCliError(error, ["usage.invalid"]).details).toEqual([detail]);
+describe("toVisibleCliError message handling", () => {
+  test("preserves validator-owned messages for declared codes", () => {
+    const error = new CliError("usage.invalid", "--top-k must be a positive integer.");
+    expect(toVisibleCliError(error, ["usage.invalid"], "query").message).toBe(error.message);
   });
 
-  test("drops details when the allowlist downgrades the code", () => {
-    const error = new CliError("pack.invalid", "The Pack is invalid.", undefined, [detail]);
-    const visible = toVisibleCliError(error, ["usage.invalid"]);
-
-    expect(visible.code).toBe("runtime.unexpected");
-    expect(visible.details).toBeUndefined();
+  test("downgrades undeclared codes without leaking their message", () => {
+    const visible = toVisibleCliError(
+      new CliError("pack.invalid", "private-token"),
+      ["usage.invalid", "runtime.unexpected"],
+      "pack.list",
+    );
+    expect(visible).toMatchObject({
+      code: "runtime.unexpected",
+      message: "The command could not be completed.",
+    });
   });
 
-  test("does not fabricate details for Commander parse errors", () => {
-    const commanderError = Object.assign(new Error("error: unknown option '--nope'"), {
+  test("maps Commander categories to command-specific help without raw input", () => {
+    const commanderError = Object.assign(new Error("private-token"), {
       code: "commander.unknownOption",
     });
-    const visible = toVisibleCliError(commanderError, ["usage.invalid"]);
+    const visible = toVisibleCliError(commanderError, ["usage.invalid"], "pack.install");
+    expect(visible).toMatchObject({
+      code: "usage.invalid",
+      message: "Unknown option. Run lore pack install --help to see valid arguments.",
+    });
+    expect(visible.message).not.toContain("private-token");
+    const invalidValue = toVisibleCliError(
+      Object.assign(new Error("private-token"), { code: "commander.invalidArgument" }),
+      ["usage.invalid"],
+      "query",
+    );
+    expect(invalidValue.message).toBe(
+      "An option or argument value is not allowed. Run lore query --help to see valid arguments.",
+    );
+  });
 
-    expect(visible.code).toBe("usage.invalid");
-    expect(visible.details).toBeUndefined();
+  test("generic usage failures offer the selected command Help", () => {
+    const visible = toVisibleCliError(
+      new CliError("usage.invalid", "The command invocation is invalid."),
+      ["usage.invalid"],
+      "query",
+    );
+    expect(visible.message).toBe(
+      "Invalid invocation. Run lore query --help to see valid arguments.",
+    );
   });
 });
