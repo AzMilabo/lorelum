@@ -295,17 +295,26 @@ test.each([
   { args: ["pack", "remove", "bad.name"], message: "Pack name" },
   { args: ["logs", "--limit", "1001"], message: "--limit must be an integer from 1 through 1000" },
   { args: ["feedback", "draft"], message: "exactly one of --trace-id or --input" },
-  { args: ["backend", "lease", "acquire", "--ttl-ms", "0"], message: "--ttl-ms must be an integer from 1000 through 300000" },
-  { args: ["query", "text", "--require-complete", "--min-coverage-percent", "1"], message: "Use --require-complete or --min-coverage-percent" },
+  {
+    args: ["backend", "lease", "acquire", "--ttl-ms", "0"],
+    message: "--ttl-ms must be an integer from 1000 through 300000",
+  },
+  {
+    args: ["query", "text", "--require-complete", "--min-coverage-percent", "1"],
+    message: "Use --require-complete or --min-coverage-percent",
+  },
 ])("retains validator-owned correction for $args", async ({ args, message }) => {
   const stdout = new MemoryWriter();
   expect(await run(["--json", ...args], { stdout })).toBe(2);
   const response = JSON.parse(stdout.value);
-  expect(response.error).toEqual({ code: "usage.invalid", message: expect.stringContaining(message) });
+  expect(response.error).toEqual({
+    code: "usage.invalid",
+    message: expect.stringContaining(message),
+  });
   expect(validateProtocolSchema(response, protocolResponseSchema)).toEqual([]);
 
   const stderr = new MemoryWriter();
-  expect(await run(args, { stderr })).toBe(2);
+  expect(await run([...args], { stderr })).toBe(2);
   expect(stderr.value).toContain(`message: ${response.error.message}`);
 });
 
