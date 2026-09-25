@@ -22,6 +22,11 @@
 - **WHEN** 任意已注册普通命令收到不适用或未知选项、缺失必填参数等非法调用
 - **THEN** 失败的 `message` MUST 说明调用问题并指向该命令的有效用法，不只返回固定的 “The command invocation is invalid.”
 
+#### Scenario: Parser rejects a declared choice
+
+- **WHEN** 已注册命令的枚举 option 或位置参数收到不在 registry 声明列表内的值
+- **THEN** `message` MUST 指出该 option 或位置参数，并在列表足够短时列出允许值；列表过长时 SHALL 指向所选命令的 Help。它 MUST 不回显被拒绝的原始输入，也 MUST 不借助顶层 renderer 解析 Commander 异常文本
+
 #### Scenario: Validator knows an option range
 
 - **WHEN** query 整数选项收到越界值

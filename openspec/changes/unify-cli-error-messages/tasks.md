@@ -7,7 +7,7 @@
 
 ## 2. 所有普通命令的可纠正失败
 
-- [x] 2.1 在命令解析层生成具体类别与所选命令的 Help 下一步，并在所有已注册普通命令上做非法调用矩阵；验证 `bun test packages/cli/src/main.test.ts`。
+- [x] 2.1 在命令解析层生成具体类别与所选命令的 Help 下一步；已知枚举错误指出参数与允许值，且不回显原始输入。在所有已注册普通命令上做非法调用矩阵；验证 `bun test packages/cli/src/main.test.ts`。
 - [x] 2.2 将各命令 owning validator 已知的 option、范围、互斥、必填和 Pack 规则写入 message，不退回固定的无事实文案；验证相关命令单测。
 - [x] 2.3 将 query/Backend 等已知配置错误映射为可修正的 key/来源消息，未知或秘密仍安全降级；验证 CLI 与 Backend 配置测试。
 

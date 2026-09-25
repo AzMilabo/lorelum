@@ -90,7 +90,7 @@ Every `--json` CLI envelope includes `protocolVersion`, `toolVersion`, `command`
 
 Branch on error codes instead of parsing messages. Within a successful result, inspect command-specific state before treating asynchronous work as complete.
 
-Correctable failures put the known option, accepted range, or configuration repair target directly in `error.message`. The default text output shows the same message on stderr:
+Correctable failures put the known option, allowed choices or range, or configuration repair target directly in `error.message`. For example, an invalid `--mode` names `semantic` and `keyword` without echoing the rejected value. The default text output shows the same message on stderr:
 
 ```text
 error:

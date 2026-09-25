@@ -59,7 +59,7 @@ lore pack list --details --json
 }
 ```
 
-普通命令失败只有一条面向人的 `error.message`，可纠正的错误会说明已知的选项或配置项及修正方向；text 模式在 stderr 的 `error` 区块展示同一消息。未知异常使用安全通用文案，不暴露原始异常或敏感值。`protocolVersion` 保持 `2`；面向用户的示例见[站点 JSON envelope 说明](../../apps/site/content/docs/cli.mdx)。
+普通命令失败只有一条面向人的 `error.message`，可纠正的错误会说明已知的选项或配置项及修正方向；已声明的枚举选项会指出参数及允许值，不回显被拒绝的原始输入。text 模式在 stderr 的 `error` 区块展示同一消息。未知异常使用安全通用文案，不暴露原始异常或敏感值。`protocolVersion` 保持 `2`；面向用户的示例见[站点 JSON envelope 说明](../../apps/site/content/docs/cli.mdx)。
 
 `model load` 的 stdout 在任务最终完成前保持沉默；stderr 使用 `model: resolving`、`model: downloading 50% (attempt 1)`、`model: verifying` 和 `model: starting` 这样的文案，只输出发生变化的阶段、百分比或 attempt。被取消、下载失败或 native 启动失败在默认格式以 text error 返回，在 `--json` 格式以最终 failure envelope 返回；两者都不把 202 接受状态当作命令成功。
 

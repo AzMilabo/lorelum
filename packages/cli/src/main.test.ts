@@ -289,6 +289,48 @@ test("every registered command has one actionable message for invalid invocation
 });
 
 test.each([
+  {
+    args: ["query", "text", "--mode", "private-token"],
+    message: "--mode must be one of: semantic, keyword.",
+  },
+  {
+    args: ["logs", "--level", "private-token"],
+    message: "--level must be one of: error, warn, info, debug.",
+  },
+  {
+    args: ["--log-level", "private-token"],
+    message: "--log-level must be one of: error, warn, info, debug.",
+  },
+  {
+    args: ["logs", "private-token"],
+    message: "<action> must be one of: prune.",
+  },
+])("uses registry choices in parser errors for $args", async ({ args, message }) => {
+  const stdout = new MemoryWriter();
+  expect(await run(["--json", ...args], { stdout })).toBe(2);
+  const response = JSON.parse(stdout.value);
+  expect(response.error).toEqual({ code: "usage.invalid", message });
+  expect(stdout.value).not.toContain("private-token");
+  expect(validateProtocolSchema(response, protocolResponseSchema)).toEqual([]);
+
+  const stderr = new MemoryWriter();
+  expect(await run([...args], { stderr })).toBe(2);
+  expect(stderr.value).toContain(`message: ${message}`);
+  expect(stderr.value).not.toContain("private-token");
+});
+
+test("long dynamic command choices identify the positional without echoing input", async () => {
+  const stdout = new MemoryWriter();
+  expect(await run(["describe", "private-token", "--json"], { stdout })).toBe(2);
+  const response = JSON.parse(stdout.value);
+  expect(response.error).toEqual({
+    code: "usage.invalid",
+    message: "<command> must be an allowed value. Run lore describe --help to see valid choices.",
+  });
+  expect(stdout.value).not.toContain("private-token");
+});
+
+test.each([
   { args: ["get", "bad-id"], message: "Practice ID" },
   { args: ["pack", "install", "BadName"], message: "Pack name" },
   { args: ["pack", "list", "bad.name"], message: "Pack name" },

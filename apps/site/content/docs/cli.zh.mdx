@@ -90,7 +90,7 @@ lore logs prune
 
 程序应按错误码分支，不解析错误消息。响应成功时，仍需检查命令的具体状态，才能判断异步工作是否完成。
 
-可纠正的失败会直接在 `error.message` 说明已知选项、允许范围或配置修复目标。默认 text 的 stderr 展示同一消息：
+可纠正的失败会直接在 `error.message` 说明已知选项、允许值或范围，以及配置修复目标。例如，非法的 `--mode` 会指出 `semantic` 和 `keyword`，但不回显被拒绝的原始值。默认 text 的 stderr 展示同一消息：
 
 ```text
 error:

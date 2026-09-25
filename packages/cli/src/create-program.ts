@@ -83,7 +83,7 @@ export function createProgram(
     );
 
   for (const option of rootCommand.options) {
-    program.addOption(toCommanderOption(option));
+    program.addOption(toCommanderOption(option, rootCommand.name));
   }
 
   const commands = new Map<string, Command>();
@@ -95,11 +95,17 @@ export function createProgram(
         positional.required ? `<${positional.name}>` : `[${positional.name}]`,
       );
       const values = positionalValues(definition, positional, registry);
-      if (values !== undefined) argument.choices([...values]);
+      if (values !== undefined) {
+        argument.choices([...values]).argParser((value: string) => {
+          if (!values.includes(value))
+            throw invalidChoiceError(`<${positional.name}>`, values, definition.name);
+          return value;
+        });
+      }
       command.addArgument(argument);
     }
     for (const option of definition.options) {
-      command.addOption(toCommanderOption(option));
+      command.addOption(toCommanderOption(option, definition.name));
     }
     command.action(async (...arguments_: unknown[]) => {
       const commandInstance = arguments_.at(-1);
@@ -246,11 +252,28 @@ function hasParsedOption(command: Command, option: CommandDefinition["options"][
   return command.optsWithGlobals()[key] !== undefined;
 }
 
-function toCommanderOption(option: CommandDefinition["options"][number]): Option {
+function toCommanderOption(option: CommandDefinition["options"][number], command: string): Option {
   const commanderOption = new Option(commandOptionDeclaration(option), option.description);
-  if (option.values !== undefined) commanderOption.choices([...option.values]);
+  if (option.values !== undefined) {
+    const values = option.values;
+    commanderOption.choices([...values]).argParser((value: string) => {
+      if (!values.includes(value)) throw invalidChoiceError(option.longFlag, values, command);
+      return value;
+    });
+  }
   if (option.defaultValue !== undefined) commanderOption.default(option.defaultValue);
   return commanderOption;
+}
+
+function invalidChoiceError(subject: string, values: readonly string[], command: string) {
+  const choices = values.join(", ");
+  if (choices.length <= 180)
+    return invalidInvocationError(`${subject} must be one of: ${choices}.`);
+  const help =
+    command === rootCommand.name ? "lore --help" : `lore ${command.replaceAll(".", " ")} --help`;
+  return invalidInvocationError(
+    `${subject} must be an allowed value. Run ${help} to see valid choices.`,
+  );
 }
 
 function frameworkOption(behavior: NonNullable<CommandOption["behavior"]>): CommandOption {

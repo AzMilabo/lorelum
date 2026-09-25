@@ -13,7 +13,7 @@
 ## Decisions
 
 1. **一个失败消息，无第二诊断模型。** 撤回 `error-details.ts`、CLI/Backend 的 detail 类型、schema 字段与透传。`CliError` 持有已生成的消息，`main.ts` 按 allowlist 保留或安全降级，`renderResult` 让 JSON/text 使用同一规范化消息。机器仍按稳定 `error.code` 分支；message 只面向人。
-2. **事实在 owner 处写成消息。** Commander 解析层按可识别的错误类别和选中的命令生成用法提示，不在 renderer 解析异常 prose；命令 validator 在已知具体选项、配置 key、范围时写入消息。对于其余只知道“调用不合法”的路径，统一补上当前命令的 Help 操作。避免跨命令复制第二套选项表。
+2. **事实在 owner 处写成消息。** Commander 解析层对 registry 声明的枚举值直接指出选项或位置参数及允许值；选项很多时指出参数并引导到所选命令的 Help，不回显原始输入，也不在 renderer 解析异常 prose。命令 validator 在已知具体选项、配置 key、范围时写入消息。对于其余只知道“调用不合法”的路径，统一补上当前命令的 Help 操作。避免跨命令复制第二套选项表。
 3. **一处输出安全边界。** 最终消息在双格式分流前作有界、单行的终端控制符转义；owner 不拼接 secret 值。allowlist 外和未知异常继续构造全新 `runtime.unexpected`，不传原异常消息。
 4. **全命令验证由 registry 驱动。** 每个已注册普通命令至少一个非法调用 fixture 断言 code、message、exit、JSON/text；另外对 query 数值、query/Backend 配置、互斥与缺失参数、Pack specifier 等已知 owner 路径做具体回归。独立检查无 `error.details`、schema 保持 v2、Hook ABI 不变。
 
