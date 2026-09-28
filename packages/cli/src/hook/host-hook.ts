@@ -17,7 +17,7 @@ import { loadAgentHookSettings, type AgentHookSettings } from "./agent-settings.
 import { renderReadHints } from "../practice-hints/render.js";
 
 /** Hosts with a versioned raw session Hook ABI (`lore hook <host>`). */
-export type HostHookName = "codex" | "cursor" | "workbuddy" | "zcode";
+export type HostHookName = "claude" | "codex" | "cursor" | "workbuddy" | "zcode";
 
 export type HostHookEvent = "SessionStart" | "SubagentStart";
 
@@ -278,7 +278,7 @@ export async function createHostHookResponse(
 ): Promise<CursorHookResponse>;
 export async function createHostHookResponse(
   input: HostHookInput,
-  host: "codex" | "workbuddy" | "zcode",
+  host: "claude" | "codex" | "workbuddy" | "zcode",
   services?: HostHookServices,
   storeRoot?: string,
 ): Promise<HostHookResponse>;
@@ -320,14 +320,26 @@ function supportedSessionEvent(host: HostHookName): HostHookEvent | CursorHookEv
   return host === "cursor" ? "sessionStart" : "SessionStart";
 }
 
-function hostLabel(host: HostHookName): "Codex" | "Cursor" | "Workbuddy" | "Zcode" {
-  return host === "codex"
-    ? "Codex"
-    : host === "cursor"
-      ? "Cursor"
-      : host === "workbuddy"
-        ? "Workbuddy"
-        : "Zcode";
+function parseHostHookInput(serialized: string, host: HostHookName): HostHookInput {
+  const parsed: unknown = JSON.parse(serialized);
+  if (!isRecord(parsed)) {
+    throw new Error(`Lorelum ${hostLabel(host)} Hook input must be a JSON object.`);
+  }
+  return parsed;
+}
+
+const hostLabels: Readonly<
+  Record<HostHookName, "Claude Code" | "Codex" | "Cursor" | "Workbuddy" | "Zcode">
+> = Object.freeze({
+  claude: "Claude Code",
+  codex: "Codex",
+  cursor: "Cursor",
+  workbuddy: "Workbuddy",
+  zcode: "Zcode",
+});
+
+function hostLabel(host: HostHookName) {
+  return hostLabels[host];
 }
 
 function diagnosticMessage(error: unknown): string {

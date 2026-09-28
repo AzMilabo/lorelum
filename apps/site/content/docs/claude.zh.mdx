@@ -1,0 +1,56 @@
+---
+title: Claude Code
+description: 在 Claude Code 中安装 Lorelum，并使用 /lorelum:lorelum 技能检索 Practices。
+icon: Plug
+---
+
+Lorelum Plugin 为 Claude Code 带来工程指引与 `/lorelum:lorelum` 技能。
+
+## 开始之前
+
+先完成[快速开始](./quickstart)。`lore` 命令必须在 Claude Code 继承的 `PATH` 上可用，并且至少安装一个 Pack。
+
+## 安装
+
+1. 在终端执行：
+
+   ```sh
+   claude plugin marketplace add lorelum/lorelum
+   claude plugin install lorelum@lorelum-plugins
+   ```
+
+   默认安装到用户作用域；可加 `--scope project`（与仓库协作成员共享）或 `--scope local`（仅本机）选择其他作用域。开发者预览本地检出时，可把 GitHub 简写换成本地仓库根目录路径。
+
+2. 或者不使用终端：在会话中运行 `/plugin`（Marketplaces → Install），或使用桌面应用的插件管理器（**+ → Plugins → Add plugin**），从 `lorelum-plugins` 选择 **Lorelum** 安装。
+
+3. 开始一个新的本地会话。Claude Code 会在会话开始时收到已安装的 Pack 目录。
+
+插件在本地会话与 SSH 会话中可用；云端会话与 WSL 会话不加载插件。
+
+## 使用 Lorelum
+
+在输入框输入 `/` 时确认 `/lorelum:lorelum` 出现在列表中。你可以这样问：
+
+```text
+/lorelum:lorelum 这个改动应该如何验证？
+```
+
+或在 Claude Code 最终确定重要决策之前，让它先用 Lorelum 检索相关指引。
+
+## 更新
+
+运行 `claude plugin update lorelum@lorelum-plugins`，或在 `/plugin` 的已安装标签中选择 **Update now**。第三方市场默认不自动更新。
+
+## 移除
+
+运行 `claude plugin uninstall lorelum@lorelum-plugins`，或在插件管理器中卸载 Lorelum。移除插件会移除技能与会话开始的目录注入；已安装的 Pack 和 `lore` CLI 不受影响。
+
+## 排障
+
+如果 `/lorelum:lorelum` 或指引缺失：
+
+1. 确认 Lorelum 已在 `/plugin` 的插件管理中安装并启用。
+2. 确认 `lore --version` 在 Claude Code 继承的环境中可用。
+3. 安装或更新后，开始一个新会话。会话开始的 Hook 失败不会阻塞会话，只会显示一条提示。
+
+检索或模型问题参见[故障排查](./troubleshooting)。

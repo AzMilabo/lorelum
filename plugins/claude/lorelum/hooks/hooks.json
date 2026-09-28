@@ -1,0 +1,17 @@
+{
+  "description": "Restore the compact Lorelum Installed Pack Catalog at Claude Code session boundaries.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact|fork",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "lore hook claude || lore.cmd hook claude",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

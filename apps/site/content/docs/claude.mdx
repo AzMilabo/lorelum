@@ -1,0 +1,56 @@
+---
+title: Claude Code
+description: Install Lorelum in Claude Code and retrieve Practices with the /lorelum:lorelum skill.
+icon: Plug
+---
+
+The Lorelum Plugin adds engineering guidance and the `/lorelum:lorelum` skill to Claude Code.
+
+## Before you start
+
+Complete [Quickstart](./quickstart). The `lore` command must be available on the `PATH` inherited by Claude Code, and you need at least one installed Pack.
+
+## Install
+
+1. In a terminal:
+
+   ```sh
+   claude plugin marketplace add lorelum/lorelum
+   claude plugin install lorelum@lorelum-plugins
+   ```
+
+   The install is user-scoped by default; add `--scope project` (shared with everyone working in the repository) or `--scope local` (this machine only) to choose a different scope. For a local checkout (developer preview), pass the repository-root path instead of the GitHub shorthand.
+
+2. Or install without a terminal: run `/plugin` in a session (Marketplaces, then Install), or use the desktop app's plugin manager (**+ → Plugins → Add plugin**) and pick **Lorelum** from `lorelum-plugins`.
+
+3. Start a new local session. Claude Code receives the installed Pack Catalog at the session start.
+
+Plugins are available in local and SSH sessions; cloud sessions and WSL sessions do not load Plugins.
+
+## Use Lorelum
+
+Check that `/lorelum:lorelum` appears when you type `/` in the prompt. You can ask:
+
+```text
+/lorelum:lorelum How should I verify this change?
+```
+
+Or ask Claude Code to use Lorelum before it finalizes an important decision.
+
+## Update
+
+Run `claude plugin update lorelum@lorelum-plugins`, or select **Update now** on the Installed tab of `/plugin`. Third-party marketplaces do not update automatically by default.
+
+## Remove
+
+Run `claude plugin uninstall lorelum@lorelum-plugins`, or uninstall Lorelum from the plugin manager. Removing the Plugin removes the skill and the session-start catalog; your installed Packs and the `lore` CLI are untouched.
+
+## Troubleshoot
+
+If `/lorelum:lorelum` or guidance is missing:
+
+1. Confirm Lorelum is installed and enabled (`/plugin`, Manage plugins).
+2. Confirm `lore --version` works in the environment Claude Code inherits.
+3. Start a new session after installing or updating. A failed session-start Hook never blocks the session; it only shows a notice.
+
+For retrieval or model problems, see [Troubleshooting](./troubleshooting).
