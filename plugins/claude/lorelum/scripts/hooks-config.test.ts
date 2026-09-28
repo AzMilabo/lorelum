@@ -68,11 +68,13 @@ test.skipIf(process.platform === "win32" || shPath === null)(
     const directory = await mkdtemp(join(tmpdir(), "lorelum-claude-hook-cli-"));
     const lore = join(directory, "lore");
     const payload = '{"hook_event_name":"SessionStart"}';
+    // Builtins only: with PATH scoped to this fixture, external tools like cat
+    // are unavailable inside the fake CLI.
     await writeFile(
       lore,
       [
         "#!/bin/sh",
-        'input="$(cat)"',
+        "IFS= read -r input",
         `if [ "$input" != '${payload}' ]; then exit 2; fi`,
         'printf \'{"hookSpecificOutput":{"hookEventName":"SessionStart"}}\\n\'',
         "",
@@ -116,7 +118,7 @@ test.skipIf(process.platform === "win32" || shPath === null)(
       loreCmd,
       [
         "#!/bin/sh",
-        'input="$(cat)"',
+        "IFS= read -r input",
         `if [ "$input" != '${payload}' ]; then exit 2; fi`,
         'printf \'{"hookSpecificOutput":{"hookEventName":"SessionStart"}}\\n\'',
         "",
