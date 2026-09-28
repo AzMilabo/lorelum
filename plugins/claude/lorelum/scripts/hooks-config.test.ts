@@ -3,6 +3,9 @@ import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+/** Absolute `sh` path; spawn by path so the tests can replace PATH entirely. */
+const shPath = Bun.which("sh");
+
 interface ClaudeHookEntry {
   readonly additionalContextLimit?: number;
   readonly commandWindows?: string;
@@ -58,7 +61,7 @@ test("restores the Pack Catalog through SessionStart after compaction and forks"
   expect(hook?.commandWindows).toBeUndefined();
 });
 
-test.skipIf(process.platform === "win32")(
+test.skipIf(process.platform === "win32" || shPath === null)(
   "forwards the Hook payload to lore hook claude without a Bun runtime",
   async () => {
     const command = hookCommand(await readConfiguration());
@@ -79,8 +82,8 @@ test.skipIf(process.platform === "win32")(
     await chmod(lore, 0o755);
 
     try {
-      const child = Bun.spawn(["sh", "-c", command], {
-        env: { ...process.env, PATH: `${directory}:${process.env.PATH ?? ""}` },
+      const child = Bun.spawn([shPath, "-c", command], {
+        env: { ...process.env, PATH: directory },
         stdin: "pipe",
         stdout: "pipe",
         stderr: "pipe",
@@ -102,7 +105,7 @@ test.skipIf(process.platform === "win32")(
   },
 );
 
-test.skipIf(process.platform === "win32")(
+test.skipIf(process.platform === "win32" || shPath === null)(
   "resolves the lore.cmd shim when a bare lore executable is absent",
   async () => {
     const command = hookCommand(await readConfiguration());
@@ -123,8 +126,8 @@ test.skipIf(process.platform === "win32")(
     await chmod(loreCmd, 0o755);
 
     try {
-      const child = Bun.spawn(["sh", "-c", command], {
-        env: { ...process.env, PATH: `${directory}:${process.env.PATH ?? ""}` },
+      const child = Bun.spawn([shPath, "-c", command], {
+        env: { ...process.env, PATH: directory },
         stdin: "pipe",
         stdout: "pipe",
         stderr: "pipe",
@@ -145,17 +148,17 @@ test.skipIf(process.platform === "win32")(
   },
 );
 
-test.skipIf(process.platform === "win32")(
+test.skipIf(process.platform === "win32" || shPath === null)(
   "keeps an unlaunchable CLI visible instead of swallowing the failure",
   async () => {
     const command = hookCommand(await readConfiguration());
     const directory = await mkdtemp(join(tmpdir(), "lorelum-claude-hook-missing-"));
-    const emptyPath = join(directory, "empty");
+    const emptyFile = join(directory, "empty");
 
     try {
-      await writeFile(emptyPath, "", "utf8");
-      const child = Bun.spawn(["sh", "-c", command], {
-        env: { ...process.env, PATH: emptyPath },
+      await writeFile(emptyFile, "", "utf8");
+      const child = Bun.spawn([shPath, "-c", command], {
+        env: { ...process.env, PATH: directory },
         stdin: "pipe",
         stdout: "pipe",
         stderr: "pipe",
