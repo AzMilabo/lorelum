@@ -5,10 +5,11 @@
 ## What Changes
 
 - Codex `PreToolUse` 只针对 Bash，在保留原工具输入其余字段的前提下，为 shell 命令导出宿主与会话 ID；macOS/Linux 使用 Unix shell 写法，Windows 原生 Agent 使用 PowerShell 写法，非 shell tool 跳过。macOS 的真实 app-server 命名权限档位 demo 已验证直接命令、脚本和管道会继承 ID；这不等于 Linux 或 Windows 已完成真实宿主验收。Codex 的 `PostToolUse` 不再开关活动窗口。
+- WorkBuddy 与 Cursor 以各自主机合同接入同一条链路（Refs #254）：WorkBuddy 的 Bash `PreToolUse` 在所有平台前置 Unix `export`（其 Bash 工具全平台走 Git Bash，桌面自带 PortableGit），响应不带 `permissionDecision`，避免其 `allow` 绕过权限系统；Cursor 的 `Shell` 工具 `preToolUse` 返回扁平 `updated_input`，会话 ID 取 `session_id` 回退 `conversation_id`，同样全平台 `export`。两宿主的子 Agent 事件（`SubagentStart`/`subagentStart`）均不注册 Hook：WorkBuddy 派发后丢弃 Hook stdout，Cursor 的该事件响应不支持注入 context——均附可核对证据，不创建空 Hook。
 - 为了避免普通 shell 命令也出现会话变量，用户级 `config.yaml` 增加 Agent 共用的 `agent.shellSessionInjection`：默认 `lore-only`，仅当宿主提交的命令文本含独立的 `lore` 字样才改写；可设 `all-shell`，为每个受支持的 shell tool 命令改写。默认模式不读本地脚本文件，外层 `sh script.sh` 没写 `lore` 时，脚本内部的 `lore get` 可能漏记。目前只有 Codex 的 Bash Hook 使用这项配置，其他宿主不因配置字段存在而自动获得命令改写；配置不控制 SessionStart Catalog、SubagentStart 或非 shell tool。
 - `lore get` 仍由 CLI 直接读取 Practice；成功后才将候选元数据、实际执行目录与有效且成对继承的会话身份短时报告给已运行的 Backend，不启动 Backend、不要求 `--json`，不分析命令或输出。CLI 将缺失或无效身份视为未提供；Backend 优先使用显式身份，否则由一个跨功能共用的活动窗口模块近似关联，不能让后续功能各建一套窗口。
 - `~/.lorelum/sessions/<hostKey>/<宿主原始 sessionId>/` 是通用会话目录，Codex 直接使用自己的会话 ID，不额外编码或加前缀；本功能只占用其中的 `practice-reads.jsonl`。Backend 是唯一写入者；当前不引入通用数据库、清理状态机或额外的会话元数据文件。活动窗口是可选的内存关联能力，不是第二份候选清单；保留它的内部接口与 README，供无法安全传递显式身份的其他宿主复用。
-- Codex `SubagentStart` 通过 Backend 读取本会话的候选，去重并按预算注入短提示。子 Agent 认为相关时再自行 `lore get`，不自动读取正文。Backend 重启或 worktree 删除不应清除已经持久化的候选。
+- Codex `SubagentStart` 通过 Backend 读取本会话的候选，去重并按预算注入短提示；WorkBuddy 与 Cursor 的子 Agent 事件缺少可用的注入通道，本变更不为其交付该环。子 Agent 认为相关时再自行 `lore get`，不自动读取正文。Backend 重启或 worktree 删除不应清除已经持久化的候选。
 - Backend 不可达或没有可用会话身份时允许漏记；显式绑定不受同路径并行会话影响，其他宿主的窗口后备路径仍可能误归属。子 Agent 的读取也可能进入同一会话清单。提示称“本会话已读候选”，不称“父 Agent 采纳的 Practice”。各平台的宿主链路须分别在正常运行环境验证，不能互相推定。
 
 ## Capabilities

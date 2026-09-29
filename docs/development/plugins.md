@@ -45,6 +45,23 @@ printf '%s\n' '{"hook_event_name":"SessionStart"}' \
   | bun packages/cli/src/main.ts hook claude --store-root /absolute/path/to/isolated-store
 ```
 
+The WorkBuddy and Cursor identity rewrites can be smoke-checked the same way —
+pipe their tool events through the source entrypoint and confirm the rewritten
+command prefix:
+
+```sh
+printf '%s
+' '{"hook_event_name":"PreToolUse","tool_name":"Bash","session_id":"probe","tool_input":{"command":"lore get sample.read"}}'   | bun packages/cli/src/main.ts hook workbuddy --store-root /absolute/path/to/isolated-store
+
+printf '%s
+' '{"hook_event_name":"preToolUse","tool_name":"Shell","conversation_id":"probe","tool_input":{"command":"lore get sample.read"}}'   | bun packages/cli/src/main.ts hook cursor --store-root /absolute/path/to/isolated-store
+```
+
+With a source-matched Backend running, executing the returned command records a
+candidate under `~/.lorelum/sessions/<hostKey>/<session id>/practice-reads.jsonl`;
+stopping the Backend keeps the `get` result unchanged and adds no record.
+
+
 ## Codex checkout install
 
 The repository's Codex marketplace is `.agents/plugins/marketplace.json`. Do not enable a checkout-backed marketplace together with the remote `lorelum-plugins` marketplace: both offer `lorelum@lorelum-plugins` to Codex.

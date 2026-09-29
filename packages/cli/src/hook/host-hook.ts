@@ -27,6 +27,8 @@ export type CursorHookEvent = "sessionStart";
 export interface HostHookInput {
   readonly hook_event_name?: string;
   readonly session_id?: unknown;
+  /** Cursor's session identifier; the docs expose `session_id` with the same value. */
+  readonly conversation_id?: unknown;
   readonly tool_name?: unknown;
   readonly tool_use_id?: unknown;
   readonly cwd?: unknown;
@@ -38,8 +40,9 @@ export interface HostHookResponse {
     | { readonly hookEventName: HostHookEvent; readonly additionalContext: string }
     | {
         readonly hookEventName: "PreToolUse";
-        // Claude Code applies `updatedInput` through its normal permission flow
-        // when no decision is present; Codex keeps its existing "allow" shape.
+        // Claude Code and WorkBuddy apply `updatedInput` through their normal
+        // permission flow when no decision is present; Codex's host contract
+        // requires "allow" alongside the rewrite.
         readonly permissionDecision?: "allow";
         readonly updatedInput: Record<string, unknown>;
       };
@@ -48,7 +51,9 @@ export interface HostHookResponse {
 
 /** Cursor consumes a flat snake_case envelope instead of `hookSpecificOutput`. */
 export interface CursorHookResponse {
-  readonly additional_context: string;
+  readonly additional_context?: string;
+  /** Cursor's preToolUse form: a flat field that replaces the tool input. */
+  readonly updated_input?: Record<string, unknown>;
 }
 
 export interface TextInput {
@@ -117,7 +122,7 @@ export function parseHostHookInvocation(
     }
     if (argument.startsWith("--store-root=")) {
       const value = argument.slice("--store-root=".length);
-      if (storeRoot !== undefined || value.length === 0) return undefined;
+      if (storeRoot === undefined || value.length === 0) return undefined;
       storeRoot = value;
       continue;
     }
@@ -133,7 +138,7 @@ export function parseHostHookInvocation(
  * Execute the versioned raw host Hook ABI. It deliberately does not emit the
  * normal Lorelum CLI envelope: the host consumes this envelope directly, and
  * failures emit a host-safe no-op (`{"continue":true}` for SessionStart,
- * `{}` for Codex's optional tool/subagent events) so work can continue.
+ * `{}` for the optional tool/subagent events) so work can continue.
  */
 export async function runHostHook(options: RunHostHookOptions): Promise<0> {
   let eventName: string | undefined;
@@ -168,12 +173,17 @@ export async function runHostHook(options: RunHostHookOptions): Promise<0> {
   } catch (error) {
     options.log?.error("hook.degraded", { host: options.host }, error);
     options.stderr.write(`lore hook ${options.host} degraded: ${diagnosticMessage(error)}\n`);
-    // PreToolUse does not accept `continue`, so a failed optional hint Hook
-    // must return an empty, valid result instead of a malformed permission.
+    // PreToolUse-style events do not accept `continue`, so a failed optional
+    // hint Hook must return an empty, valid result instead of a malformed
+    // permission. Cursor spells these events in camelCase.
+    const normalizedEvent = eventName?.toLowerCase();
     options.stdout.write(
-      (options.host === "codex" || options.host === "claude") &&
-        eventName !== "SessionStart" &&
-        (eventName === "PreToolUse" || eventName === "PostToolUse" || eventName === "SubagentStart")
+      isPracticeHintHost(options.host) &&
+        normalizedEvent !== undefined &&
+        normalizedEvent !== "sessionstart" &&
+        (normalizedEvent === "pretooluse" ||
+          normalizedEvent === "posttooluse" ||
+          normalizedEvent === "subagentstart")
         ? "{}\n"
         : '{"continue":true}\n',
     );
@@ -182,10 +192,15 @@ export async function runHostHook(options: RunHostHookOptions): Promise<0> {
 }
 
 /** Hosts whose shell/subagent events feed the shared read-Practice hint chain. */
-type PracticeHintHost = "claude" | "codex";
+type PracticeHintHost = "claude" | "codex" | "cursor" | "workbuddy";
 
 function isPracticeHintHost(host: HostHookName): host is PracticeHintHost {
-  return host === "claude" || host === "codex";
+  return host === "claude" || host === "codex" || host === "cursor" || host === "workbuddy";
+}
+
+/** The session-start event literal each hint host sends. */
+function sessionStartEvent(host: PracticeHintHost): "SessionStart" | "sessionStart" {
+  return host === "cursor" ? "sessionStart" : "SessionStart";
 }
 
 function respondToHostHook(
@@ -194,7 +209,7 @@ function respondToHostHook(
   services: HostHookServices,
   storeRoot?: string,
 ): Promise<HostHookResponse | CursorHookResponse> {
-  if (isPracticeHintHost(host) && input.hook_event_name !== "SessionStart") {
+  if (isPracticeHintHost(host) && input.hook_event_name !== sessionStartEvent(host)) {
     return respondToPracticeHint(
       input,
       host,
@@ -222,8 +237,14 @@ async function respondToPracticeHint(
   hints: NonNullable<HostHookServices["practiceHints"]>,
   loadSettings: () => Promise<AgentHookSettings>,
   platform: NodeJS.Platform = process.platform,
-): Promise<HostHookResponse> {
-  if (input.hook_event_name === "SubagentStart") {
+): Promise<HostHookResponse | CursorHookResponse> {
+  const eventName = input.hook_event_name;
+  if (eventName === "SubagentStart" || eventName === "subagentStart") {
+    // WorkBuddy dispatches SubagentStart but discards Hook stdout, and
+    // Cursor's subagentStart response cannot carry additional context, so a
+    // hint envelope cannot reach the subagent on either host; Codex and
+    // Claude Code consume the hint today.
+    if (host !== "codex" && host !== "claude") return {};
     if (typeof input.session_id !== "string" || !input.session_id) return {};
     const context = renderReadHints(await hints.readRecentHints(host, input.session_id));
     return context === undefined
@@ -232,32 +253,42 @@ async function respondToPracticeHint(
           hookSpecificOutput: { hookEventName: "SubagentStart", additionalContext: context },
         };
   }
-  if (input.hook_event_name === "PreToolUse" || input.hook_event_name === "PostToolUse") {
-    if (input.hook_event_name === "PostToolUse") return {};
+  const isPreToolUse = eventName === "PreToolUse" || eventName === "preToolUse";
+  const isPostToolUse = eventName === "PostToolUse" || eventName === "postToolUse";
+  if (isPreToolUse || isPostToolUse) {
+    if (isPostToolUse) return {};
     const syntax = shellInjectionSyntax(host, input.tool_name, platform);
     if (syntax === undefined) return {};
-    const session = sessionRefSchema.safeParse({
-      hostKey: host,
-      sessionId: input.session_id,
-    });
+    const sessionId = firstString(input.session_id, input.conversation_id);
+    const session = sessionRefSchema.safeParse({ hostKey: host, sessionId });
     if (!session.success || !isRecord(input.tool_input)) return {};
     const command = input.tool_input.command;
     if (typeof command !== "string") return {};
     const settings = await loadSettings();
     if (settings.shellSessionInjection === "lore-only" && !containsLoreToken(command)) return {};
+    const updatedInput: Record<string, unknown> = {
+      ...input.tool_input,
+      command:
+        (syntax === "powershell"
+          ? `$env:LORELUM_HOST_KEY = '${host}'\n` +
+            `$env:LORELUM_HOST_SESSION_ID = ${powerShellQuote(session.data.sessionId)}\n`
+          : `export LORELUM_HOST_KEY='${host}'\n` +
+            `export LORELUM_HOST_SESSION_ID=${shellQuote(session.data.sessionId)}\n`) + command,
+    };
+    if (host === "cursor") {
+      // Cursor's preToolUse response is flat and carries no permission
+      // decision, so the rewritten input still goes through its normal flow.
+      return { updated_input: updatedInput };
+    }
     return {
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
+        // Codex's host contract requires "allow" alongside updatedInput;
+        // Claude Code and WorkBuddy apply updatedInput through their normal
+        // permission flow, and WorkBuddy's "allow" would bypass its
+        // permission system entirely.
         ...(host === "codex" ? { permissionDecision: "allow" as const } : {}),
-        updatedInput: {
-          ...input.tool_input,
-          command:
-            (syntax === "powershell"
-              ? `$env:LORELUM_HOST_KEY = '${host}'\n` +
-                `$env:LORELUM_HOST_SESSION_ID = ${powerShellQuote(session.data.sessionId)}\n`
-              : `export LORELUM_HOST_KEY='${host}'\n` +
-                `export LORELUM_HOST_SESSION_ID=${shellQuote(session.data.sessionId)}\n`) + command,
-        },
+        updatedInput,
       },
     };
   }
@@ -265,11 +296,14 @@ async function respondToPracticeHint(
 }
 
 /**
- * Codex calls its only shell tool "Bash" and keys the rewrite syntax on the
- * host platform. Claude Code names its shell tools "Bash" and "PowerShell",
- * and each tool implies its own syntax on every platform: the Bash tool runs
- * through a POSIX-style shell even on Windows, while the PowerShell tool uses
- * PowerShell syntax everywhere.
+ * Resolve the assignment syntax for a host's shell tool. Claude Code names its
+ * shell tools "Bash" and "PowerShell", and each tool implies its own syntax on
+ * every platform (the Bash tool runs a POSIX-style shell even on Windows).
+ * Codex, WorkBuddy, and Cursor expose one shell tool — "Bash", "Bash", and
+ * "Shell" respectively — and Codex keys the prefix on the host platform
+ * because its native Windows agent runs PowerShell, while WorkBuddy's Bash
+ * tool and Cursor's agent host run Git Bash on every platform, so those two
+ * always get POSIX exports.
  */
 function shellInjectionSyntax(
   host: PracticeHintHost,
@@ -281,9 +315,20 @@ function shellInjectionSyntax(
     if (toolName === "PowerShell") return "powershell";
     return undefined;
   }
-  if (toolName !== "Bash") return undefined;
-  if (platform === "win32") return "powershell";
-  if (platform === "darwin" || platform === "linux") return "export";
+  const shellToolName = host === "cursor" ? "Shell" : "Bash";
+  if (toolName !== shellToolName) return undefined;
+  if (host === "workbuddy" || host === "cursor") return "export";
+  return platform === "win32"
+    ? "powershell"
+    : platform === "darwin" || platform === "linux"
+      ? "export"
+      : undefined;
+}
+
+function firstString(...values: readonly unknown[]): unknown {
+  for (const value of values) {
+    if (typeof value === "string") return value;
+  }
   return undefined;
 }
 

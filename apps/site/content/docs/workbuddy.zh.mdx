@@ -36,6 +36,21 @@ Lorelum Plugin 为 WorkBuddy 带来工程指引与 `/lore` 命令。
 
 或在 WorkBuddy 最终确定重要决策之前，让它先用 Lorelum 检索相关指引。
 
+
+
+WorkBuddy 会话还会记录已读 Practice 候选。当 agent 在会话内成功执行
+`lore get` 时,CLI 会把该 Practice 的元数据报告给正在运行的 Backend,并写入
+`~/.lorelum/sessions/workbuddy/<会话 ID>/practice-reads.jsonl`。上报是可选行为:
+它不会启动 Backend,也不会改变 `lore get` 的结果。
+
+当 WorkBuddy 的 Bash 工具执行含 `lore` 字样的命令时,命令前会被加入两行
+`export`,携带宿主与会话身份 —— 已读记录正是借此关联到当前对话。该前缀不
+改变命令的批准流程、参数或退出码,也不会注入到非 shell 工具。哪些命令会被
+加前缀由共用的
+[`agent.shellSessionInjection`](./configuration#agent-shell-会话身份) 配置决定。
+WorkBuddy 的子 Agent 目前收不到已读候选提示:宿主会派发 SubagentStart 事件
+但丢弃 hook 输出,因此该宿主没有可用的提示通道。
+
 ## 更新
 
 打开插件管理界面，选择 Lorelum 并安装提供的更新。对本地检出而言，修改 Plugin 文件后请从你的市场卸载并重装。
