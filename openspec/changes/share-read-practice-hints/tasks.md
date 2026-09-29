@@ -65,7 +65,7 @@
 - [x] 6.1 `lore hook zcode` 处理 `PreToolUse`：仅 `Bash` tool 返回前置 Unix `export` 的 `updatedInput`（全平台，含 Windows Git Bash），不返回 `permissionDecision`（ZCode 中该字段的 `allow` 会放行待确认调用），沿用 `agent.shellSessionInjection` 判定并保留其余工具输入字段；非 Bash、缺会话 ID 或命令非字符串输出 no-op。单测覆盖三平台前缀、lore-only 文本判定、all-shell 真实配置、无效配置降级、非 Bash no-op 与真实 shell 子进程继承。
 - [x] 6.2 ZCode Plugin `hooks.json` 增加匹配 `^Bash$` 的 `PreToolUse` process Hook；不注册 ZCode 不存在的 `SubagentStart`，不保留空跑 `PostToolUse`；插件测试覆盖配置形状、旧 CLI 的 `{"continue":true}` 降级透传与 payload 转发。
 - [x] 6.3 同步双语 ZCode 用户指南、配置入口、Plugin README 与 `docs/cli/hook.md`：说明已读候选记录、注入范围配置、无子 Agent 提示的宿主边界、CMD 方言漏记与更新要求（更新 CLI 与 Plugin 后需新会话加载 Hook）。
-- [ ] 6.4 在正常运行的 ZCode 宿主内完成真实链路验收：Hook 改写在真实 Bash 调用生效、成功 `get` 记录到正确会话、失败或 Backend 不可达不改 `get` 结果；当前交付以宿主产品 Hook schema 静态核对、真实 Git Bash 子进程执行与真实 Backend 集成测试替代，应用内会话级验收待具备新会话条件后补记。
+- [x] 6.4 在正常运行的 ZCode 宿主内完成真实链路验收：Hook 改写在真实 Bash 调用生效、成功 `get` 记录到正确会话、失败或 Backend 不可达不改 `get` 结果（Windows 真实 ZCode 会话完成，见本轮验证记录）。
 
 ## 2026-09-29 ZCode 宿主接入本轮验证
 
@@ -75,3 +75,11 @@
 - 子代理启动事件取证：宿主 Hook 事件枚举恰好七个（`SessionStart`/`UserPromptSubmit`/`PreToolUse`/`PermissionRequest`/`PostToolUse`/`PostToolUseFailure`/`Stop`），无 `SubagentStart`。在已注册且对主会话生效的 Lorelum SessionStart Hook 会话派生真实子 Agent（日志 `sess_subagent_agent_*`），其启动上下文不含 Pack Catalog 或任何 Hook 注入——证明 SessionStart 不为子 Agent 触发；"不存在任何子代理启动事件"的完整结论仍以枚举为据，另备有与本实现无关的全事件探针可在新会话复核。
 - 宿主 shell 机制取证：ZCode 以 `bashShellSelection` 把解析出的执行 shell 直接传入 Bash 工具路径（产品代码 `Upo`/`Rca`/handler 上下文可见），git-bash provider 的 `GIT_EDITOR=true`/`SHELL=<bash>` 环境签名在本机 Bash 工具进程实测存在，宿主按解析结果在会话上下文生成 "The Bash tool shell is Git Bash."；用户可经宿主自身的选择改为 CMD，未找到 POSIX shell 时走 legacy 回退，两者均为已文档化的漏记情形。
 - 本轮 `bun test packages/cli`：375 通过、2 项进程测试在 Windows 跳过、0 失败（另 2 项失败为本机环境既有限制：无符号链接权限的 symlink 用例与 main.test.ts 超时用例，均已在干净 main 上复现，与本变更无关）；`bun run typecheck`、`bun run lint`（0 warning）、变更文件 `oxfmt --check`、`bun run build:site`、`openspec validate share-read-practice-hints --strict` 通过。
+
+## 2026-09-29 ZCode 应用内真实验收记录
+
+- 以分支源码构建的 CLI 与 Plugin（本地安装标号 0.1.0-alpha.4；注意 GitHub 的 v0.1.0-alpha.4 发布于 2026-09-21，早于本功能，本地构建与该发布无关）在 Windows 真实 ZCode 会话内完成三项验收：
+  1. **应用内改写生效**：含独立 `lore` 字样的 Bash 命令实际执行时环境为 `LORELUM_HOST_KEY=zcode`、`LORELUM_HOST_SESSION_ID=sess_63201a19-…`（该会话真实 ID），即宿主在应用内实际应用了 `updatedInput`；外层文本不含 `lore` 的命令不注入。
+  2. **成功 get 记录到正确会话**：应用内 `lore get` 成功后，Backend 在 `~/.lorelum/sessions/zcode/sess_63201a19-…/practice-reads.jsonl` 追加仅含 ID、digest、title、appliesWhen 与实际 cwd 的记录。
+  3. **Backend 不可达不改结果**：停止 Backend 后同一 `get` 输出逐字节一致、退出码 0、不新增记录；随后 Backend 恢复 ready。
+- 附带观察（供后续 Issue 使用，不属本变更范围）：主会话 ID 形如 `sess_<uuid>`，宿主日志中子代理会话 ID 形如 `sess_subagent_agent_<agentId>`；主/子 Agent 读取来源区分与各宿主子代理适配另立 Issue 跟踪。
