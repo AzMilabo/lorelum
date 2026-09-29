@@ -86,6 +86,8 @@ Do not commit the cachebuster version. To return to the remote source, remove th
 
 ## WorkBuddy checkout install
 
+Headless engine runs (`node <install>/resources/app.asar.unpacked/cli/dist/codebuddy.js -p "…"`) do not load installed plugin Hooks by default; pass `--plugin-dir <path-to-plugins/workbuddy/lorelum>` to exercise the Hook chain in that mode. Verified with engine 2.137.1.
+
 WorkBuddy discovers the checkout through the root `.codebuddy-plugin/marketplace.json`. The public install path and its desktop-registry caveats are documented in [the WorkBuddy guide](https://lorelum.com/en/docs/workbuddy); for local iteration, add the repository root as a marketplace with the embedded CodeBuddy CLI:
 
 ```sh
