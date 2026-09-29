@@ -6,6 +6,13 @@
         "command": "lore hook cursor",
         "timeout": 10
       }
+    ],
+    "preToolUse": [
+      {
+        "matcher": "^Shell$",
+        "command": "lore hook cursor",
+        "timeout": 10
+      }
     ]
   }
 }

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { access, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const productId = "lorelum";
@@ -44,6 +44,15 @@ interface WorkbuddyMarketplace {
   }[];
 }
 
+interface ClaudeMarketplace {
+  readonly name: string;
+  readonly plugins: readonly {
+    readonly name: string;
+    readonly source: string;
+    readonly version?: string;
+  }[];
+}
+
 function assertHostPluginIdentity(input: {
   readonly hostKey: string;
   readonly manifestName: string;
@@ -77,10 +86,12 @@ test("host adapters use a stable product ID and host-specific source roots", asy
     zcodeManifest,
     cursorManifest,
     workbuddyManifest,
+    claudeManifest,
     codexMarketplace,
     zcodeMarketplace,
     cursorMarketplace,
     workbuddyMarketplace,
+    claudeMarketplace,
   ] = await Promise.all([
     readFile(join(root, "plugins/codex/lorelum/.codex-plugin/plugin.json"), "utf8").then(
       (content) => JSON.parse(content) as NativeManifest,
@@ -92,6 +103,9 @@ test("host adapters use a stable product ID and host-specific source roots", asy
       (content) => JSON.parse(content) as NativeManifest,
     ),
     readFile(join(root, "plugins/workbuddy/lorelum/.codebuddy-plugin/plugin.json"), "utf8").then(
+      (content) => JSON.parse(content) as NativeManifest,
+    ),
+    readFile(join(root, "plugins/claude/lorelum/.claude-plugin/plugin.json"), "utf8").then(
       (content) => JSON.parse(content) as NativeManifest,
     ),
     readFile(join(root, ".agents/plugins/marketplace.json"), "utf8").then(
@@ -106,12 +120,16 @@ test("host adapters use a stable product ID and host-specific source roots", asy
     readFile(join(root, ".codebuddy-plugin/marketplace.json"), "utf8").then(
       (content) => JSON.parse(content) as WorkbuddyMarketplace,
     ),
+    readFile(join(root, ".claude-plugin/marketplace.json"), "utf8").then(
+      (content) => JSON.parse(content) as ClaudeMarketplace,
+    ),
   ]);
 
   expect(codexMarketplace.name).toBe("lorelum-plugins");
   expect(workbuddyMarketplace.name).toBe("lorelum-plugins");
   expect(zcodeMarketplace.name).toBe("lorelum-plugins");
   expect(cursorMarketplace.name).toBe("lorelum-plugins");
+  expect(claudeMarketplace.name).toBe("lorelum-plugins");
   assertHostPluginIdentity({
     hostKey: "codex",
     manifestName: codexManifest.name,
@@ -132,15 +150,20 @@ test("host adapters use a stable product ID and host-specific source roots", asy
     manifestName: cursorManifest.name,
     source: cursorMarketplace.plugins[0]?.source ?? "",
   });
+  assertHostPluginIdentity({
+    hostKey: "claude",
+    manifestName: claudeManifest.name,
+    source: claudeMarketplace.plugins[0]?.source ?? "",
+  });
   assertMarketplaceVersion(zcodeMarketplace.plugins[0]?.version, zcodeManifest.version);
   assertMarketplaceVersion(cursorMarketplace.plugins[0]?.version, cursorManifest.version);
   assertMarketplaceVersion(workbuddyMarketplace.plugins[0]?.version, workbuddyManifest.version);
-  await expect(access(join(root, ".claude-plugin/marketplace.json"))).rejects.toThrow();
+  assertMarketplaceVersion(claudeMarketplace.plugins[0]?.version, claudeManifest.version);
 });
 
 test("each host registration declares only its own host artifact", async () => {
   const root = join(import.meta.dir, "../..");
-  const [codexMarketplace, zcodeMarketplace, cursorMarketplace, workbuddyMarketplace] =
+  const [codexMarketplace, zcodeMarketplace, cursorMarketplace, workbuddyMarketplace, claudeMarketplace] =
     await Promise.all([
       readFile(join(root, ".agents/plugins/marketplace.json"), "utf8").then(
         (content) => JSON.parse(content) as CodexMarketplace,
@@ -154,6 +177,9 @@ test("each host registration declares only its own host artifact", async () => {
       readFile(join(root, ".codebuddy-plugin/marketplace.json"), "utf8").then(
         (content) => JSON.parse(content) as WorkbuddyMarketplace,
       ),
+      readFile(join(root, ".claude-plugin/marketplace.json"), "utf8").then(
+        (content) => JSON.parse(content) as ClaudeMarketplace,
+      ),
     ]);
 
   const declaredSources = [
@@ -161,6 +187,7 @@ test("each host registration declares only its own host artifact", async () => {
     ...zcodeMarketplace.plugins.map((plugin) => plugin.source),
     ...cursorMarketplace.plugins.map((plugin) => plugin.source),
     ...workbuddyMarketplace.plugins.map((plugin) => plugin.source),
+    ...claudeMarketplace.plugins.map((plugin) => plugin.source),
   ];
 
   expect(codexMarketplace.plugins.map((plugin) => plugin.source.path)).toEqual([
@@ -175,8 +202,13 @@ test("each host registration declares only its own host artifact", async () => {
   expect(workbuddyMarketplace.plugins.map((plugin) => plugin.source)).toEqual([
     "./plugins/workbuddy/lorelum",
   ]);
+  expect(claudeMarketplace.plugins.map((plugin) => plugin.source)).toEqual([
+    "./plugins/claude/lorelum",
+  ]);
   for (const source of declaredSources) {
-    expect(source).toMatch(new RegExp(`^\\./plugins/(codex|zcode|cursor|workbuddy)/${productId}$`));
+    expect(source).toMatch(
+      new RegExp(`^\\./plugins/(codex|zcode|cursor|workbuddy|claude)/${productId}$`),
+    );
   }
 });
 

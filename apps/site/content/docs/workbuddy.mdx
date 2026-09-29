@@ -52,6 +52,24 @@ run:
 
 Or ask WorkBuddy to use Lorelum before it finalizes an important decision.
 
+
+
+WorkBuddy sessions also record read Practice candidates. When your agent
+successfully runs `lore get` inside the session, the CLI reports the Practice
+metadata to a running Backend, which stores it under
+`~/.lorelum/sessions/workbuddy/<session id>/practice-reads.jsonl`. Reporting is
+optional: it never starts the Backend and never changes the `lore get` result.
+
+When WorkBuddy's Bash tool runs a command that mentions `lore`, the command is
+prefixed with two `export` lines that carry the host and session identity —
+this is how the read is associated with the conversation. The prefix does not
+change the command's approval flow, arguments, or exit status, and it is not
+added to non-shell tools. Which commands get the prefix follows the shared
+[`agent.shellSessionInjection`](./configuration#agent-shell-session-identity)
+setting. Subagents do not receive read-candidate hints on WorkBuddy: the host
+dispatches a SubagentStart event but discards hook output, so no hint channel
+exists there.
+
 ## Update
 
 Open the plugin management surface, select Lorelum, and install the offered

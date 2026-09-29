@@ -4,36 +4,18 @@ description: Add Lorelum to your coding agent, then use it in a new task.
 icon: Bot
 ---
 
-Lorelum helps your coding agent find relevant engineering guidance while it
-works. Complete [Quickstart](./quickstart) first so the `lore` command and at
-least one Pack are available to the agent.
+Lorelum helps your coding agent find relevant engineering guidance while it works. Complete [Quickstart](./quickstart) first so the `lore` command and at least one Pack are available to the agent.
 
 ## Choose your agent
 
-| Agent | Recommended setup |
-| --- | --- |
-| Codex | Install the [Lorelum Plugin](./codex). |
-| WorkBuddy | Install the [Lorelum Plugin](./workbuddy). |
-| ZCode | Install the [Lorelum Plugin](./zcode). |
-| Claude Code | Add the Lorelum Skill to the project or your personal Skills folder. |
-| Cursor | Install the [Lorelum Plugin](./cursor). |
+| Agent                         | Recommended setup                                          |
+| ----------------------------- | ---------------------------------------------------------- |
+| Codex                         | Install the [Lorelum Plugin](./codex).                     |
+| WorkBuddy                     | Install the [Lorelum Plugin](./workbuddy).                 |
+| ZCode                         | Install the [Lorelum Plugin](./zcode).                     |
+| Claude Code                   | Install the [Lorelum Plugin](./claude).                    |
+| Cursor                        | Install the [Lorelum Plugin](./cursor).                    |
 | Another command-capable agent | Use its supported Skill mechanism or project instructions. |
-
-## Add the Skill
-
-For Claude Code, add the Skill to this project:
-
-```sh
-mkdir -p .claude/skills/lorelum
-curl -fsSL https://raw.githubusercontent.com/lorelum/lorelum/main/skills/lorelum/SKILL.md \
-  -o .claude/skills/lorelum/SKILL.md
-```
-
-For personal Claude Code use, put the same file in
-`~/.claude/skills/lorelum/SKILL.md`.
-
-For Cursor, install the [Lorelum Plugin](./cursor) instead of a file-based
-Skill.
 
 ## Other agents
 
@@ -49,8 +31,7 @@ Start a new task and tell your agent:
 Use Lorelum to find engineering guidance for this task before you finalize the plan.
 ```
 
-The agent should use the installed guidance when it can help with a design,
-implementation, verification, or recovery decision.
+The agent should use the installed guidance when it can help with a design, implementation, verification, or recovery decision.
 
 ## Session read hints
 
@@ -65,11 +46,8 @@ For hosts that can pass session identity to shell commands, the shared [Agent se
 1. Check that `lore --version` works in the environment used by the agent.
 2. Check that the Skill or Plugin is installed and enabled.
 3. Start a new task after installing or updating a Plugin.
-4. Use [Troubleshooting](./troubleshooting) if Lorelum starts but cannot
-   retrieve guidance.
+4. Use [Troubleshooting](./troubleshooting) if Lorelum starts but cannot retrieve guidance.
 
 ## Update
 
-For a file-based Skill, replace `SKILL.md` with the latest version. For Codex,
-WorkBuddy, ZCode, and Cursor, update the Plugin in the host application; their
-installation pages explain the exact steps.
+For a file-based Skill, replace `SKILL.md` with the latest version. For Codex, WorkBuddy, ZCode, Claude Code, and Cursor, update the Plugin in the host application; their installation pages explain the exact steps.

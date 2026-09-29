@@ -36,6 +36,7 @@ import { loadQuerySettings } from "./query/settings.js";
 import { createCacheCommands } from "./cache/commands.js";
 import { createFeedbackCommand } from "./feedback/index.js";
 import { createLogCommands } from "./log/command.js";
+import { createCliUpdateCommand } from "./update/update-command.js";
 import { createRegistryCommands } from "./registry-sources/commands.js";
 
 export interface CommandOption {
@@ -115,6 +116,8 @@ export interface CommandResult<T extends JsonValue = JsonValue> {
   readonly data: T;
   /** Defaults to 0. Exit 1 is valid only when declared by the command. */
   readonly exitCode?: 0 | 1;
+  /** Optional per-invocation text view; JSON always receives the complete data. */
+  readonly textRenderer?: TextRenderer;
 }
 
 export type CommandHandler = (
@@ -357,6 +360,7 @@ export const commandRegistry = snapshotCommandDefinitions([
   discoveryCommandDefinition,
   createInstallCommand(sharedInstallServices),
   createUpdateCommand(sharedInstallServices),
+  createCliUpdateCommand(),
   ...createRegistryCommands(),
   createRemoveCommand({ store: sharedStore, storageRoot: sharedStorageRoot }),
   createGetCommand({
