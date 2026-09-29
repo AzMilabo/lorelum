@@ -43,7 +43,7 @@ Lorelum SHALL 由现有 Backend 持有成功读取的 Practice 候选状态，�
 
 Codex 集成 SHALL 只对 Bash 的 `PreToolUse` 改写工具输入以传递宿主与会话 ID；macOS/Linux SHALL 使用 Unix shell 环境变量语法，Windows 原生 Agent SHALL 使用 PowerShell 环境变量语法。MUST 保留原输入的其他字段，且 MUST NOT 改变命令原有的批准与退出语义。无法安全改写或用户未信任 Hook 时 MUST 不假称显式绑定已生效。Codex 的 `PostToolUse` SHALL 不再为活动窗口连接 Backend；Linux/Windows 的 Hook 声明及单元测试不能充当真实宿主改写、继承与批准流程验证。
 
-Agent 共用的用户级配置 `agent.shellSessionInjection` SHALL 只接受 `lore-only` 与 `all-shell`；缺失时 MUST 默认 `lore-only`。当前 Codex、Claude Code、WorkBuddy 与 Cursor 的 shell Hook 消费这项配置，其他宿主没有 shell 身份改写能力时 MUST 不因配置存在而新增命令改写。默认模式下改写宿主 SHALL 只在 shell 命令文本中出现独立的 `lore` 字样时传递会话身份；`all-shell` SHALL 对每次有效的 shell 工具调用传递身份。两种模式都 MUST 跳过非 shell tool；Hook MUST NOT 为判断而读取脚本内容或解析 shell 语法。配置损坏或取值无效时 MUST 不改写该次命令，也 MUST NOT 阻塞原工具调用。
+Agent 共用的用户级配置 `agent.shellSessionInjection` SHALL 只接受 `lore-only` 与 `all-shell`；缺失时 MUST 默认 `lore-only`。Codex、Claude Code、WorkBuddy、Cursor 与 ZCode 的 shell Hook 消费这项配置；其他宿主没有 shell 身份改写能力时 MUST 不因配置存在而新增命令改写。默认模式下改写宿主 SHALL 只在 shell 命令文本中出现独立的 `lore` 字样时传递会话身份；`all-shell` SHALL 对每次有效的 shell 工具调用传递身份。两种模式都 MUST 跳过非 shell tool；Hook MUST NOT 为判断而读取脚本内容或解析 shell 语法。配置损坏或取值无效时 MUST 不改写该次命令，也 MUST NOT 阻塞原工具调用。
 
 #### Scenario: 默认只检测外层命令
 
@@ -69,6 +69,30 @@ Agent 共用的用户级配置 `agent.shellSessionInjection` SHALL 只接受 `lo
 
 - **WHEN** 改写未被信任、宿主不支持改写，或当前平台的改写路径尚未通过真实宿主验证
 - **THEN** 集成 MUST 保持命令原行为；可以使用已支持的公共窗口后备或漏记，但 MUST NOT 把仅显示改写后的 Hook JSON 当作命令已实际执行的证据
+
+### Requirement: ZCode 会话身份传递保持宿主审批
+
+ZCode 集成 SHALL 只对 `Bash` tool 的 `PreToolUse` 返回 `updatedInput` 以传递宿主与会话 ID，且 MUST NOT 返回权限决定：ZCode 的 Hook `permissionDecision: "allow"` 会放行原本需要用户确认的调用，改写输入本身不需要该字段。ZCode 的 Bash tool 在所有受支持平台 SHALL 使用 Unix shell 环境变量语法（Windows 上为自动检测的 Git Bash）；ZCode 将 shell 解析为非 POSIX 方言（显式配置覆盖或未找到 POSIX shell）时 MAY 漏记，MUST NOT 影响原命令的执行。MUST 保留原输入的其他字段，并沿用 `agent.shellSessionInjection` 的 `lore-only` / `all-shell` 判定。ZCode 没有子 Agent 启动事件，Plugin MUST NOT 为此注册空 Hook，也 MUST NOT 把 SessionStart Pack Catalog 当作已读候选提示。旧版 CLI 或无效配置下，Hook SHALL 以宿主接受的 no-op envelope 降级，MUST NOT 阻塞原工具调用。
+
+#### Scenario: Bash 命令在注入范围内
+
+- **WHEN** ZCode 的 Bash `PreToolUse` 带有会话 ID，命令文本满足共享注入策略（默认含独立 `lore` 字样，或 `all-shell`）
+- **THEN** Hook MUST 返回前置 Unix `export` 的 `updatedInput`，且返回的 envelope MUST NOT 含 `permissionDecision`；宿主的批准流程与原命令退出语义 MUST 保持不变
+
+#### Scenario: 非 Bash tool 或注入范围外命令
+
+- **WHEN** ZCode 发来的 tool 不是 `Bash`，或默认模式下命令文本不含独立 `lore` 字样
+- **THEN** Hook MUST 返回 no-op，不改写输入
+
+#### Scenario: ZCode 缺少子 Agent 注入事件
+
+- **WHEN** ZCode 宿主没有子 Agent 启动类事件
+- **THEN** Plugin MUST 不注册对应 Hook，用户文档 MUST 说明 ZCode 不提供子 Agent 候选提示，且 Pack Catalog 不是已读提示
+
+#### Scenario: 旧版 CLI 或配置无效
+
+- **WHEN** 插件已更新而本机 `lore` CLI 尚未理解 `PreToolUse`，或共享配置取值无效
+- **THEN** Hook 输出 MUST 降级为 ZCode 接受的 no-op envelope；原命令执行结果 MUST 不变
 
 ### Requirement: Codex 子 Agent 获得可选候选提示
 

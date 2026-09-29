@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { ListPackDetailsResult } from "@lorelum/engine";
+import { ConfigError } from "@lorelum/config";
 
 import { parseCodexHookInvocation } from "./codex.js";
+import { DEFAULT_AGENT_HOOK_SETTINGS, loadAgentHookSettings } from "./agent-settings.js";
 import {
   parseZcodeHookInvocation,
   runZcodeHook,
@@ -47,6 +52,7 @@ function services(overrides: Partial<ZcodeHookServices> = {}): ZcodeHookServices
       },
     },
     storageRoot: { rootPath: "/default-store" },
+    agentHookSettings: async () => DEFAULT_AGENT_HOOK_SETTINGS,
     ...overrides,
   };
 }
@@ -133,4 +139,221 @@ describe("lore hook zcode", () => {
     expect(parseZcodeHookInvocation(["hook", "codex"])).toBeUndefined();
     expect(parseCodexHookInvocation(["hook", "zcode"])).toBeUndefined();
   });
+
+  test.each(["darwin", "linux", "win32"] as const)(
+    "%s rewrites only Bash commands with a POSIX export prefix and no permission decision",
+    async (platform) => {
+      const stdout = new MemoryWriter();
+      const original = {
+        command: "lore get practice.id",
+        timeout_ms: 12_000,
+        run_in_background: false,
+        extra: { unchanged: true },
+      };
+      await runZcodeHook({
+        stdin: input(
+          JSON.stringify({
+            hook_event_name: "PreToolUse",
+            tool_name: "Bash",
+            session_id: "zcode'parent",
+            tool_input: original,
+          }),
+        ),
+        stdout,
+        stderr: new MemoryWriter(),
+        services: services({
+          platform,
+          agentHookSettings: async () => ({ shellSessionInjection: "all-shell" }),
+        }),
+      });
+      // ZCode runs the Bash tool through a POSIX shell (Git Bash) on every
+      // platform, and applying updatedInput must not decide permissions: a
+      // permissionDecision there could bypass the host's ask prompts.
+      expect(JSON.parse(stdout.value)).toEqual({
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          updatedInput: {
+            ...original,
+            command:
+              "export LORELUM_HOST_KEY='zcode'\n" +
+              "export LORELUM_HOST_SESSION_ID='zcode'\"'\"'parent'\n" +
+              original.command,
+          },
+        },
+      });
+      for (const payload of [
+        {
+          hook_event_name: "PreToolUse",
+          tool_name: "Edit",
+          session_id: "zcode-parent",
+          tool_input: original,
+        },
+        { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: original },
+        { hook_event_name: "PreToolUse", tool_name: "Bash", session_id: "zcode-parent" },
+        {
+          hook_event_name: "PreToolUse",
+          tool_name: "Bash",
+          session_id: "zcode-parent",
+          tool_input: { command: 7 },
+        },
+      ]) {
+        const empty = new MemoryWriter();
+        // eslint-disable-next-line no-await-in-loop -- Check each independent no-op payload and its output.
+        await runZcodeHook({
+          stdin: input(JSON.stringify(payload)),
+          stdout: empty,
+          stderr: new MemoryWriter(),
+          services: services({ platform }),
+        });
+        expect(empty.value).toBe("{}\n");
+      }
+    },
+  );
+
+  test.each([
+    ["lore get practice.id", true],
+    ["echo before | lore get practice.id", true],
+    ["printf '%s' \"$(lore get practice.id)\"", true],
+    ["/usr/local/bin/lore get practice.id", true],
+    ["sh scripts/read-practice.sh", false],
+    ["git status", false],
+    ["echo lorelum", false],
+  ] as const)("lore-only text detection for %s", async (command, matches) => {
+    const stdout = new MemoryWriter();
+    await runZcodeHook({
+      stdin: input(
+        JSON.stringify({
+          hook_event_name: "PreToolUse",
+          tool_name: "Bash",
+          session_id: "zcode-parent",
+          tool_input: { command },
+        }),
+      ),
+      stdout,
+      stderr: new MemoryWriter(),
+      services: services({ platform: "win32" }),
+    });
+    if (matches) {
+      expect(JSON.parse(stdout.value).hookSpecificOutput.updatedInput.command).toEndWith(command);
+    } else {
+      expect(stdout.value).toBe("{}\n");
+    }
+  });
+
+  test("an invalid Agent setting leaves shell input unchanged and does not block the tool", async () => {
+    const stdout = new MemoryWriter();
+    const stderr = new MemoryWriter();
+    await runZcodeHook({
+      stdin: input(
+        JSON.stringify({
+          hook_event_name: "PreToolUse",
+          tool_name: "Bash",
+          session_id: "zcode-parent",
+          tool_input: { command: "lore get practice.id" },
+        }),
+      ),
+      stdout,
+      stderr,
+      services: services({
+        agentHookSettings: async () => {
+          throw new ConfigError();
+        },
+      }),
+    });
+    // ZCode accepts `continue` on every event, so the shared degrade envelope
+    // is the host-safe no-op for this Hook.
+    expect(stdout.value).toBe('{"continue":true}\n');
+    expect(stderr.value).toMatch(/^lore hook zcode degraded: /);
+    expect(stderr.value).toContain("configuration file is invalid or unreadable");
+    expect(stderr.value).not.toContain("practice.id");
+  });
+
+  test("the user-level all-shell setting covers indirect script calls", async () => {
+    const home = await mkdtemp(join(tmpdir(), "lorelum-zcode-hook-mode-"));
+    try {
+      await mkdir(join(home, ".lorelum"));
+      await writeFile(
+        join(home, ".lorelum", "config.yaml"),
+        "agent:\n  shellSessionInjection: all-shell\n",
+      );
+      const stdout = new MemoryWriter();
+      await runZcodeHook({
+        stdin: input(
+          JSON.stringify({
+            hook_event_name: "PreToolUse",
+            tool_name: "Bash",
+            session_id: "zcode-parent",
+            tool_input: { command: "sh scripts/read-practice.sh" },
+          }),
+        ),
+        stdout,
+        stderr: new MemoryWriter(),
+        services: services({
+          platform: "linux",
+          agentHookSettings: () => loadAgentHookSettings({ homeDirectory: home }),
+        }),
+      });
+      expect(JSON.parse(stdout.value).hookSpecificOutput.updatedInput.command).toEndWith(
+        "sh scripts/read-practice.sh",
+      );
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test("a PostToolUse or SubagentStart payload stays an unsupported event", async () => {
+    for (const hook_event_name of ["PostToolUse", "SubagentStart"]) {
+      const stdout = new MemoryWriter();
+      const stderr = new MemoryWriter();
+      // eslint-disable-next-line no-await-in-loop -- Check each unsupported event independently.
+      await runZcodeHook({
+        stdin: input(
+          JSON.stringify({
+            hook_event_name,
+            tool_name: "Bash",
+            session_id: "zcode-parent",
+            tool_input: { command: "lore get practice.id" },
+          }),
+        ),
+        stdout,
+        stderr,
+        services: services({ platform: "linux" }),
+      });
+      expect(stdout.value).toBe('{"continue":true}\n');
+      expect(stderr.value).toMatch(/^lore hook zcode degraded: /);
+    }
+  });
+
+  test.skipIf(process.platform === "win32")(
+    "the rewrite passes session identity to a child process without changing exit status",
+    async () => {
+      const stdout = new MemoryWriter();
+      await runZcodeHook({
+        stdin: input(
+          JSON.stringify({
+            hook_event_name: "PreToolUse",
+            tool_name: "Bash",
+            session_id: "zcode'parent",
+            tool_input: {
+              command: `sh -c 'printf "%s/%s" "$LORELUM_HOST_KEY" "$LORELUM_HOST_SESSION_ID"'; exit 23`,
+            },
+          }),
+        ),
+        stdout,
+        stderr: new MemoryWriter(),
+        services: services({
+          platform: "win32",
+          agentHookSettings: async () => ({ shellSessionInjection: "all-shell" }),
+        }),
+      });
+      const command = JSON.parse(stdout.value).hookSpecificOutput.updatedInput.command;
+      const child = Bun.spawn(["sh", "-c", command], { stdout: "pipe", stderr: "pipe" });
+      const [output, exitCode] = await Promise.all([
+        new Response(child.stdout).text(),
+        child.exited,
+      ]);
+      expect(output).toBe("zcode/zcode'parent");
+      expect(exitCode).toBe(23);
+    },
+  );
 });

@@ -40,9 +40,8 @@ export interface HostHookResponse {
     | { readonly hookEventName: HostHookEvent; readonly additionalContext: string }
     | {
         readonly hookEventName: "PreToolUse";
-        // Claude Code and WorkBuddy apply `updatedInput` through their normal
-        // permission flow when no decision is present; Codex's host contract
-        // requires "allow" alongside the rewrite.
+        // Claude Code, WorkBuddy, and ZCode apply `updatedInput` without a
+        // decision; Codex's host contract requires "allow" alongside it.
         readonly permissionDecision?: "allow";
         readonly updatedInput: Record<string, unknown>;
       };
@@ -173,9 +172,8 @@ export async function runHostHook(options: RunHostHookOptions): Promise<0> {
   } catch (error) {
     options.log?.error("hook.degraded", { host: options.host }, error);
     options.stderr.write(`lore hook ${options.host} degraded: ${diagnosticMessage(error)}\n`);
-    // PreToolUse-style events do not accept `continue`, so a failed optional
-    // hint Hook must return an empty, valid result instead of a malformed
-    // permission. Cursor spells these events in camelCase.
+    // Hint hosts need an empty result on tool events; Cursor uses camelCase.
+    // ZCode is not in this set and accepts the shared `continue` no-op.
     const normalizedEvent = eventName?.toLowerCase();
     options.stdout.write(
       isPracticeHintHost(options.host) &&
@@ -218,6 +216,15 @@ function respondToHostHook(
       services.platform,
     );
   }
+  if (host === "zcode" && input.hook_event_name === "PreToolUse") {
+    return respondToPracticeHint(
+      input,
+      host,
+      services.practiceHints ?? defaultPracticeHints,
+      services.agentHookSettings ?? loadAgentHookSettings,
+      services.platform,
+    );
+  }
   if (input.hook_event_name !== supportedSessionEvent(host)) {
     throw new Error(`Lorelum ${hostLabel(host)} Hook received an unsupported event.`);
   }
@@ -233,7 +240,7 @@ function respondToHostHook(
 
 async function respondToPracticeHint(
   input: HostHookInput,
-  host: PracticeHintHost,
+  host: PracticeHintHost | "zcode",
   hints: NonNullable<HostHookServices["practiceHints"]>,
   loadSettings: () => Promise<AgentHookSettings>,
   platform: NodeJS.Platform = process.platform,
@@ -259,7 +266,8 @@ async function respondToPracticeHint(
     if (isPostToolUse) return {};
     const syntax = shellInjectionSyntax(host, input.tool_name, platform);
     if (syntax === undefined) return {};
-    const sessionId = firstString(input.session_id, input.conversation_id);
+    const sessionId =
+      host === "cursor" ? firstString(input.session_id, input.conversation_id) : input.session_id;
     const session = sessionRefSchema.safeParse({ hostKey: host, sessionId });
     if (!session.success || !isRecord(input.tool_input)) return {};
     const command = input.tool_input.command;
@@ -284,9 +292,8 @@ async function respondToPracticeHint(
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
         // Codex's host contract requires "allow" alongside updatedInput;
-        // Claude Code and WorkBuddy apply updatedInput through their normal
-        // permission flow, and WorkBuddy's "allow" would bypass its
-        // permission system entirely.
+        // Claude Code, WorkBuddy, and ZCode apply updatedInput without a
+        // decision; "allow" would bypass the latter two hosts' ask prompts.
         ...(host === "codex" ? { permissionDecision: "allow" as const } : {}),
         updatedInput,
       },
@@ -299,14 +306,12 @@ async function respondToPracticeHint(
  * Resolve the assignment syntax for a host's shell tool. Claude Code names its
  * shell tools "Bash" and "PowerShell", and each tool implies its own syntax on
  * every platform (the Bash tool runs a POSIX-style shell even on Windows).
- * Codex, WorkBuddy, and Cursor expose one shell tool — "Bash", "Bash", and
- * "Shell" respectively — and Codex keys the prefix on the host platform
- * because its native Windows agent runs PowerShell, while WorkBuddy's Bash
- * tool and Cursor's agent host run Git Bash on every platform, so those two
- * always get POSIX exports.
+ * Codex, WorkBuddy, ZCode, and Cursor expose one shell tool — "Bash" for the
+ * first three and "Shell" for Cursor. Codex keys the prefix on the platform
+ * because native Windows uses PowerShell; the other hosts use POSIX exports.
  */
 function shellInjectionSyntax(
-  host: PracticeHintHost,
+  host: PracticeHintHost | "zcode",
   toolName: unknown,
   platform: NodeJS.Platform,
 ): "export" | "powershell" | undefined {
@@ -318,6 +323,11 @@ function shellInjectionSyntax(
   const shellToolName = host === "cursor" ? "Shell" : "Bash";
   if (toolName !== shellToolName) return undefined;
   if (host === "workbuddy" || host === "cursor") return "export";
+  if (host === "zcode") {
+    return platform === "darwin" || platform === "linux" || platform === "win32"
+      ? "export"
+      : undefined;
+  }
   return platform === "win32"
     ? "powershell"
     : platform === "darwin" || platform === "linux"

@@ -60,13 +60,36 @@
 - 用户提供的 Arch x64 / Codex CLI 0.156.1 实测使用隔离的 HOME/CODEX_HOME、本地 Plugin 和与 PR `161c59a` 匹配的编译 CLI；未修改真实用户配置。在正常宿主运行环境，PreToolUse 改写与字段保留、`lore-only` / `all-shell` / 坏配置 / 非 Bash 分支、直接命令与本地子进程继承、原退出码均通过。
 - 同一环境中，成功 `lore get` 将候选写入真实会话 ID 对应的 Backend 文件；`SubagentStart` 的短提示出现在真实子 Agent 上下文，未自动 `get` 或注入正文。失败 `get` 的退出码保持为 2。上述为用户提供的实测证据，本 worktree 未独立复跑 Linux；4.3 仍需 Windows 真实宿主验收。
 
-## 6. WorkBuddy 与 Cursor 接入（Refs #254）
+## 6. ZCode 宿主接入（#254）
 
-- [x] 6.1 实机考证两宿主 Hook 合同并存证：WorkBuddy 桌面 5.5.6（引擎 2.137.1）事件清单、PreToolUse 输出合同、Bash 工具 shell 选择、Hook 命令执行 shell、`commandWindows`/`additionalContextLimit` 为死配置、`SubagentStart` stdout 被丢弃；Cursor 3.21.16 事件清单、`preToolUse`+`Shell`+扁平 `updated_input`、`conversation_id` 字段、PowerShell Hook 执行、`subagentStart` 无 context 注入。
-- [x] 6.2 `packages/cli/src/hook/host-hook.ts`：共享注入参数化扩至 `workbuddy`/`cursor`（工具名 Bash/Shell、事件名大小写、会话 ID 回退、全平台 `export`、不带权限决定、Cursor 扁平响应）；降级回退 `{}` 扩至两宿主的可选事件。
-- [x] 6.3 `plugins/workbuddy/lorelum/hooks/hooks.json`：增补 `PreToolUse`（matcher `^Bash$`，失败开放 if 包装）；移除死配置 `commandWindows`/`additionalContextLimit`；SessionStart 命令补 `|| lore.cmd` 回退（Windows Hook 走 Git Bash）。`plugins/cursor/lorelum/hooks/hooks.json`：增补 `preToolUse`（matcher `^Shell$`，裸命令，宿主默认 fail-open）。
-- [x] 6.4 单测：`workbuddy.test.ts`/`cursor.test.ts`（全平台 export 前缀、无权限决定、字段保留、会话 ID 回退、非 shell 工具与畸形输入 no-op、lore-only/all-shell、坏配置 no-op、SubagentStart/subagentStart no-op、真实 sh 子进程继承与退出码）；插件 hooks-config 测试（结构断言、转发、旧 CLI 失败开放/归一、缺 CLI 失败开放）。
-- [x] 6.5 同步维护者与用户文档：plugin-conventions（WorkBuddy 节按实机合同重写、Cursor 节补 preToolUse）、plugins.md 验证面、`docs/cli/hook.md`、workbuddy/cursor 双语站点页（会话已读候选、环境赋值说明、子 Agent 提示缺失的已知限制）。
-- [x] 6.6 真机验收（引擎级，两宿主，2026-09-29 Windows）：worktree 编译 CLI + 运行中 Backend 下，两宿主的 `PreToolUse`/`preToolUse` payload 经 `lore hook <host>` 返回正确改写（WorkBuddy 嵌套 `updatedInput` 无权限决定、Cursor 扁平 `updated_input`，均为全平台 `export` 前缀）；在真实 shell 执行改写后命令使 `sessions/workbuddy/wb-e2e-1` 与 `sessions/cursor/cur-e2e-1` 各落一条完整候选记录；停止 Backend 后带身份 `lore get` 退出码 0、输出不变、记录数不变。验收后已还原 lore.cmd shim、WorkBuddy 插件缓存 hooks.json、Cursor 本地插件目录、Backend 与应用现场。
-- [x] 6.7 WorkBuddy 真实宿主验收（内嵌引擎 2.137.1 无头会话，`--plugin-dir` 加载变更插件）：模型应答 Practice 标题正确；会话转录中的 Bash 工具执行记录即改写后命令原文（`export LORELUM_HOST_KEY='workbuddy'` + `LORELUM_HOST_SESSION_ID='fafe5c6f-…'` 前缀 + `lore.cmd get …`，Exit 0），`sessions/workbuddy/fafe5c6f-95dc-446f-bfc4-f83d347bd500/practice-reads.jsonl` 落盘且 sessionId 与转录一致。注意：无头 `-p` 模式默认不加载插件 Hook，需 `--plugin-dir` 指向插件根，该差异已在维护者文档记录。
-- [ ] 6.8 Cursor 真实宿主派发验证：插件经官方本地目录 `~/.cursor/plugins/local` 加载、GUI 会话消息已送达，但账户周用量耗尽（界面明示 "Weekly usage limit reached. It resets in 6 days"）导致 agent 未执行任何工具调用；引擎级链路（6.6）与合同考证已完备，待额度恢复或由其他操作者环境补一次真实会话派发验证后勾选。
+- [x] 6.1 `lore hook zcode` 处理 `PreToolUse`：仅 `Bash` tool 返回前置 Unix `export` 的 `updatedInput`（全平台，含 Windows Git Bash），不返回 `permissionDecision`（ZCode 中该字段的 `allow` 会放行待确认调用），沿用 `agent.shellSessionInjection` 判定并保留其余工具输入字段；非 Bash、缺会话 ID 或命令非字符串输出 no-op。单测覆盖三平台前缀、lore-only 文本判定、all-shell 真实配置、无效配置降级、非 Bash no-op 与真实 shell 子进程继承。
+- [x] 6.2 ZCode Plugin `hooks.json` 增加匹配 `^Bash$` 的 `PreToolUse` process Hook；不注册 ZCode 不存在的 `SubagentStart`，不保留空跑 `PostToolUse`；插件测试覆盖配置形状、旧 CLI 的 `{"continue":true}` 降级透传与 payload 转发。
+- [x] 6.3 同步双语 ZCode 用户指南、配置入口、Plugin README 与 `docs/cli/hook.md`：说明已读候选记录、注入范围配置、无子 Agent 提示的宿主边界、CMD 方言漏记与更新要求（更新 CLI 与 Plugin 后需新会话加载 Hook）。
+- [x] 6.4 在正常运行的 ZCode 宿主内完成真实链路验收：Hook 改写在真实 Bash 调用生效、成功 `get` 记录到正确会话、失败或 Backend 不可达不改 `get` 结果（Windows 真实 ZCode 会话完成，见本轮验证记录）。
+
+## 2026-09-29 ZCode 宿主接入本轮验证
+
+- 宿主合同静态核对：从 ZCode 产品安装的 `zcode.cjs` 提取 Hook 实现——`PreToolUse` stdin payload 含 `hook_event_name`、`session_id`、`tool_name`、`tool_input`（与 Codex 同形）；顶层输出 schema 为严格对象，`continue` 在所有事件上合法，`hookSpecificOutput.PreToolUse` 接受 `updatedInput` 且其应用独立于 `permissionDecision`，而 Hook `allow` 决定会把原本 `ask` 的调用直接放行——因此 ZCode 分支不返回权限决定。产品代码还确认 Hook（插件与工作区配置）只在会话启动时注册，应用内中途无法激活新 Hook，无头 CLI 不存在，这是 6.4 保持未勾的原因。
+- 真实 ZCode Bash 工具（Windows、MINGW64 Git Bash）内执行源码 CLI 产出的改写后命令原文：直接命令、`sh -c` 脚本、管道与命令替换均继承 `zcode/e2e-zcode-session-1` 身份，退出码 23 与工作目录保持不变；外层文本不含 `lore` 时 Hook 返回 `{}`。
+- 真实 Backend 集成：隔离 HOME 下从本 worktree 源码启动 Backend（ready、model unloaded），带成对身份的成功 `lore get`（项目 Pack）由 Backend 写入 `sessions/zcode/e2e-zcode-session-1/practice-reads.jsonl`，仅含 ID、digest、title、appliesWhen 与实际 cwd；会话 ID 为空串时 get 退出码 0 且不新增记录；停止 Backend 后同命令输出逐字节一致、退出码 0、无新文件。旧版已安装 CLI（0.1.0-alpha.3）对 `PreToolUse` 输出 `{"continue":true}` 且退出码 0。验证后已清理隔离目录并停止 Backend，真实用户 `~/.lorelum` 无 sessions 目录。
+- 子代理启动事件取证：宿主 Hook 事件枚举恰好七个（`SessionStart`/`UserPromptSubmit`/`PreToolUse`/`PermissionRequest`/`PostToolUse`/`PostToolUseFailure`/`Stop`），无 `SubagentStart`。在已注册且对主会话生效的 Lorelum SessionStart Hook 会话派生真实子 Agent（日志 `sess_subagent_agent_*`），其启动上下文不含 Pack Catalog 或任何 Hook 注入——证明 SessionStart 不为子 Agent 触发；"不存在任何子代理启动事件"的完整结论仍以枚举为据，另备有与本实现无关的全事件探针可在新会话复核。
+- 宿主 shell 机制取证：ZCode 以 `bashShellSelection` 把解析出的执行 shell 直接传入 Bash 工具路径（产品代码 `Upo`/`Rca`/handler 上下文可见），git-bash provider 的 `GIT_EDITOR=true`/`SHELL=<bash>` 环境签名在本机 Bash 工具进程实测存在，宿主按解析结果在会话上下文生成 "The Bash tool shell is Git Bash."；用户可经宿主自身的选择改为 CMD，未找到 POSIX shell 时走 legacy 回退，两者均为已文档化的漏记情形。
+- 本轮 `bun test packages/cli`：375 通过、2 项进程测试在 Windows 跳过、0 失败（另 2 项失败为本机环境既有限制：无符号链接权限的 symlink 用例与 main.test.ts 超时用例，均已在干净 main 上复现，与本变更无关）；`bun run typecheck`、`bun run lint`（0 warning）、变更文件 `oxfmt --check`、`bun run build:site`、`openspec validate share-read-practice-hints --strict` 通过。
+
+## 2026-09-29 ZCode 应用内真实验收记录
+
+- 以分支源码构建的 CLI 与 Plugin（本地安装标号 0.1.0-alpha.4；注意 GitHub 的 v0.1.0-alpha.4 发布于 2026-09-21，早于本功能，本地构建与该发布无关）在 Windows 真实 ZCode 会话内完成三项验收：
+  1. **应用内改写生效**：含独立 `lore` 字样的 Bash 命令实际执行时环境为 `LORELUM_HOST_KEY=zcode`、`LORELUM_HOST_SESSION_ID=sess_63201a19-…`（该会话真实 ID），即宿主在应用内实际应用了 `updatedInput`；外层文本不含 `lore` 的命令不注入。
+  2. **成功 get 记录到正确会话**：应用内 `lore get` 成功后，Backend 在 `~/.lorelum/sessions/zcode/sess_63201a19-…/practice-reads.jsonl` 追加仅含 ID、digest、title、appliesWhen 与实际 cwd 的记录。
+  3. **Backend 不可达不改结果**：停止 Backend 后同一 `get` 输出逐字节一致、退出码 0、不新增记录；随后 Backend 恢复 ready。
+- 附带观察（供后续 Issue 使用，不属本变更范围）：主会话 ID 形如 `sess_<uuid>`，宿主日志中子代理会话 ID 形如 `sess_subagent_agent_<agentId>`；主/子 Agent 读取来源区分与各宿主子代理适配另立 Issue 跟踪。
+## 7. WorkBuddy 与 Cursor 接入（Refs #254）
+
+- [x] 7.1 实机考证两宿主 Hook 合同并存证：WorkBuddy 桌面 5.5.6（引擎 2.137.1）事件清单、PreToolUse 输出合同、Bash 工具 shell 选择、Hook 命令执行 shell、`commandWindows`/`additionalContextLimit` 为死配置、`SubagentStart` stdout 被丢弃；Cursor 3.21.16 事件清单、`preToolUse`+`Shell`+扁平 `updated_input`、`conversation_id` 字段、PowerShell Hook 执行、`subagentStart` 无 context 注入。
+- [x] 7.2 `packages/cli/src/hook/host-hook.ts`：共享注入参数化扩至 `workbuddy`/`cursor`（工具名 Bash/Shell、事件名大小写、会话 ID 回退、全平台 `export`、不带权限决定、Cursor 扁平响应）；降级回退 `{}` 扩至两宿主的可选事件。
+- [x] 7.3 `plugins/workbuddy/lorelum/hooks/hooks.json`：增补 `PreToolUse`（matcher `^Bash$`，失败开放 if 包装）；移除死配置 `commandWindows`/`additionalContextLimit`；SessionStart 命令补 `|| lore.cmd` 回退（Windows Hook 走 Git Bash）。`plugins/cursor/lorelum/hooks/hooks.json`：增补 `preToolUse`（matcher `^Shell$`，裸命令，宿主默认 fail-open）。
+- [x] 7.4 单测：`workbuddy.test.ts`/`cursor.test.ts`（全平台 export 前缀、无权限决定、字段保留、会话 ID 回退、非 shell 工具与畸形输入 no-op、lore-only/all-shell、坏配置 no-op、SubagentStart/subagentStart no-op、真实 sh 子进程继承与退出码）；插件 hooks-config 测试（结构断言、转发、旧 CLI 失败开放/归一、缺 CLI 失败开放）。
+- [x] 7.5 同步维护者与用户文档：plugin-conventions（WorkBuddy 节按实机合同重写、Cursor 节补 preToolUse）、plugins.md 验证面、`docs/cli/hook.md`、workbuddy/cursor 双语站点页（会话已读候选、环境赋值说明、子 Agent 提示缺失的已知限制）。
+- [x] 7.6 真机验收（引擎级，两宿主，2026-09-29 Windows）：worktree 编译 CLI + 运行中 Backend 下，两宿主的 `PreToolUse`/`preToolUse` payload 经 `lore hook <host>` 返回正确改写（WorkBuddy 嵌套 `updatedInput` 无权限决定、Cursor 扁平 `updated_input`，均为全平台 `export` 前缀）；在真实 shell 执行改写后命令使 `sessions/workbuddy/wb-e2e-1` 与 `sessions/cursor/cur-e2e-1` 各落一条完整候选记录；停止 Backend 后带身份 `lore get` 退出码 0、输出不变、记录数不变。验收后已还原 lore.cmd shim、WorkBuddy 插件缓存 hooks.json、Cursor 本地插件目录、Backend 与应用现场。
+- [x] 7.7 WorkBuddy 真实宿主验收（内嵌引擎 2.137.1 无头会话，`--plugin-dir` 加载变更插件）：模型应答 Practice 标题正确；会话转录中的 Bash 工具执行记录即改写后命令原文（`export LORELUM_HOST_KEY='workbuddy'` + `LORELUM_HOST_SESSION_ID='fafe5c6f-…'` 前缀 + `lore.cmd get …`，Exit 0），`sessions/workbuddy/fafe5c6f-95dc-446f-bfc4-f83d347bd500/practice-reads.jsonl` 落盘且 sessionId 与转录一致。注意：无头 `-p` 模式默认不加载插件 Hook，需 `--plugin-dir` 指向插件根，该差异已在维护者文档记录。
+- [ ] 7.8 Cursor 真实宿主派发验证：插件经官方本地目录 `~/.cursor/plugins/local` 加载、GUI 会话消息已送达，但账户周用量耗尽（界面明示 "Weekly usage limit reached. It resets in 6 days"）导致 agent 未执行任何工具调用；引擎级链路（7.6）与合同考证已完备，待额度恢复或由其他操作者环境补一次真实会话派发验证后勾选。
