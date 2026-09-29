@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { ListPackDetailsResult } from "@lorelum/engine";
+import type { ReadHint } from "@lorelum/backend/client";
+import { ConfigError } from "@lorelum/config";
+
+import { DEFAULT_AGENT_HOOK_SETTINGS, loadAgentHookSettings } from "./agent-settings.js";
 
 import {
   parseClaudeHookInvocation,
@@ -48,6 +55,7 @@ function services(overrides: Partial<ClaudeHookServices> = {}): ClaudeHookServic
       },
     },
     storageRoot: { rootPath: "/default-store" },
+    agentHookSettings: async () => DEFAULT_AGENT_HOOK_SETTINGS,
     ...overrides,
   };
 }
@@ -133,5 +141,370 @@ describe("lore hook claude", () => {
     expect(parseClaudeHookInvocation(["hook", "zcode"])).toBeUndefined();
     expect(parseCodexHookInvocation(["hook", "claude"])).toBeUndefined();
     expect(parseZcodeHookInvocation(["hook", "claude"])).toBeUndefined();
+  });
+
+  test.each([
+    [
+      "Bash",
+      "darwin",
+      "export LORELUM_HOST_KEY='claude'\nexport LORELUM_HOST_SESSION_ID='parent'\"'\"'one'\n",
+    ],
+    [
+      "Bash",
+      "linux",
+      "export LORELUM_HOST_KEY='claude'\nexport LORELUM_HOST_SESSION_ID='parent'\"'\"'one'\n",
+    ],
+    [
+      "Bash",
+      "win32",
+      "export LORELUM_HOST_KEY='claude'\nexport LORELUM_HOST_SESSION_ID='parent'\"'\"'one'\n",
+    ],
+    [
+      "PowerShell",
+      "darwin",
+      "$env:LORELUM_HOST_KEY = 'claude'\n$env:LORELUM_HOST_SESSION_ID = 'parent''one'\n",
+    ],
+    [
+      "PowerShell",
+      "linux",
+      "$env:LORELUM_HOST_KEY = 'claude'\n$env:LORELUM_HOST_SESSION_ID = 'parent''one'\n",
+    ],
+    [
+      "PowerShell",
+      "win32",
+      "$env:LORELUM_HOST_KEY = 'claude'\n$env:LORELUM_HOST_SESSION_ID = 'parent''one'\n",
+    ],
+  ] as const)(
+    "%s on %s rewrites the command without a permission decision and keeps other fields",
+    async (toolName, platform, prefix) => {
+      const stdout = new MemoryWriter();
+      const original = {
+        command: "pwd | cat; exit 23",
+        timeout_ms: 8000,
+        extra: { unchanged: true },
+      };
+      await runClaudeHook({
+        stdin: input(
+          JSON.stringify({
+            hook_event_name: "PreToolUse",
+            tool_name: toolName,
+            session_id: "parent'one",
+            tool_input: original,
+          }),
+        ),
+        stdout,
+        stderr: new MemoryWriter(),
+        services: services({
+          platform,
+          agentHookSettings: async () => ({ shellSessionInjection: "all-shell" }),
+          practiceHints: {
+            async readRecentHints() {
+              return [];
+            },
+          },
+        }),
+      });
+      const response = JSON.parse(stdout.value);
+      expect(response.hookSpecificOutput).toEqual({
+        hookEventName: "PreToolUse",
+        updatedInput: {
+          ...original,
+          command: prefix + original.command,
+        },
+      });
+      expect(response.hookSpecificOutput.permissionDecision).toBeUndefined();
+    },
+  );
+
+  test.each(["Edit", "Read", "Agent"] as const)(
+    "leaves the %s tool untouched without blocking the call",
+    async (toolName) => {
+      const stdout = new MemoryWriter();
+      await runClaudeHook({
+        stdin: input(
+          JSON.stringify({
+            hook_event_name: "PreToolUse",
+            tool_name: toolName,
+            session_id: "parent",
+            tool_input: { command: "lore get practice.id" },
+          }),
+        ),
+        stdout,
+        stderr: new MemoryWriter(),
+        services: services({
+          platform: "linux",
+          agentHookSettings: async () => ({ shellSessionInjection: "all-shell" }),
+          practiceHints: {
+            async readRecentHints() {
+              return [];
+            },
+          },
+        }),
+      });
+      expect(stdout.value).toBe("{}\n");
+    },
+  );
+
+  test.each([
+    ["lore get practice.id", true],
+    ["echo before | lore get practice.id", true],
+    ["printf '%s' \"$(lore get practice.id)\"", true],
+    ["/usr/local/bin/lore get practice.id", true],
+    ["git status", false],
+    ["sh scripts/read-practice.sh", false],
+    ["echo lorelum", false],
+  ] as const)("lore-only text detection for %s", async (command, matches) => {
+    const stdout = new MemoryWriter();
+    await runClaudeHook({
+      stdin: input(
+        JSON.stringify({
+          hook_event_name: "PreToolUse",
+          tool_name: "Bash",
+          session_id: "parent",
+          tool_input: { command },
+        }),
+      ),
+      stdout,
+      stderr: new MemoryWriter(),
+      services: services({ platform: "linux" }),
+    });
+    if (matches) {
+      expect(JSON.parse(stdout.value).hookSpecificOutput.updatedInput.command).toEndWith(command);
+    } else {
+      expect(stdout.value).toBe("{}\n");
+    }
+  });
+
+  test.each([
+    ["missing session id", { tool_name: "Bash", tool_input: { command: "lore get practice.id" } }],
+    ["non-record tool input", { tool_name: "Bash", session_id: "parent", tool_input: [] }],
+    ["non-string command", { tool_name: "Bash", session_id: "parent", tool_input: { command: 7 } }],
+  ] as const)("returns a no-op for %s", async (_label, overrides) => {
+    const stdout = new MemoryWriter();
+    await runClaudeHook({
+      stdin: input(
+        JSON.stringify({ hook_event_name: "PreToolUse", ...overrides }),
+      ),
+      stdout,
+      stderr: new MemoryWriter(),
+      services: services({
+        platform: "linux",
+        agentHookSettings: async () => ({ shellSessionInjection: "all-shell" }),
+      }),
+    });
+    expect(stdout.value).toBe("{}\n");
+  });
+
+  test("an invalid Agent setting leaves shell input unchanged and does not block the tool", async () => {
+    const stdout = new MemoryWriter();
+    const stderr = new MemoryWriter();
+    await runClaudeHook({
+      stdin: input(
+        JSON.stringify({
+          hook_event_name: "PreToolUse",
+          tool_name: "Bash",
+          session_id: "parent",
+          tool_input: { command: "lore get practice.id" },
+        }),
+      ),
+      stdout,
+      stderr,
+      services: services({
+        platform: "linux",
+        agentHookSettings: async () => {
+          throw new ConfigError();
+        },
+      }),
+    });
+    expect(stdout.value).toBe("{}\n");
+    expect(stderr.value).toContain("configuration file is invalid or unreadable");
+    expect(stderr.value).not.toContain("practice.id");
+  });
+
+  test("the user-level all-shell setting covers indirect script calls", async () => {
+    const home = await mkdtemp(join(tmpdir(), "lorelum-claude-hook-mode-"));
+    try {
+      await mkdir(join(home, ".lorelum"));
+      await writeFile(
+        join(home, ".lorelum", "config.yaml"),
+        "agent:\n  shellSessionInjection: all-shell\n",
+      );
+      const stdout = new MemoryWriter();
+      await runClaudeHook({
+        stdin: input(
+          JSON.stringify({
+            hook_event_name: "PreToolUse",
+            tool_name: "Bash",
+            session_id: "parent",
+            tool_input: { command: "sh scripts/read-practice.sh" },
+          }),
+        ),
+        stdout,
+        stderr: new MemoryWriter(),
+        services: services({
+          platform: "linux",
+          agentHookSettings: () => loadAgentHookSettings({ homeDirectory: home }),
+        }),
+      });
+      expect(JSON.parse(stdout.value).hookSpecificOutput.updatedInput.command).toEndWith(
+        "sh scripts/read-practice.sh",
+      );
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test.skipIf(process.platform === "win32")(
+    "Bash rewrites pass session identity to a child process without changing exit status",
+    async () => {
+      for (const platform of ["darwin", "linux", "win32"] as const) {
+        const stdout = new MemoryWriter();
+        // eslint-disable-next-line no-await-in-loop -- Exercise each adapter branch in a real shell.
+        await runClaudeHook({
+          stdin: input(
+            JSON.stringify({
+              hook_event_name: "PreToolUse",
+              tool_name: "Bash",
+              session_id: "parent'one",
+              tool_input: {
+                command: `sh -c 'printf "%s/%s" "$LORELUM_HOST_KEY" "$LORELUM_HOST_SESSION_ID"'; exit 23`,
+              },
+            }),
+          ),
+          stdout,
+          stderr: new MemoryWriter(),
+          services: services({
+            platform,
+            agentHookSettings: async () => ({ shellSessionInjection: "all-shell" }),
+          }),
+        });
+        const command = JSON.parse(stdout.value).hookSpecificOutput.updatedInput.command;
+        const child = Bun.spawn(["sh", "-c", command], { stdout: "pipe", stderr: "pipe" });
+        // eslint-disable-next-line no-await-in-loop -- Assert each branch's process result separately.
+        const [output, exitCode] = await Promise.all([
+          new Response(child.stdout).text(),
+          child.exited,
+        ]);
+        expect(output).toBe("claude/parent'one");
+        expect(exitCode).toBe(23);
+      }
+    },
+  );
+
+  test.skipIf(process.platform !== "win32")(
+    "PowerShell rewrites pass session identity to a child process without changing exit status",
+    async () => {
+      const stdout = new MemoryWriter();
+      await runClaudeHook({
+        stdin: input(
+          JSON.stringify({
+            hook_event_name: "PreToolUse",
+            tool_name: "PowerShell",
+            session_id: "parent'one",
+            tool_input: {
+              command: 'cmd.exe /C "echo %LORELUM_HOST_KEY%/%LORELUM_HOST_SESSION_ID%"\nexit 23',
+            },
+          }),
+        ),
+        stdout,
+        stderr: new MemoryWriter(),
+        services: services({
+          platform: "linux",
+          agentHookSettings: async () => ({ shellSessionInjection: "all-shell" }),
+        }),
+      });
+      const command = JSON.parse(stdout.value).hookSpecificOutput.updatedInput.command;
+      const child = Bun.spawn(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command],
+        {
+          stdout: "pipe",
+          stderr: "pipe",
+        },
+      );
+      const [output, exitCode] = await Promise.all([
+        new Response(child.stdout).text(),
+        child.exited,
+      ]);
+      expect(output.trim()).toBe("claude/parent'one");
+      expect(exitCode).toBe(23);
+    },
+  );
+
+  test("injects bounded, optional metadata only for a matching SubagentStart session", async () => {
+    const hint: ReadHint = {
+      id: "sample.read",
+      digest: "private-digest",
+      title: "Review task boundary",
+      appliesWhen: "when delegating",
+    };
+    const hintServices = services({
+      practiceHints: {
+        async readRecentHints(host, sessionId) {
+          return host === "claude" && sessionId === "parent" ? [hint] : [];
+        },
+      },
+    });
+    const stdout = new MemoryWriter();
+    await runClaudeHook({
+      stdin: input('{"hook_event_name":"SubagentStart","session_id":"parent"}'),
+      stdout,
+      stderr: new MemoryWriter(),
+      services: hintServices,
+    });
+    const response = JSON.parse(stdout.value);
+    expect(response.hookSpecificOutput.hookEventName).toBe("SubagentStart");
+    expect(response.hookSpecificOutput.additionalContext).toContain("sample.read");
+    expect(response.hookSpecificOutput.additionalContext).toContain("lore get <practice-id>");
+    expect(stdout.value).not.toContain(hint.digest);
+    for (const payload of [
+      '{"hook_event_name":"SubagentStart","session_id":"unrelated"}',
+      '{"hook_event_name":"SubagentStart"}',
+    ]) {
+      const empty = new MemoryWriter();
+      // eslint-disable-next-line no-await-in-loop -- Check each independent no-op payload and its output.
+      await runClaudeHook({
+        stdin: input(payload),
+        stdout: empty,
+        stderr: new MemoryWriter(),
+        services: hintServices,
+      });
+      expect(empty.value).toBe("{}\n");
+    }
+  });
+
+  test("an unavailable candidate Backend does not block a shell call or subagent", async () => {
+    const failing = services({
+      platform: "linux",
+      agentHookSettings: async () => ({ shellSessionInjection: "all-shell" }),
+      practiceHints: {
+        async readRecentHints() {
+          throw new Error("optional hints unavailable");
+        },
+      },
+    });
+    for (const hook_event_name of ["PreToolUse", "SubagentStart"]) {
+      const stdout = new MemoryWriter();
+      // eslint-disable-next-line no-await-in-loop -- Verify independent Hook events and their output.
+      await runClaudeHook({
+        stdin: input(
+          JSON.stringify({
+            hook_event_name,
+            tool_name: "Bash",
+            session_id: "parent",
+            tool_use_id: "tool",
+            cwd: "/work",
+            tool_input: { command: "pwd" },
+          }),
+        ),
+        stdout,
+        stderr: new MemoryWriter(),
+        services: failing,
+      });
+      if (hook_event_name === "PreToolUse") {
+        expect(JSON.parse(stdout.value).hookSpecificOutput.updatedInput.command).toContain("pwd");
+      } else {
+        expect(stdout.value).toBe("{}\n");
+      }
+    }
   });
 });

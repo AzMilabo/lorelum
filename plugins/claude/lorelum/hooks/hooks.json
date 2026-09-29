@@ -1,5 +1,5 @@
 {
-  "description": "Restore the compact Lorelum Installed Pack Catalog at Claude Code session boundaries.",
+  "description": "Restore the compact Lorelum Installed Pack Catalog and share optional read-Practice hints with subagents.",
   "hooks": {
     "SessionStart": [
       {
@@ -8,6 +8,29 @@
           {
             "type": "command",
             "command": "lore hook claude || lore.cmd hook claude",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if output=\"$(lore hook claude || lore.cmd hook claude)\" && [ \"$output\" != '{\"continue\":true}' ]; then printf '%s\\n' \"$output\"; else printf '%s\\n' '{}'; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if output=\"$(lore hook claude || lore.cmd hook claude)\"; then printf '%s\\n' \"$output\"; else printf '%s\\n' '{}'; fi",
             "timeout": 10
           }
         ]

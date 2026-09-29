@@ -1,5 +1,55 @@
 # agent-integration Delta
 
+## ADDED Requirements
+
+### Requirement: Claude Code 会话身份传递不改变原命令权限
+
+Claude Code 集成 SHALL 只对 `Bash` 与 `PowerShell` 两个 shell 工具的 `PreToolUse` 改写工具输入以传递宿主与会话 ID。改写语法按工具选择：`Bash` SHALL 使用 Unix shell 环境变量语法（Windows 上 Claude Code 的 Bash 工具同样经 POSIX 风格 shell 执行），`PowerShell` SHALL 使用 PowerShell 环境变量语法。改写 MUST 仅通过 `hookSpecificOutput.updatedInput` 生效并保留原输入的其他字段，MUST NOT 携带 `permissionDecision`，MUST NOT 改变原命令的权限、批准与退出语义。Claude Code 与 Codex 共同消费用户级 `agent.shellSessionInjection`：默认 `lore-only` 仅在外层命令文本出现独立 `lore` 字样时注入，`all-shell` 对每次有效 shell 工具调用注入；两种模式 MUST 跳过非 shell 工具，MUST NOT 为判断而读取脚本内容或解析 shell 语法。配置损坏或取值无效时 MUST 不改写该次命令，也 MUST NOT 阻塞原工具调用；无法安全改写时 MUST 不假称显式绑定已生效。
+
+#### Scenario: Bash 工具注入会话身份
+
+- **WHEN** Claude Code 的 Bash `PreToolUse` 带有会话 ID 且命中注入条件（任意平台，含 Windows 经 POSIX 风格 shell 执行的 Bash）
+- **THEN** Hook MUST 以 Unix `export` 语法在命令前注入宿主与会话 ID，保留工作目录等原输入其他字段，且返回的 `updatedInput` MUST NOT 携带 `permissionDecision`
+
+#### Scenario: PowerShell 工具注入会话身份
+
+- **WHEN** Claude Code 的 PowerShell `PreToolUse` 带有会话 ID 且命中注入条件
+- **THEN** Hook MUST 以 PowerShell `$env:` 语法在命令前注入宿主与会话 ID，并同样不携带 `permissionDecision`
+
+#### Scenario: 默认只检测外层命令
+
+- **WHEN** 用户未配置 `agent.shellSessionInjection`，Claude Code 发来的 shell 命令文本不含独立的 `lore` 字样，即使它运行的脚本内部可能调用 `lore get`
+- **THEN** Hook MUST 不注入会话变量；脚本内读取 MAY 漏记，且原命令正常执行
+
+#### Scenario: 用户选择每个 shell 命令都注入
+
+- **WHEN** `agent.shellSessionInjection` 为 `all-shell` 且 Claude Code 收到有效 Bash 或 PowerShell PreToolUse
+- **THEN** Hook MUST 注入会话变量，不论原命令是否包含 `lore`；其他工具 MUST 不被改写
+
+#### Scenario: 非 shell 工具或身份无效
+
+- **WHEN** Hook 收到 `Bash` 与 `PowerShell` 之外的工具调用，或会话 ID 缺失/无效
+- **THEN** Hook MUST 输出空对象且 MUST 不影响原工具调用
+
+#### Scenario: 改写不改变批准语义
+
+- **WHEN** Hook 返回仅含 `updatedInput` 的 PreToolUse 响应
+- **THEN** Claude Code MUST 按改写后的输入走正常权限评估；宿主的 deny/ask 规则 MUST 仍然生效，MUST NOT 因 Hook 改写而自动批准或自动拒绝
+
+### Requirement: Claude Code 子 Agent 获得可选候选提示
+
+Claude Code 集成 SHALL 在 `SubagentStart` 带有会话 ID 且该会话存在已读 Practice 候选时，经 `hookSpecificOutput.additionalContext` 注入按预算裁剪的候选元数据提示。空候选、无会话 ID 或读取故障 MUST 输出空对象且 MUST 不阻塞子 Agent 启动。提示 MUST 声明候选可能相关且不完整，仅在当前子任务需要时由子 Agent 自行 `lore get`；Hook MUST 不自动查询或读取完整正文。
+
+#### Scenario: 子 Agent 启动且本会话已读候选
+
+- **WHEN** Claude Code 的 `SubagentStart` 带有当前会话 ID 且候选簿有该会话已读 Practice
+- **THEN** 子 Agent MUST 收到按预算裁剪的 ID、title 和适用条件提示，但不收到 Pack 来源、正文或自动执行 `get`
+
+#### Scenario: 无候选或暂时不可用
+
+- **WHEN** 本会话没有候选，或 Backend 无法读取候选
+- **THEN** Hook MUST 输出空对象并允许子 Agent 正常启动
+
 ## MODIFIED Requirements
 
 ### Requirement: Catalog-aware targeted retrieval

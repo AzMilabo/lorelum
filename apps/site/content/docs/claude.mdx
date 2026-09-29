@@ -37,6 +37,16 @@ Check that `/lorelum:lorelum` appears when you type `/` in the prompt. You can a
 
 Or ask Claude Code to use Lorelum before it finalizes an important decision.
 
+Claude Code implements [session read hints](./agent-setup#session-read-hints): the `PreToolUse` Hook passes session identity to eligible Bash and PowerShell commands, and `SubagentStart` can show the candidate metadata to a new subagent (for example one started with the Agent tool). This is one host adapter for a shared Lorelum capability, not a Claude Code-only feature. The shared [Agent shell setting](./configuration#agent-shell-session-identity) controls which shell commands receive identity. These hints go to new subagents, not to the main agent after compaction.
+
+### Why environment assignments appear before a command
+
+When a command is in the selected injection scope, the `PreToolUse` Hook sets `LORELUM_HOST_KEY=claude` and `LORELUM_HOST_SESSION_ID=<current session ID>` before the shell command: `export` assignments for the Bash tool (which also runs through Git Bash on Windows), PowerShell `$env:` assignments for the PowerShell tool. Claude did not write those lines, and they are not login credentials. They let `lore get` in the command or its local child processes associate a candidate with the right conversation.
+
+The rewrite only changes the command text; it does not approve anything. Claude Code still runs its normal permission flow against the rewritten command, so your permission rules and prompts apply unchanged. The rewritten command may appear in tool details or records, and a command that prints its environment can put the variables in the tool result; they are only for session association, and the agent does not need to use or manage them.
+
+The Plugin uses `PreToolUse` and does not install an empty `PostToolUse` Hook. If Pre is disabled, new `lore get` reads cannot be associated with the conversation, so subagents will not receive hints for those reads; `lore get` itself and the Pack Catalog still work.
+
 ## Update
 
 Run `claude plugin update lorelum@lorelum-plugins`, or select **Update now** on the Installed tab of `/plugin`. Third-party marketplaces do not update automatically by default.

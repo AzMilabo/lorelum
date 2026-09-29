@@ -38,7 +38,9 @@ export interface HostHookResponse {
     | { readonly hookEventName: HostHookEvent; readonly additionalContext: string }
     | {
         readonly hookEventName: "PreToolUse";
-        readonly permissionDecision: "allow";
+        // Claude Code applies `updatedInput` through its normal permission flow
+        // when no decision is present; Codex keeps its existing "allow" shape.
+        readonly permissionDecision?: "allow";
         readonly updatedInput: Record<string, unknown>;
       };
   readonly continue?: boolean;
@@ -169,7 +171,7 @@ export async function runHostHook(options: RunHostHookOptions): Promise<0> {
     // PreToolUse does not accept `continue`, so a failed optional hint Hook
     // must return an empty, valid result instead of a malformed permission.
     options.stdout.write(
-      options.host === "codex" &&
+      (options.host === "codex" || options.host === "claude") &&
         eventName !== "SessionStart" &&
         (eventName === "PreToolUse" || eventName === "PostToolUse" || eventName === "SubagentStart")
         ? "{}\n"
@@ -179,15 +181,23 @@ export async function runHostHook(options: RunHostHookOptions): Promise<0> {
   return 0;
 }
 
+/** Hosts whose shell/subagent events feed the shared read-Practice hint chain. */
+type PracticeHintHost = "claude" | "codex";
+
+function isPracticeHintHost(host: HostHookName): host is PracticeHintHost {
+  return host === "claude" || host === "codex";
+}
+
 function respondToHostHook(
   input: HostHookInput,
   host: HostHookName,
   services: HostHookServices,
   storeRoot?: string,
 ): Promise<HostHookResponse | CursorHookResponse> {
-  if (host === "codex" && input.hook_event_name !== "SessionStart") {
-    return respondToCodexPracticeHint(
+  if (isPracticeHintHost(host) && input.hook_event_name !== "SessionStart") {
+    return respondToPracticeHint(
       input,
+      host,
       services.practiceHints ?? defaultPracticeHints,
       services.agentHookSettings ?? loadAgentHookSettings,
       services.platform,
@@ -206,15 +216,16 @@ function respondToHostHook(
     );
 }
 
-async function respondToCodexPracticeHint(
+async function respondToPracticeHint(
   input: HostHookInput,
+  host: PracticeHintHost,
   hints: NonNullable<HostHookServices["practiceHints"]>,
   loadSettings: () => Promise<AgentHookSettings>,
   platform: NodeJS.Platform = process.platform,
 ): Promise<HostHookResponse> {
   if (input.hook_event_name === "SubagentStart") {
     if (typeof input.session_id !== "string" || !input.session_id) return {};
-    const context = renderReadHints(await hints.readRecentHints("codex", input.session_id));
+    const context = renderReadHints(await hints.readRecentHints(host, input.session_id));
     return context === undefined
       ? {}
       : {
@@ -222,40 +233,58 @@ async function respondToCodexPracticeHint(
         };
   }
   if (input.hook_event_name === "PreToolUse" || input.hook_event_name === "PostToolUse") {
-    // Codex calls this tool "Bash" for both shell and unified exec. Other tools
-    // never receive session identity, even if a matcher is broadened.
-    if (input.tool_name !== "Bash") return {};
     if (input.hook_event_name === "PostToolUse") return {};
-    if (platform === "darwin" || platform === "linux" || platform === "win32") {
-      const session = sessionRefSchema.safeParse({
-        hostKey: "codex",
-        sessionId: input.session_id,
-      });
-      if (!session.success || !isRecord(input.tool_input)) return {};
-      const command = input.tool_input.command;
-      if (typeof command !== "string") return {};
-      const settings = await loadSettings();
-      if (settings.shellSessionInjection === "lore-only" && !containsLoreToken(command)) return {};
-      return {
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          permissionDecision: "allow",
-          updatedInput: {
-            ...input.tool_input,
-            command:
-              (platform === "win32"
-                ? `$env:LORELUM_HOST_KEY = 'codex'\n` +
-                  `$env:LORELUM_HOST_SESSION_ID = ${powerShellQuote(session.data.sessionId)}\n`
-                : `export LORELUM_HOST_KEY='codex'\n` +
-                  `export LORELUM_HOST_SESSION_ID=${shellQuote(session.data.sessionId)}\n`) +
-              command,
-          },
+    const syntax = shellInjectionSyntax(host, input.tool_name, platform);
+    if (syntax === undefined) return {};
+    const session = sessionRefSchema.safeParse({
+      hostKey: host,
+      sessionId: input.session_id,
+    });
+    if (!session.success || !isRecord(input.tool_input)) return {};
+    const command = input.tool_input.command;
+    if (typeof command !== "string") return {};
+    const settings = await loadSettings();
+    if (settings.shellSessionInjection === "lore-only" && !containsLoreToken(command)) return {};
+    return {
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        ...(host === "codex" ? { permissionDecision: "allow" as const } : {}),
+        updatedInput: {
+          ...input.tool_input,
+          command:
+            (syntax === "powershell"
+              ? `$env:LORELUM_HOST_KEY = '${host}'\n` +
+                `$env:LORELUM_HOST_SESSION_ID = ${powerShellQuote(session.data.sessionId)}\n`
+              : `export LORELUM_HOST_KEY='${host}'\n` +
+                `export LORELUM_HOST_SESSION_ID=${shellQuote(session.data.sessionId)}\n`) + command,
         },
-      };
-    }
-    return {};
+      },
+    };
   }
-  throw new Error("Lorelum Codex Hook received an unsupported event.");
+  throw new Error(`Lorelum ${hostLabel(host)} Hook received an unsupported event.`);
+}
+
+/**
+ * Codex calls its only shell tool "Bash" and keys the rewrite syntax on the
+ * host platform. Claude Code names its shell tools "Bash" and "PowerShell",
+ * and each tool implies its own syntax on every platform: the Bash tool runs
+ * through a POSIX-style shell even on Windows, while the PowerShell tool uses
+ * PowerShell syntax everywhere.
+ */
+function shellInjectionSyntax(
+  host: PracticeHintHost,
+  toolName: unknown,
+  platform: NodeJS.Platform,
+): "export" | "powershell" | undefined {
+  if (host === "claude") {
+    if (toolName === "Bash") return "export";
+    if (toolName === "PowerShell") return "powershell";
+    return undefined;
+  }
+  if (toolName !== "Bash") return undefined;
+  if (platform === "win32") return "powershell";
+  if (platform === "darwin" || platform === "linux") return "export";
+  return undefined;
 }
 
 function shellQuote(value: string): string {
@@ -318,14 +347,6 @@ function catalogEntries(details: ListPackDetailsResult) {
 /** The native event literal each host sends on its raw session Hook. */
 function supportedSessionEvent(host: HostHookName): HostHookEvent | CursorHookEvent {
   return host === "cursor" ? "sessionStart" : "SessionStart";
-}
-
-function parseHostHookInput(serialized: string, host: HostHookName): HostHookInput {
-  const parsed: unknown = JSON.parse(serialized);
-  if (!isRecord(parsed)) {
-    throw new Error(`Lorelum ${hostLabel(host)} Hook input must be a JSON object.`);
-  }
-  return parsed;
 }
 
 const hostLabels: Readonly<

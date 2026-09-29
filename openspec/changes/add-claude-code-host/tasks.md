@@ -33,3 +33,15 @@
 - [x] 4.5 真实宿主冒烟（Claude Desktop 2.9939.2.0 本地会话，Windows，2026-09-28 完成）：探针 1 阳性——桌面提示框接受带参 `/plugin marketplace add <本地路径>`，弹原生 Add marketplace 对话框并成功注册；桌面 Directory UI 对 directory 源 marketplace 的插件列表恒为空（最小化官方风格探针市场同样为空，判定为该桌面构建的 UI 缺陷），按既定退路改用桌面内嵌 CLI 2.1.281 完成 `plugin install lorelum@lorelum-plugins`（user scope，enabled）；新本地会话 SessionStart Hook 实测：`lore hook claude || lore.cmd hook claude` 在 Git Bash 中经 `||` 回退命中 `lore.cmd`（lorelum trace 证实 `hook.catalog.rendered`），注入的 Catalog 被模型原句引用（agentic-coding 0.3.1 + azmilabo-engineering 0.1.0 及两个 packRoot，未运行任何命令）；技能发现经会话转录 skill_listing 证实（`lorelum:lorelum`）；非阻塞失败获直接证据——发布版 CLI 不识别 `hook claude` 时 hook 以 exit 2 失败，转录记录 `hook_non_blocking_error` 附件且会话照常启动应答；桌面 UI 的 Update 入口无法经无障碍路径到达（菜单不暴露），按退路记录 CLI `claude plugin update` 为可用路径；冒烟后已恢复干净（卸载插件、移除两份 marketplace、还原 lore.cmd shim）
 - [x] 4.6 `claude plugin validate ./plugins/claude/lorelum --strict` 通过（经桌面内嵌 CLI 2.1.281 执行，exit 0）
 - [x] 4.7 Checker 独立复跑全部验收并出具 verdict
+
+## 5. 会话已读候选接入（评审扩展，Refs #254）
+
+- [x] 5.1 `packages/backend/src/modules/sessions/model.ts`：`hostKeySchema` 枚举追加 `"claude"`，配套测试与 README（如涉及 hostKey 列举）更新
+- [x] 5.2 `packages/cli/src/hook/host-hook.ts`：`respondToCodexPracticeHint` 参数化为共享 `respondToPracticeHint`（codex/claude 路由、按工具名选语法、claude 响应不带 `permissionDecision`）；`runHostHook` 降级回退 `{}` 扩至 claude；`HostHookResponse` PreToolUse 变体 `permissionDecision` 放宽为可选
+- [x] 5.3 `plugins/claude/lorelum/hooks/hooks.json`：增补 `PreToolUse`（matcher `Bash|PowerShell`，if 包装 + `{}` 失败开放）与 `SubagentStart`（if 包装）条目，顶层 description 更新
+- [x] 5.4 `packages/cli/src/hook/claude.test.ts`：两工具改写（含跨平台语法与字段保留、无 permissionDecision）、lore-only/all-shell、非 shell 工具跳过、SubagentStart 提示/空候选/Backend 不可达、配置无效不改写不阻塞、真实子进程身份继承（Unix export 分支 + Windows PowerShell 分支）
+- [x] 5.5 `plugins/claude/lorelum/scripts/hooks-config.test.ts`：新条目结构与命令形态断言；POSIX 转发（payload 经 if 包装到达 lore）、旧 CLI exit 2 失败开放为 `{}`、旧 CLI `{"continue":true}` 归一
+- [x] 5.6 `bunx openspec validate add-claude-code-host --strict` 通过；检查 `share-read-practice-hints` 的「当前只有 Codex 消费」表述在两侧 archive 时的同步检查项已记录
+- [x] 5.7 文档：`plugin-conventions.md`（Claude Code Hook 声明节扩写）、`plugins.md`（验证面）、`claude.mdx`/`claude.zh.mdx`（候选提示说明 + `agent.shellSessionInjection` + 已知限制）
+- [ ] 5.8 真机验收（Claude Desktop 本地会话）：SessionStart 目录注入回归；Bash 工具内 `lore get` 落盘 `~/.lorelum/sessions/claude/<sessionId>/practice-reads.jsonl`；真实子 Agent（Agent 工具）收到候选 ID/标题提示；改写不改变权限流；失败/Backend 不可达不改变原命令结果；验收后恢复现场
+- [x] 5.9 Checker 对抗性审查扩展范围（两环）并出具 verdict（2026-09-29：PASS，0 blocker/major；3 MINOR 中「claude 标签畸形输入防护测试缺失」已补齐测试，「wrapper 无 Git Bash 自动化执行」「用户文档权限流表述强度」由 5.8 真机验收覆盖/裁决，2 NIT 记录备查）

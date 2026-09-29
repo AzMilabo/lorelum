@@ -37,6 +37,16 @@ Lorelum Plugin 为 Claude Code 带来工程指引与 `/lorelum:lorelum` 技能�
 
 或在 Claude Code 最终确定重要决策之前，让它先用 Lorelum 检索相关指引。
 
+Claude Code 接入了[会话已读候选](./agent-setup#会话中的已读候选)：`PreToolUse` Hook 为符合条件的 Bash 和 PowerShell 命令传递会话身份，`SubagentStart` 可以给新子 Agent（例如经 Agent 工具启动的）展示候选元数据。这是 Lorelum 的共用能力，不是 Claude Code 专属功能。哪些 shell 命令会得到身份，由[共享的 Agent 配置](./configuration#agent-shell-会话身份)决定。这些提示只给新子 Agent，不在主 Agent compact 后恢复。
+
+### 为什么命令前会出现环境变量赋值
+
+当命令符合注入范围时，`PreToolUse` Hook 会在 shell 命令前设置 `LORELUM_HOST_KEY=claude` 和 `LORELUM_HOST_SESSION_ID=<当前会话 ID>`：Bash 工具使用 `export`（Windows 上同样经 Git Bash 执行），PowerShell 工具使用 `$env:` 赋值。这不是 Claude 手写的命令，也不是登录凭据；它们让命令及其本地子进程中的 `lore get` 知道应该把候选记到哪个会话。
+
+改写只调整命令文本，不代表任何批准：Claude Code 仍会按改写后的命令走正常权限流程，你的权限规则与确认提示照常生效。改写后的命令可能显示在工具详情或记录中，命令主动输出环境变量时也会进入工具结果；这两个变量只用于会话关联，不要求 Agent 使用或管理。
+
+Plugin 使用 `PreToolUse`，不安装空跑的 `PostToolUse` Hook。关闭 Pre 后，新的 `lore get` 无法关联会话，子 Agent 就收不到这些读取的候选提示；`lore get` 本身和 Pack Catalog 仍可使用。
+
 ## 更新
 
 运行 `claude plugin update lorelum@lorelum-plugins`，或在 `/plugin` 的已安装标签中选择 **Update now**。第三方市场默认不自动更新。
