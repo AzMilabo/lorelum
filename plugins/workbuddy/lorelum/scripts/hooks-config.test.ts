@@ -143,6 +143,12 @@ test.skipIf(process.platform === "win32")(
     const oldLore = join(directory, "lore");
     await writeFile(oldLore, "#!/bin/sh\nprintf '{\"ok\":false}\\n'\nexit 2\n", "utf8");
     await chmod(oldLore, 0o755);
+    // The command chains lore.cmd as the Windows fallback; provide the same
+    // old-CLI stub under that name so POSIX runs exercise the fallback without
+    // a "command not found" diagnostic.
+    const oldLoreCmd = join(directory, "lore.cmd");
+    await writeFile(oldLoreCmd, "#!/bin/sh\nexit 2\n", "utf8");
+    await chmod(oldLoreCmd, 0o755);
 
     try {
       const child = Bun.spawn(["sh", "-c", command], {
