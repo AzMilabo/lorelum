@@ -10,24 +10,37 @@ import type { OutputWriter } from "../output/protocol.js";
 import { resolveInvocationStorageRoot } from "../store/storage-root.js";
 import { renderPackCatalog } from "./pack-catalog.js";
 import type { Logger } from "@lorelum/log";
+import type { ReadHint } from "@lorelum/backend/client";
+import { sessionRefSchema } from "@lorelum/backend/client";
+import { defaultPracticeHints } from "../practice-hints/backend.js";
+import { loadAgentHookSettings, type AgentHookSettings } from "./agent-settings.js";
+import { renderReadHints } from "../practice-hints/render.js";
 
 /** Hosts with a versioned raw session Hook ABI (`lore hook <host>`). */
 export type HostHookName = "codex" | "cursor" | "workbuddy" | "zcode";
 
-export type HostHookEvent = "SessionStart";
+export type HostHookEvent = "SessionStart" | "SubagentStart";
 
 /** Cursor's native session Hook spells the event in camelCase. */
 export type CursorHookEvent = "sessionStart";
 
 export interface HostHookInput {
   readonly hook_event_name?: string;
+  readonly session_id?: unknown;
+  readonly tool_name?: unknown;
+  readonly tool_use_id?: unknown;
+  readonly cwd?: unknown;
+  readonly tool_input?: unknown;
 }
 
 export interface HostHookResponse {
-  readonly hookSpecificOutput?: {
-    readonly hookEventName: HostHookEvent;
-    readonly additionalContext: string;
-  };
+  readonly hookSpecificOutput?:
+    | { readonly hookEventName: HostHookEvent; readonly additionalContext: string }
+    | {
+        readonly hookEventName: "PreToolUse";
+        readonly permissionDecision: "allow";
+        readonly updatedInput: Record<string, unknown>;
+      };
   readonly continue?: boolean;
 }
 
@@ -43,6 +56,11 @@ export interface TextInput {
 export interface HostHookServices {
   readonly list: Pick<ListService, "listPackDetails">;
   readonly storageRoot: StorageRoot;
+  readonly practiceHints?: {
+    readRecentHints(hostKey: string, sessionId: string): Promise<readonly ReadHint[]>;
+  };
+  readonly agentHookSettings?: () => Promise<AgentHookSettings>;
+  readonly platform?: NodeJS.Platform;
 }
 
 export interface RunHostHookOptions {
@@ -63,6 +81,8 @@ export interface HostHookInvocation {
 const defaultServices: HostHookServices = Object.freeze({
   list: createListService(),
   storageRoot: defaultStorageRoot(),
+  practiceHints: defaultPracticeHints,
+  agentHookSettings: loadAgentHookSettings,
 });
 
 /**
@@ -110,9 +130,11 @@ export function parseHostHookInvocation(
 /**
  * Execute the versioned raw host Hook ABI. It deliberately does not emit the
  * normal Lorelum CLI envelope: the host consumes this envelope directly, and
- * every failure degrades to `{"continue":true}` so the host session continues.
+ * failures emit a host-safe no-op (`{"continue":true}` for SessionStart,
+ * `{}` for Codex's optional tool/subagent events) so work can continue.
  */
 export async function runHostHook(options: RunHostHookOptions): Promise<0> {
+  let eventName: string | undefined;
   try {
     const serialized = await options.stdin.text();
     let parsed: unknown;
@@ -122,11 +144,15 @@ export async function runHostHook(options: RunHostHookOptions): Promise<0> {
       options.log?.debug("hook.payload.invalid", { byteLength: Buffer.byteLength(serialized) });
       throw new Error(`Lorelum ${hostLabel(options.host)} Hook input must be valid JSON.`);
     }
-    const input = parseHostHookInput(serialized, options.host);
+    if (!isRecord(parsed)) {
+      throw new Error(`Lorelum ${hostLabel(options.host)} Hook input must be a JSON object.`);
+    }
+    const input: HostHookInput = parsed;
+    eventName = input.hook_event_name;
     options.log?.debug("hook.payload.received", {
       byteLength: Buffer.byteLength(serialized),
-      ...(isRecord(parsed) && typeof parsed.hook_event_name === "string"
-        ? { hookEventName: parsed.hook_event_name }
+      ...(typeof input.hook_event_name === "string"
+        ? { hookEventName: input.hook_event_name }
         : {}),
     });
     const response = await respondToHostHook(
@@ -135,12 +161,20 @@ export async function runHostHook(options: RunHostHookOptions): Promise<0> {
       options.services ?? defaultServices,
       options.storeRoot,
     );
-    options.log?.info("hook.catalog.rendered", { event: input.hook_event_name });
+    options.log?.debug("hook.response.rendered", { event: input.hook_event_name });
     options.stdout.write(`${JSON.stringify(response)}\n`);
   } catch (error) {
     options.log?.error("hook.degraded", { host: options.host }, error);
     options.stderr.write(`lore hook ${options.host} degraded: ${diagnosticMessage(error)}\n`);
-    options.stdout.write('{"continue":true}\n');
+    // PreToolUse does not accept `continue`, so a failed optional hint Hook
+    // must return an empty, valid result instead of a malformed permission.
+    options.stdout.write(
+      options.host === "codex" &&
+        eventName !== "SessionStart" &&
+        (eventName === "PreToolUse" || eventName === "PostToolUse" || eventName === "SubagentStart")
+        ? "{}\n"
+        : '{"continue":true}\n',
+    );
   }
   return 0;
 }
@@ -151,6 +185,14 @@ function respondToHostHook(
   services: HostHookServices,
   storeRoot?: string,
 ): Promise<HostHookResponse | CursorHookResponse> {
+  if (host === "codex" && input.hook_event_name !== "SessionStart") {
+    return respondToCodexPracticeHint(
+      input,
+      services.practiceHints ?? defaultPracticeHints,
+      services.agentHookSettings ?? loadAgentHookSettings,
+      services.platform,
+    );
+  }
   if (input.hook_event_name !== supportedSessionEvent(host)) {
     throw new Error(`Lorelum ${hostLabel(host)} Hook received an unsupported event.`);
   }
@@ -162,6 +204,70 @@ function respondToHostHook(
         ? buildCursorHookResponse(details)
         : buildHostHookResponse("SessionStart", details),
     );
+}
+
+async function respondToCodexPracticeHint(
+  input: HostHookInput,
+  hints: NonNullable<HostHookServices["practiceHints"]>,
+  loadSettings: () => Promise<AgentHookSettings>,
+  platform: NodeJS.Platform = process.platform,
+): Promise<HostHookResponse> {
+  if (input.hook_event_name === "SubagentStart") {
+    if (typeof input.session_id !== "string" || !input.session_id) return {};
+    const context = renderReadHints(await hints.readRecentHints("codex", input.session_id));
+    return context === undefined
+      ? {}
+      : {
+          hookSpecificOutput: { hookEventName: "SubagentStart", additionalContext: context },
+        };
+  }
+  if (input.hook_event_name === "PreToolUse" || input.hook_event_name === "PostToolUse") {
+    // Codex calls this tool "Bash" for both shell and unified exec. Other tools
+    // never receive session identity, even if a matcher is broadened.
+    if (input.tool_name !== "Bash") return {};
+    if (input.hook_event_name === "PostToolUse") return {};
+    if (platform === "darwin" || platform === "linux" || platform === "win32") {
+      const session = sessionRefSchema.safeParse({
+        hostKey: "codex",
+        sessionId: input.session_id,
+      });
+      if (!session.success || !isRecord(input.tool_input)) return {};
+      const command = input.tool_input.command;
+      if (typeof command !== "string") return {};
+      const settings = await loadSettings();
+      if (settings.shellSessionInjection === "lore-only" && !containsLoreToken(command)) return {};
+      return {
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "allow",
+          updatedInput: {
+            ...input.tool_input,
+            command:
+              (platform === "win32"
+                ? `$env:LORELUM_HOST_KEY = 'codex'\n` +
+                  `$env:LORELUM_HOST_SESSION_ID = ${powerShellQuote(session.data.sessionId)}\n`
+                : `export LORELUM_HOST_KEY='codex'\n` +
+                  `export LORELUM_HOST_SESSION_ID=${shellQuote(session.data.sessionId)}\n`) +
+              command,
+          },
+        },
+      };
+    }
+    return {};
+  }
+  throw new Error("Lorelum Codex Hook received an unsupported event.");
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
+function powerShellQuote(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
+function containsLoreToken(command: string): boolean {
+  return /(^|[^A-Za-z0-9_-])lore(?=$|[^A-Za-z0-9_-])/.test(command);
 }
 
 export async function createHostHookResponse(
@@ -214,14 +320,6 @@ function catalogEntries(details: ListPackDetailsResult) {
 /** The native event literal each host sends on its raw session Hook. */
 function supportedSessionEvent(host: HostHookName): HostHookEvent | CursorHookEvent {
   return host === "cursor" ? "sessionStart" : "SessionStart";
-}
-
-function parseHostHookInput(serialized: string, host: HostHookName): HostHookInput {
-  const parsed: unknown = JSON.parse(serialized);
-  if (!isRecord(parsed)) {
-    throw new Error(`Lorelum ${hostLabel(host)} Hook input must be a JSON object.`);
-  }
-  return parsed;
 }
 
 function hostLabel(host: HostHookName): "Codex" | "Cursor" | "Workbuddy" | "Zcode" {

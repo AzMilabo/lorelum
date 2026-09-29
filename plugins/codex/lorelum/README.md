@@ -9,9 +9,9 @@ The current host integration contract is [agent-integration](../../../openspec/s
 3. At a material task, decision, verification, recovery, or completion moment, Codex uses one targeted natural-language semantic query before deciding retrieval is not worth attempting.
 4. Before applying a Practice or claiming that work follows it, Codex reads the full Practice.
 
-The bundled runtime integration calls `lore hook codex`, the versioned Codex Hook ABI introduced in Lorelum CLI v0.1.0-alpha.1. It runs for supported `SessionStart` sources, including `compact`, so the Catalog is regenerated before Codex continues after compaction. The CLI reads the Hook payload from stdin and writes the Codex `hookSpecificOutput` envelope directly to stdout.
+The bundled runtime integration calls `lore hook codex`, the versioned Codex Hook ABI introduced in Lorelum CLI v0.1.0-alpha.1. It runs for supported `SessionStart` sources, including `compact`, so the Catalog is regenerated before Codex continues after compaction. Codex's `PreToolUse` handles only the `Bash` tool: it preserves other tool input and prepends session assignments with `export` on macOS/Linux or `$env:` on native Windows PowerShell when the shared `agent.shellSessionInjection` policy matches. Codex no longer needs `PostToolUse`. Its `SubagentStart` reads bounded candidate metadata from the Backend and returns the Codex `hookSpecificOutput` envelope. See [the shared Agent behavior](https://lorelum.com/en/docs/agent-setup#session-read-hints) and [configuration](https://lorelum.com/en/docs/configuration#agent-shell-session-identity) for what is recorded, the default policy, and its limits; those contracts are not owned by this Plugin.
 
-The integration requests Pack-level discovery data, including each current Pack root, but not Practice bodies or resource content. It does not install or update Packs, or automatically run `lore query` or `lore get`; the Skill makes those task-specific decisions and opening the LocalStore still follows its normal lifecycle. If the CLI is unavailable or returns malformed data, the integration writes a diagnostic to stderr and lets the host continue without additional context.
+The integration requests Pack-level discovery data, including each current Pack root, but not Practice bodies or resource content. It does not install or update Packs, or automatically run `lore query` or `lore get`; the Skill makes those task-specific decisions and opening the LocalStore still follows its normal lifecycle. If the CLI is unavailable or returns malformed data, the integration writes a diagnostic to stderr and lets the host continue without additional context. An untrusted Hook or a command that clears its environment may lose session binding. Main-agent compact recovery is not included.
 
 ## Integration scope
 
@@ -23,11 +23,11 @@ This Plugin is deliberately CLI-first: it uses the compiled `lore` executable to
 
 ## Installation
 
-This Plugin is a Codex adapter. Ordinary users need Lorelum CLI v0.1.0-alpha.3 or later, available as `lore` on `PATH`; it does not embed, build, or update the CLI. Bun is only required for maintainers running the source and test workflows. See the [Codex installation guide](https://lorelum.com/en/docs/codex) for public marketplace commands and [the development guide](../../../docs/development/plugins.md) for a checkout-backed development install.
+This Plugin is a Codex adapter and uses the installed `lore` CLI on `PATH` for both the Catalog and read-Practice hints. An older CLI that does not understand a Hook event leaves that Hook empty without blocking work. The Plugin does not embed, build, or update the CLI. Bun is only required for maintainers running the source and test workflows. See the [Codex installation guide](https://lorelum.com/en/docs/codex) for public marketplace commands and [the development guide](../../../docs/development/plugins.md) for a checkout-backed development install.
 
 ### Windows notes
 
-Codex runs hook commands through PowerShell on Windows. The Plugin invokes the compiled `lore` command directly and does not require Bun or Node on the user machine. Hooks are gated by review: after any change to `hooks.json`, re-trust them in the Codex plugin UI, otherwise Codex silently skips them.
+Native Windows Codex uses PowerShell for its agent commands. The Plugin invokes the compiled `lore` command directly and does not require Bun or Node on the user machine. Hooks are gated by review: after any change to `hooks.json`, re-trust them in the Codex plugin UI, otherwise Codex silently skips them.
 
 ## Local validation
 

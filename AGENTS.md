@@ -25,6 +25,12 @@ Lorelum is a Bun + TypeScript monorepo for engineering-knowledge retrieval: the 
 
 Current integrations are CLI-first: use the released CLI together with host-native Skills and Hooks. Do not introduce local MCP servers, stdio wiring, MCP tools, MCP-backed Plugin behavior, or a local MCP wrapper around `lore`. `packages/mcp` is a non-product scaffold. A remote-retrieval MCP boundary requires a separately approved design.
 
+## 运行环境边界
+
+Lorelum 的 CLI、Backend 和宿主 Plugin 面向正常的本机 Agent 运行环境：命令能访问自身所需的文件、本地服务，以及该命令需要的网络能力。受限 Agent/宿主沙箱不属于产品应用场景。不要把沙箱内的失败当成 Lorelum 缺陷、兼容需求或验收阻碍；不要为此设计专用连接路径、降级方案、用户指引、Issue 或测试门槛。验收宿主集成时使用正常运行环境，不要求在沙箱内复现同样结果。
+
+这条范围规则不削弱现有的本地认证、进程身份核对、文件权限、宿主审批和内部子进程隔离；它们各自保护正常运行环境里的真实边界，不是为了支持受限沙箱。
+
 ## Documentation ownership
 
 - Decide the reader before changing documentation. A product user who needs to install, configure, operate, understand an observable result, or recover from an error reads the bilingual site under `apps/site/content/docs/`; update the matching English and Chinese pages only when that user-facing guidance changes.
@@ -36,7 +42,7 @@ For visual or component work, read [DESIGN.md](./DESIGN.md) first. Reusable Web 
 ## User experience and failure handling
 
 - Treat user experience as a first-order product correctness requirement. For every feature and interaction, make the common, safe workflow complete with sensible defaults, clear precedence, and minimal manual setup or cleanup.
-- Do not make users resolve internal ambiguity, stale derived state, transient failures, or recoverable conflicts by default. Before exposing an error, prefer an explicit product rule, safe automatic recovery, idempotent retry, background continuation, or a user-visible choice that preserves their work.
+- Resolve actual, relevant ambiguity and recoverable failures without unnecessary user work. Do not preemptively add automatic recovery, retries, background work, locks, or new states for hypothetical rare cases; each mechanism needs a current requirement, observed failure, or credible high-impact risk that justifies its cost.
 - An error is appropriate only for invalid input, an unsafe action, a genuinely ambiguous intent with no safe default, or a failure that cannot be recovered automatically. It must preserve canonical user data, avoid partial or hidden leftovers, explain the outcome plainly, and give one actionable next step.
 - Never silently guess when doing so could lose data, weaken security, or change a public contract. In those cases, surface the decision early and make the trade-off understandable.
 
@@ -77,6 +83,7 @@ Match verification to the changed boundary. New behavior ships with colocated `b
 - **Small — execute directly, without OpenSpec.** It preserves current behavior and contracts within an existing boundary; documentation or current-spec edits that only correct facts, links, wording, examples, or formatting without changing a requirement or scenario are small.
 - **Large — write an OpenSpec proposal first.** This includes any observable or cross-boundary contract/default/error change; architecture, ownership, lifecycle, integration, security/privacy, persistence, release, or platform change; and any cross-package or unresolved design decision.
 - **If uncertain, treat it as large.** Do not split a coupled large decision into nominally small edits.
+- Apply this gate to the change actually needed for the user goal, not a larger design invented from speculative failure cases. A hypothetical edge case alone does not expand the scope or require extra state, safeguards, or a separate proposal.
 
 ## Canonical references
 

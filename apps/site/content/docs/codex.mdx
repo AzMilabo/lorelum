@@ -4,13 +4,11 @@ description: Install Lorelum in Codex and use it in your next coding task.
 icon: Plug
 ---
 
-The Lorelum Plugin makes engineering guidance available in Codex when it can
-help with the task at hand.
+The Lorelum Plugin makes engineering guidance available in Codex when it can help with the task at hand.
 
 ## Before you start
 
-Complete [Quickstart](./quickstart). The `lore` command must be available to
-Codex, and you need at least one installed Pack.
+Complete [Quickstart](./quickstart). The `lore` command must be available to Codex, and you need at least one installed Pack.
 
 ## Install
 
@@ -23,8 +21,7 @@ Approve the Plugin's Hook if Codex asks, then start a new task.
 
 ### Moving from an earlier alpha
 
-If you previously installed `lorelum@lorelum`, remove it and the old
-marketplace source before installing the current Plugin:
+If you previously installed `lorelum@lorelum`, remove it and the old marketplace source before installing the current Plugin:
 
 ```sh
 codex plugin remove lorelum@lorelum
@@ -35,12 +32,21 @@ codex plugin add lorelum@lorelum-plugins
 
 ## Use Lorelum
 
-In a new task, ask Codex to use Lorelum before it settles an important plan or
-implementation decision. For example:
+In a new task, ask Codex to use Lorelum before it settles an important plan or implementation decision. For example:
 
 ```text
 Use Lorelum to find guidance for this change before you finalize the plan.
 ```
+
+Codex implements [session read hints](./agent-setup#session-read-hints): its shell `PreToolUse` passes session identity to eligible commands, and `SubagentStart` can show the candidate metadata to a new subagent. This is one host adapter for a shared Lorelum capability, not a Codex-only feature. The shared [Agent shell setting](./configuration#agent-shell-session-identity) controls which shell commands receive identity. These hints go to new subagents, not to the main agent after compaction.
+
+### Why environment assignments appear before a command
+
+When a command is in the selected injection scope, Codex's `PreToolUse` Hook sets `LORELUM_HOST_KEY=codex` and `LORELUM_HOST_SESSION_ID=<current session ID>` before the shell command: `export` on macOS/Linux, `$env:` in native Windows PowerShell. The agent did not write those lines, and they are not login credentials. They let `lore get` in the command or its local child processes associate a candidate with the right conversation.
+
+These variables are not injected as extra Lorelum guidance to the agent. The rewritten command may still appear in Codex tool details or records, however, and a command that prints its environment can put them in the tool result. We therefore cannot guarantee that they never appear in visible records or model context. They are only for session association; the agent does not need to use or manage them.
+
+The Plugin uses `PreToolUse` and does not install an empty `PostToolUse` Hook. If Pre is disabled, new `lore get` reads cannot be associated with the conversation, so subagents will not receive hints for those reads; `lore get` itself and the Pack Catalog still work. If you see a Post Hook from an older Plugin, re-review and install the Plugin configuration.
 
 ## Update
 

@@ -6,6 +6,7 @@ import {
   type StorageRoot,
 } from "@lorelum/engine";
 import { ID_REGEX } from "@lorelum/format";
+import type { ReadHint } from "@lorelum/backend/client";
 
 import type { CommandDefinition } from "../registry.js";
 import {
@@ -26,6 +27,15 @@ export interface GetCommandServices {
   readonly storageRoot: StorageRoot;
   /** Optional injection preserves isolated Store-only command tests. */
   readonly resolveProjectContext?: ProjectContextResolver;
+  readonly practiceHints?: { recordSuccessfulGet(cwd: string, hint: ReadHint): Promise<void> };
+}
+
+async function recordHint(services: GetCommandServices, hint: ReadHint): Promise<void> {
+  try {
+    await services.practiceHints?.recordSuccessfulGet(process.cwd(), hint);
+  } catch {
+    /* hint recording must never change a successful get */
+  }
 }
 
 function sourceKey(packName: string, sourcePath: string): string {
@@ -97,7 +107,7 @@ export function createGetCommand(services: GetCommandServices): CommandDefinitio
               storeRoots.set(sourceKey(source.packName, source.sourcePath), source.packRoot);
             }
           }
-          return {
+          const response = {
             data: {
               practice: practice.practice,
               contentDigest: practice.contentDigest,
@@ -113,6 +123,13 @@ export function createGetCommand(services: GetCommandServices): CommandDefinitio
               })),
             },
           };
+          await recordHint(services, {
+            id,
+            digest: practice.contentDigest,
+            title: practice.practice.title,
+            appliesWhen: practice.practice.applies_when,
+          });
+          return response;
         }
         const result = await services.store.getEffectivePracticeWithPackRoots(root, id);
         if (result === undefined) {
@@ -121,6 +138,12 @@ export function createGetCommand(services: GetCommandServices): CommandDefinitio
             "The requested Practice was not found in the selected local Store.",
           );
         }
+        await recordHint(services, {
+          id,
+          digest: result.effectivePractice.contentDigest,
+          title: result.effectivePractice.practice.title,
+          appliesWhen: result.effectivePractice.practice.applies_when,
+        });
         return {
           data: {
             practice: result.effectivePractice.practice,

@@ -38,6 +38,16 @@ codex plugin add lorelum@lorelum-plugins
 请在确定这个改动的计划前，用 Lorelum 查找相关指导。
 ```
 
+Codex 接入了[会话已读候选](./agent-setup#会话中的已读候选)：shell `PreToolUse` 为符合条件的命令传递会话身份，`SubagentStart` 可以给新子 Agent 展示候选元数据。这是 Lorelum 的共用能力，不是 Codex 专属功能。哪些 shell 命令会得到身份，由[共享的 Agent 配置](./configuration#agent-shell-会话身份)决定。这些提示只给新子 Agent，不在主 Agent compact 后恢复。
+
+### 为什么命令前会出现环境变量赋值
+
+当命令符合注入范围时，Codex 的 `PreToolUse` Hook 会在 shell 命令前设置 `LORELUM_HOST_KEY=codex` 和 `LORELUM_HOST_SESSION_ID=<当前会话 ID>`：macOS/Linux 使用 `export`，原生 Windows PowerShell 使用 `$env:`。这不是 Agent 手写的命令，也不是登录凭据；它们让命令及其本地子进程中的 `lore get` 知道应该把候选记到哪个会话。
+
+这两个变量不会作为 Lorelum 的额外指导注入给 Agent；不过改写后的命令可能显示在 Codex 的工具详情或记录中，命令主动输出环境变量时也会进入工具结果，因此不能保证它们完全不出现在可见记录或模型上下文里。它们只用于会话关联，不要求 Agent 使用或管理。
+
+Plugin 使用 `PreToolUse`，不安装空跑的 `PostToolUse` Hook。关闭 Pre 后，新的 `lore get` 无法关联会话，子 Agent 就收不到这些读取的候选提示；`lore get` 本身和 Pack Catalog 仍可使用。如果从旧版 Plugin 更新后仍看到 Post Hook，重新审阅并安装 Plugin 配置。
+
 ## 更新
 
 ```sh
