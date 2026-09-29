@@ -40,15 +40,48 @@ ZCode automatically loads a Plugin's `hooks/hooks.json`. Do not duplicate that d
 
 ### WorkBuddy Hook declaration
 
-WorkBuddy also discovers a Plugin's `hooks/hooks.json` automatically, and its manifest `hooks` field carries the same inline-object-or-file-path meaning, so the same duplication trap applies to `.codebuddy-plugin/plugin.json`. WorkBuddy Hooks use the host-native `command` form — a shell command that forwards to `lore hook workbuddy` and degrades to `{"continue":true}` when the CLI is unavailable — with a `commandWindows` PowerShell variant for Windows sessions, mirroring the Codex Hook shape. Keep the matcher and command configuration only in `hooks/hooks.json`.
+WorkBuddy also discovers a Plugin's `hooks/hooks.json` automatically, and its
+manifest `hooks` field carries the same inline-object-or-file-path meaning, so
+the same duplication trap applies to `.codebuddy-plugin/plugin.json`. WorkBuddy
+Hooks use the host-native `command` form only: the schema (verified in the
+WorkBuddy 5.5.6 desktop, engine `@tencent-ai/codebuddy-code` 2.137.1) has no
+`commandWindows` and no `additionalContextLimit` key — unknown keys are silently
+stripped — so neither field may ship. WorkBuddy executes Hook commands through
+Git Bash on Windows (the desktop bundles a PortableGit and injects it into
+PATH), which is why every command carries the `lore hook workbuddy ||
+lore.cmd hook workbuddy` chain instead of a platform-keyed variant. The
+SessionStart command degrades to `{"continue":true}`; the per-tool-call
+`PreToolUse` command (matcher `^Bash$`) is wrapped fail-open so a missing or
+old CLI prints `{}` instead of blocking the tool call.
 
-WorkBuddy resolves SessionStart matchers by splitting the matcher on `|` and exact-matching each token against the session source. Anchored regex forms such as `^(startup|resume|clear|compact)$` therefore never match on the live host; declare the unanchored list `startup|resume|clear|compact` (verified against WorkBuddy 5.5.6).
+WorkBuddy compiles SessionStart matchers as a regular expression
+(`RegExp(matcher).test(source)`), not as a `|`-split exact-token list: keep the
+plain alternation `startup|resume|clear|compact`, which covers all four session
+sources, and avoid forms that would accidentally match more (an anchored
+`^(startup|resume|clear|compact)$` also works, but is no longer required).
+WorkBuddy dispatches a `SubagentStart` event but discards Hook stdout, so the
+Plugin registers no SubagentStart Hook and `lore hook workbuddy` answers that
+event with an empty no-op.
+
+### Cursor Hook declaration
+
+Cursor's hooks schema is its own: `{ "version": 1, "hooks": { "<event>": [...] } }`
+with camelCase event names, a `command` string, and a seconds-based `timeout`
+(verified in Cursor 3.21.16). Hook commands run fail-open by default
+(`failClosed` is absent), and on Windows they execute through PowerShell with
+the payload piped on stdin, where the `lore.cmd` shim resolves by name — so the
+bare command `lore hook cursor` needs no wrapper and no platform variant. The
+terminal tool is named `Shell`, so the identity rewrite hangs off a `preToolUse`
+entry with matcher `^Shell$`; Cursor applies the flat `updated_input` response
+field without a permission decision. Cursor's `sessionStart` accepts no
+matcher, and its `subagentStart` response cannot inject context, so no
+subagent Hook is registered.
 
 ### Claude Code Hook declaration
 
 Claude Code discovers a Plugin's `skills/` and `hooks/hooks.json` from their conventional directories, and the manifest `hooks` field carries the same inline-object-or-file-path meaning as ZCode/WorkBuddy, so `.claude-plugin/plugin.json` declares no path pointers and no `hooks` field. The marketplace registration additionally requires an `owner` object that the other host schemas do not have. Do not ship a `commands/` directory: Claude Code positions commands as the legacy form of skills, and the plugin-namespaced Skill `/lorelum:lorelum` is the single explicit entry.
 
-Claude Code Hooks use the shell `command` form. Use the chained command `lore hook claude || lore.cmd hook claude` rather than a bare `lore` invocation or the exec (`args`) form: on macOS and Linux the first term resolves the plain `lore` executable and short-circuits; the second term only covers Windows, where Claude Code runs Hook commands through Git Bash and the Windows installer's `lore.cmd` shim resolves only with its extension (a bare `lore` fails with command-not-found), while the exec form cannot spawn `.cmd`/`.bat` shims at all. No `commandWindows` or `additionalContextLimit` field exists in the Claude Code Hook schema — omit both. SessionStart matchers are exact-token lists like WorkBuddy's; include `fork` (`startup|resume|clear|compact|fork`) because a forked session loses the injected Catalog. Claude Code treats every Hook failure as non-blocking (the session continues), and `lore hook claude` additionally degrades its own failures to `{"continue":true}` with exit code 0, so a wrapper fallback is not used; a missing CLI stays visible as the shell's non-zero exit.
+Claude Code Hooks use the shell `command` form. Use the chained command `lore hook claude || lore.cmd hook claude` rather than a bare `lore` invocation or the exec (`args`) form: on macOS and Linux the first term resolves the plain `lore` executable and short-circuits; the second term only covers Windows, where Claude Code runs Hook commands through Git Bash and the Windows installer's `lore.cmd` shim resolves only with its extension (a bare `lore` fails with command-not-found), while the exec form cannot spawn `.cmd`/`.bat` shims at all. No `commandWindows` or `additionalContextLimit` field exists in the Claude Code Hook schema — omit both. SessionStart matchers are exact-token lists; include `fork` (`startup|resume|clear|compact|fork`) because a forked session loses the injected Catalog. Claude Code treats every Hook failure as non-blocking (the session continues), and `lore hook claude` additionally degrades its own failures to `{"continue":true}` with exit code 0, so a wrapper fallback is not used; a missing CLI stays visible as the shell's non-zero exit.
 
 The read-Practice hint chain adds two Hook entries. `PreToolUse` matches the exact token list `Bash|PowerShell` (Claude Code may run shell commands through its PowerShell tool — without Git Bash on Windows the Bash tool is not registered at all) and rewrites the command with session identity; unlike Codex, the rewrite syntax keys on the tool name rather than the platform — the Bash tool runs through a POSIX-style shell even on Windows, so it always gets `export` assignments, and the PowerShell tool always gets `$env:` assignments. The rewrite response carries `updatedInput` without a `permissionDecision`, so Claude Code's normal permission flow still evaluates the rewritten command; Codex's existing `"allow"` shape is unchanged. Because these two Hooks fire on every shell tool call and every subagent start, their commands use the fail-open wrapper (CLI missing or exiting non-zero prints `{}`) instead of the bare `||` chain, and the PreToolUse wrapper additionally normalizes a legacy `{"continue":true}` degrade to `{}`. `SubagentStart` declares no matcher so every subagent type can receive the bounded hint.
 

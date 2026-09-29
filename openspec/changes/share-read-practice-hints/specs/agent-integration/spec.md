@@ -43,7 +43,7 @@ Lorelum SHALL 由现有 Backend 持有成功读取的 Practice 候选状态，�
 
 Codex 集成 SHALL 只对 Bash 的 `PreToolUse` 改写工具输入以传递宿主与会话 ID；macOS/Linux SHALL 使用 Unix shell 环境变量语法，Windows 原生 Agent SHALL 使用 PowerShell 环境变量语法。MUST 保留原输入的其他字段，且 MUST NOT 改变命令原有的批准与退出语义。无法安全改写或用户未信任 Hook 时 MUST 不假称显式绑定已生效。Codex 的 `PostToolUse` SHALL 不再为活动窗口连接 Backend；Linux/Windows 的 Hook 声明及单元测试不能充当真实宿主改写、继承与批准流程验证。
 
-Agent 共用的用户级配置 `agent.shellSessionInjection` SHALL 只接受 `lore-only` 与 `all-shell`；缺失时 MUST 默认 `lore-only`。当前只有 Codex 消费这项配置，其他宿主没有 shell 身份改写能力时 MUST 不因配置存在而新增命令改写。Codex 默认模式 SHALL 只在 Bash `tool_input.command` 文本中出现独立的 `lore` 字样时传递会话身份；`all-shell` SHALL 对每次有效的 Bash PreToolUse 传递身份。两种模式都 MUST 跳过非 shell tool；Hook MUST NOT 为判断而读取脚本内容或解析 shell 语法。配置损坏或取值无效时 MUST 不改写该次命令，也 MUST NOT 阻塞原工具调用。
+Agent 共用的用户级配置 `agent.shellSessionInjection` SHALL 只接受 `lore-only` 与 `all-shell`；缺失时 MUST 默认 `lore-only`。当前 Codex、Claude Code、WorkBuddy 与 Cursor 的 shell Hook 消费这项配置，其他宿主没有 shell 身份改写能力时 MUST 不因配置存在而新增命令改写。默认模式下改写宿主 SHALL 只在 shell 命令文本中出现独立的 `lore` 字样时传递会话身份；`all-shell` SHALL 对每次有效的 shell 工具调用传递身份。两种模式都 MUST 跳过非 shell tool；Hook MUST NOT 为判断而读取脚本内容或解析 shell 语法。配置损坏或取值无效时 MUST 不改写该次命令，也 MUST NOT 阻塞原工具调用。
 
 #### Scenario: 默认只检测外层命令
 
@@ -88,3 +88,41 @@ Codex 集成 SHALL 在 `SubagentStart` 有可关联候选时注入有界的元�
 
 - **WHEN** 多个会话在同一路径同时使用 shell tool
 - **THEN** 显式传递身份的读取 MUST 按其身份分别记录；仅走活动窗口后备的读取 MAY 漏记或误归属，用户文档 MUST 明示后备路径的限制；候选不得被用作权限、采纳或任务完成判定
+
+### Requirement: WorkBuddy 会话身份传递不改变原命令权限
+
+WorkBuddy 集成 SHALL 只对 Bash 工具的 `PreToolUse` 改写工具输入以传递宿主与会话 ID，且在所有平台 SHALL 使用 Unix shell 环境变量语法——WorkBuddy 的 Bash 工具在 Windows 上也运行 Git Bash（桌面应用自带 PortableGit）。改写响应 MUST NOT 携带 `permissionDecision`：WorkBuddy 的 `updatedInput` 合并与权限决定相互独立，而 `allow` 会直接绕过其权限系统。MUST 保留原输入的其他字段，且 MUST NOT 改变命令原有的批准与退出语义。WorkBuddy 的 `SubagentStart` SHALL 不注册 Hook——宿主会派发该事件但丢弃 Hook stdout，输出无法到达子 Agent，Plugin MUST NOT 为此创建空 Hook。用户把 WorkBuddy shell 显式配置为 PowerShell 等非 POSIX 方言时允许漏记，且 MUST NOT 影响原命令执行。
+
+#### Scenario: 各平台 Bash 调用获得 POSIX 会话前缀
+
+- **WHEN** WorkBuddy 在任一平台发来带会话 ID 的 Bash `PreToolUse`，且命令文本按 `agent.shellSessionInjection` 规则应改写
+- **THEN** Hook MUST 返回带 `export` 前缀的 `updatedInput` 且不带 `permissionDecision`；原输入其他字段 MUST 保持不变
+
+#### Scenario: 非法的会话或工具输入
+
+- **WHEN** WorkBuddy 的 `PreToolUse` 缺少会话 ID、`tool_input` 不是对象或 `command` 不是字符串，或工具不是 Bash
+- **THEN** Hook MUST 返回空对象 no-op，MUST NOT 阻塞或改写该调用
+
+#### Scenario: 子 Agent 事件不注册
+
+- **WHEN** WorkBuddy 派发 `SubagentStart`
+- **THEN** Lorelum Plugin MUST NOT 注册该事件的 Hook，`lore hook workbuddy` 收到该事件时 MUST 返回空对象 no-op
+
+### Requirement: Cursor 会话身份传递不改变原命令权限
+
+Cursor 集成 SHALL 只对 `Shell` 工具的 `preToolUse` 改写工具输入，使用 Cursor 的扁平 `updated_input` 输出字段（snake_case，非嵌套 `hookSpecificOutput`）；会话 ID SHALL 取 `session_id`，缺失时回退到 `conversation_id`。所有平台 SHALL 使用 Unix shell 环境变量语法——Cursor 的 agent 宿主在 Windows 上优先使用 Git Bash 执行非交互 shell 命令。改写响应 MUST NOT 携带 `permission` 字段，以保持宿主原有批准流程；MUST 保留原输入的其他字段。Cursor 的 `subagentStart` SHALL 不注册 Hook——该事件响应不支持注入 additional context，Plugin MUST NOT 为此创建空 Hook。
+
+#### Scenario: Shell 工具调用获得会话前缀
+
+- **WHEN** Cursor 发来带 `conversation_id`（或同值 `session_id`）的 `preToolUse` 且工具名为 `Shell`，命令文本按 `agent.shellSessionInjection` 规则应改写
+- **THEN** Hook MUST 返回扁平 `updated_input`，其 `command` 带 `export` 前缀，且响应 MUST NOT 含 `permission` 或嵌套 `hookSpecificOutput`
+
+#### Scenario: 非法的会话或工具输入
+
+- **WHEN** Cursor 的 `preToolUse` 缺少两种会话 ID、`tool_input` 不是对象或 `command` 不是字符串，或工具名不是 `Shell`
+- **THEN** Hook MUST 返回空对象 no-op，MUST NOT 阻塞或改写该调用
+
+#### Scenario: 子 Agent 事件不注册
+
+- **WHEN** Cursor 派发 `subagentStart`
+- **THEN** Lorelum Plugin MUST NOT 注册该事件的 Hook，`lore hook cursor` 收到该事件时 MUST 返回空对象 no-op

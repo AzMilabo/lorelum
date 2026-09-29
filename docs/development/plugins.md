@@ -45,6 +45,23 @@ printf '%s\n' '{"hook_event_name":"SessionStart"}' \
   | bun packages/cli/src/main.ts hook claude --store-root /absolute/path/to/isolated-store
 ```
 
+The WorkBuddy and Cursor identity rewrites can be smoke-checked the same way —
+pipe their tool events through the source entrypoint and confirm the rewritten
+command prefix:
+
+```sh
+printf '%s
+' '{"hook_event_name":"PreToolUse","tool_name":"Bash","session_id":"probe","tool_input":{"command":"lore get sample.read"}}'   | bun packages/cli/src/main.ts hook workbuddy --store-root /absolute/path/to/isolated-store
+
+printf '%s
+' '{"hook_event_name":"preToolUse","tool_name":"Shell","conversation_id":"probe","tool_input":{"command":"lore get sample.read"}}'   | bun packages/cli/src/main.ts hook cursor --store-root /absolute/path/to/isolated-store
+```
+
+With a source-matched Backend running, executing the returned command records a
+candidate under `~/.lorelum/sessions/<hostKey>/<session id>/practice-reads.jsonl`;
+stopping the Backend keeps the `get` result unchanged and adds no record.
+
+
 ## Codex checkout install
 
 The repository's Codex marketplace is `.agents/plugins/marketplace.json`. Do not enable a checkout-backed marketplace together with the remote `lorelum-plugins` marketplace: both offer `lorelum@lorelum-plugins` to Codex.
@@ -68,6 +85,8 @@ codex plugin add lorelum@lorelum-plugins
 Do not commit the cachebuster version. To return to the remote source, remove the checkout marketplace, add `lorelum/lorelum`, and reinstall the same selector.
 
 ## WorkBuddy checkout install
+
+Headless engine runs (`node <install>/resources/app.asar.unpacked/cli/dist/codebuddy.js -p "…"`) do not load installed plugin Hooks by default; pass `--plugin-dir <path-to-plugins/workbuddy/lorelum>` to exercise the Hook chain in that mode. Verified with engine 2.137.1.
 
 WorkBuddy discovers the checkout through the root `.codebuddy-plugin/marketplace.json`. The public install path and its desktop-registry caveats are documented in [the WorkBuddy guide](https://lorelum.com/en/docs/workbuddy); for local iteration, add the repository root as a marketplace with the embedded CodeBuddy CLI:
 

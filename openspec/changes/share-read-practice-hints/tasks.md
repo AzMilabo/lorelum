@@ -59,3 +59,14 @@
 
 - 用户提供的 Arch x64 / Codex CLI 0.156.1 实测使用隔离的 HOME/CODEX_HOME、本地 Plugin 和与 PR `161c59a` 匹配的编译 CLI；未修改真实用户配置。在正常宿主运行环境，PreToolUse 改写与字段保留、`lore-only` / `all-shell` / 坏配置 / 非 Bash 分支、直接命令与本地子进程继承、原退出码均通过。
 - 同一环境中，成功 `lore get` 将候选写入真实会话 ID 对应的 Backend 文件；`SubagentStart` 的短提示出现在真实子 Agent 上下文，未自动 `get` 或注入正文。失败 `get` 的退出码保持为 2。上述为用户提供的实测证据，本 worktree 未独立复跑 Linux；4.3 仍需 Windows 真实宿主验收。
+
+## 6. WorkBuddy 与 Cursor 接入（Refs #254）
+
+- [x] 6.1 实机考证两宿主 Hook 合同并存证：WorkBuddy 桌面 5.5.6（引擎 2.137.1）事件清单、PreToolUse 输出合同、Bash 工具 shell 选择、Hook 命令执行 shell、`commandWindows`/`additionalContextLimit` 为死配置、`SubagentStart` stdout 被丢弃；Cursor 3.21.16 事件清单、`preToolUse`+`Shell`+扁平 `updated_input`、`conversation_id` 字段、PowerShell Hook 执行、`subagentStart` 无 context 注入。
+- [x] 6.2 `packages/cli/src/hook/host-hook.ts`：共享注入参数化扩至 `workbuddy`/`cursor`（工具名 Bash/Shell、事件名大小写、会话 ID 回退、全平台 `export`、不带权限决定、Cursor 扁平响应）；降级回退 `{}` 扩至两宿主的可选事件。
+- [x] 6.3 `plugins/workbuddy/lorelum/hooks/hooks.json`：增补 `PreToolUse`（matcher `^Bash$`，失败开放 if 包装）；移除死配置 `commandWindows`/`additionalContextLimit`；SessionStart 命令补 `|| lore.cmd` 回退（Windows Hook 走 Git Bash）。`plugins/cursor/lorelum/hooks/hooks.json`：增补 `preToolUse`（matcher `^Shell$`，裸命令，宿主默认 fail-open）。
+- [x] 6.4 单测：`workbuddy.test.ts`/`cursor.test.ts`（全平台 export 前缀、无权限决定、字段保留、会话 ID 回退、非 shell 工具与畸形输入 no-op、lore-only/all-shell、坏配置 no-op、SubagentStart/subagentStart no-op、真实 sh 子进程继承与退出码）；插件 hooks-config 测试（结构断言、转发、旧 CLI 失败开放/归一、缺 CLI 失败开放）。
+- [x] 6.5 同步维护者与用户文档：plugin-conventions（WorkBuddy 节按实机合同重写、Cursor 节补 preToolUse）、plugins.md 验证面、`docs/cli/hook.md`、workbuddy/cursor 双语站点页（会话已读候选、环境赋值说明、子 Agent 提示缺失的已知限制）。
+- [x] 6.6 真机验收（引擎级，两宿主，2026-09-29 Windows）：worktree 编译 CLI + 运行中 Backend 下，两宿主的 `PreToolUse`/`preToolUse` payload 经 `lore hook <host>` 返回正确改写（WorkBuddy 嵌套 `updatedInput` 无权限决定、Cursor 扁平 `updated_input`，均为全平台 `export` 前缀）；在真实 shell 执行改写后命令使 `sessions/workbuddy/wb-e2e-1` 与 `sessions/cursor/cur-e2e-1` 各落一条完整候选记录；停止 Backend 后带身份 `lore get` 退出码 0、输出不变、记录数不变。验收后已还原 lore.cmd shim、WorkBuddy 插件缓存 hooks.json、Cursor 本地插件目录、Backend 与应用现场。
+- [x] 6.7 WorkBuddy 真实宿主验收（内嵌引擎 2.137.1 无头会话，`--plugin-dir` 加载变更插件）：模型应答 Practice 标题正确；会话转录中的 Bash 工具执行记录即改写后命令原文（`export LORELUM_HOST_KEY='workbuddy'` + `LORELUM_HOST_SESSION_ID='fafe5c6f-…'` 前缀 + `lore.cmd get …`，Exit 0），`sessions/workbuddy/fafe5c6f-95dc-446f-bfc4-f83d347bd500/practice-reads.jsonl` 落盘且 sessionId 与转录一致。注意：无头 `-p` 模式默认不加载插件 Hook，需 `--plugin-dir` 指向插件根，该差异已在维护者文档记录。
+- [ ] 6.8 Cursor 真实宿主派发验证：插件经官方本地目录 `~/.cursor/plugins/local` 加载、GUI 会话消息已送达，但账户周用量耗尽（界面明示 "Weekly usage limit reached. It resets in 6 days"）导致 agent 未执行任何工具调用；引擎级链路（6.6）与合同考证已完备，待额度恢复或由其他操作者环境补一次真实会话派发验证后勾选。

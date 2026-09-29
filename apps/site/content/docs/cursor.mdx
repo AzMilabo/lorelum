@@ -40,6 +40,24 @@ without waiting for it, so the Catalog may not be visible right away. The
 Lorelum Skill reuses a visible Catalog and otherwise builds one with a single
 `lore pack list --details`; you do not need to run it yourself.
 
+
+
+Cursor sessions also record read Practice candidates. When your agent
+successfully runs `lore get` inside the session, the CLI reports the Practice
+metadata to a running Backend, which stores it under
+`~/.lorelum/sessions/cursor/<session id>/practice-reads.jsonl`. Reporting is
+optional: it never starts the Backend and never changes the `lore get` result.
+
+When Cursor's Shell tool runs a command that mentions `lore`, the command is
+prefixed with two `export` lines that carry the host and session identity —
+this is how the read is associated with the conversation. The prefix does not
+change the command's approval flow, arguments, or exit status, and it is not
+added to other tools. Which commands get the prefix follows the shared
+[`agent.shellSessionInjection`](./configuration#agent-shell-session-identity)
+setting. Subagents do not receive read-candidate hints on Cursor: the
+subagentStart response cannot carry injected context, so no hint channel
+exists there.
+
 ## Update
 
 Open **Customize**, select Lorelum, and install the offered update. A

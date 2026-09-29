@@ -1,5 +1,5 @@
 {
-  "description": "Restore the compact Lorelum Installed Pack Catalog at supported WorkBuddy session boundaries.",
+  "description": "Restore the compact Lorelum Installed Pack Catalog at WorkBuddy session boundaries and carry session identity through Bash tool calls.",
   "hooks": {
     "SessionStart": [
       {
@@ -7,10 +7,20 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if output=\"$(lore hook workbuddy)\"; then printf '%s\\n' \"$output\"; else printf '%s\\n' '{\"continue\":true}'; fi",
-            "timeout": 10,
-            "additionalContextLimit": 5000,
-            "commandWindows": "try { $output = & lore hook workbuddy; if ($LASTEXITCODE -eq 0) { $output } else { '{\"continue\":true}' } } catch { '{\"continue\":true}' }"
+            "command": "if output=\"$(lore hook workbuddy || lore.cmd hook workbuddy)\"; then printf '%s\\n' \"$output\"; else printf '%s\\n' '{\"continue\":true}'; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if output=\"$(lore hook workbuddy || lore.cmd hook workbuddy)\" && [ \"$output\" != '{\"continue\":true}' ]; then printf '%s\\n' \"$output\"; else printf '%s\\n' '{}'; fi",
+            "timeout": 10
           }
         ]
       }
