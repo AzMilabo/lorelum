@@ -31,7 +31,7 @@ Lorelum Plugin 会为 ZCode 提供工程指导和 `/lore` 命令。
 
 ZCode 参与[会话已读候选](./agent-setup#会话中的已读候选)：`PreToolUse` Hook 会在符合条件的 Bash 命令前传入会话身份，使成功的 `lore get` 能把读取记录关联到当前会话。ZCode 没有子 Agent 启动事件，因此该宿主只记录候选，不会向新启动的子 Agent 展示候选，会话开始时展示的 Pack Catalog 也不是已读提示。哪些 shell 命令会获得身份由共用的 [Agent shell 设置](./configuration#agent-shell-会话身份)控制。
 
-当 Bash 命令在注入范围内时，Hook 会在命令前用 Unix `export` 设置 `LORELUM_HOST_KEY=zcode` 和 `LORELUM_HOST_SESSION_ID=<当前会话 ID>`；ZCode 的 Bash 工具在所有平台上都是 POSIX shell（Windows 上为 Git Bash），所以写法一致。这些行不是 Agent 写的，也不是登录凭据，只用于让命令或其本地子进程中的 `lore get` 把读取关联到正确的会话。改写本身不会替用户批准任何操作：它只修改命令文本，ZCode 的审批流程保持原样。具体方言由 ZCode 自身的 shell 选择决定：正常的 Git Bash 下赋值生效；若 ZCode 解析到非 POSIX 方言——显式覆盖配置，或机器上找不到 POSIX shell——赋值不会生效，该次读取只是不被记录。
+当 Bash 命令在注入范围内时，Hook 会在命令前用 Unix `export` 设置 `LORELUM_HOST_KEY=zcode` 和 `LORELUM_HOST_SESSION_ID=<当前会话 ID>`；ZCode 的 Bash 工具在所有平台上都是 POSIX shell（Windows 上为 Git Bash），所以写法一致。这些行不是 Agent 写的，也不是登录凭据，只用于让命令或其本地子进程中的 `lore get` 把读取关联到正确的会话。改写本身不会替用户批准任何操作：它只修改命令文本，ZCode 的审批流程保持原样。ZCode 自身会为 Bash 工具选定执行命令的 shell——Windows 上通常是自动检测的 Git Bash——并在会话上下文中告知解析结果（例如 "The Bash tool shell is Git Bash."）。身份赋值使用 Unix `export` 语法，针对的正是这个 shell。如果你的会话让 Bash 工具运行在其他方言下（通过 ZCode 自己的 shell 选择改过，或机器上找不到 POSIX shell），赋值不会生效，该次读取只是不被记录；会话中告知的 shell 行可以确认当前生效的 shell。
 
 ## 更新
 
