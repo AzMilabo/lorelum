@@ -122,7 +122,7 @@ export function parseHostHookInvocation(
     }
     if (argument.startsWith("--store-root=")) {
       const value = argument.slice("--store-root=".length);
-      if (storeRoot === undefined || value.length === 0) return undefined;
+      if (storeRoot !== undefined || value.length === 0) return undefined;
       storeRoot = value;
       continue;
     }
