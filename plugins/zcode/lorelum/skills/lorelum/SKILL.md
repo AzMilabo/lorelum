@@ -5,68 +5,40 @@ description: Use Lorelum's injected Pack Catalog to discover and retrieve releva
 
 # Lorelum
 
-Lorelum is an optional local retrieval layer for engineering Practices. It stores reusable, trigger-conditioned Practices inside Knowledge Packs. It helps ZCode bring relevant team knowledge into planning, implementation, verification, and recovery without becoming a task workflow or mandatory ceremony.
+## Find and read guidance
 
-For normal retrieval, read the default text output directly. It is the complete visual representation of the command's public data, not a summary. Do not parse its layout as a protocol. Use `--json` only while diagnosing an unexpected result, checking protocol/envelope details, or deliberately passing a result to a machine parser.
+Use the Installed Pack Catalog injected into ZCode when it is visible. Its descriptions and stack scopes help identify potentially relevant Packs, but do not rule out other Packs. If the Catalog is missing or truncated and that affects discovery for this task, run `lore pack list --details`; do not run it just because the task started.
 
-## Use the injected Pack Catalog
-
-ZCode receives a compact **Installed Pack Catalog** from the SessionStart Hook. Treat it as lightweight routing metadata, not as complete engineering guidance or a hard filter. Each Pack entry includes its current, directly readable `packRoot` view rather than an internal artifact path, while resource files and Practice bodies remain absent. Use each Pack's description and declared stack scope as relevance hints.
-
-Reuse that Catalog for the task; do not rerun `lore pack list --details` at the start because the Hook already supplies the same metadata. If the injected catalog is truncated or unavailable, do not assume omitted Packs are absent; run `lore pack list --details` only when refreshing discovery would help the current task or decision.
-
-## Use semantic retrieval for material decisions
-
-When the current scope, plan, high-risk boundary, verification, recovery, or completion moment is worth retrieving engineering guidance for, use this sequence. Describe the task goal, the decision currently being made, and the concrete boundary or constraint:
+For a material engineering decision, describe the observed situation, the decision you face, and the constraints or failure consequences that matter. For example:
 
 ```sh
-lore query "I am designing idempotent writes for a payment API. I need to decide whether the client or service generates the idempotency key, while preserving database uniqueness and safe retry behavior."
+lore query "Our payment API can time out after a charge commits, and clients may retry. New clients could send an idempotency key, but existing clients cannot be required to change their requests. I need to decide how keys are assigned and persisted so concurrent retries cannot create a second charge. Which design and failure cases should guide this choice?"
 ```
 
-Then read the complete body of every candidate Practice you will use:
+Read the full body of each candidate you intend to use with `lore get <practice-id>`; do not act on a query summary alone. Read default text directly, use `--verbose` for all result fields as text, and use `--json` when a program needs to parse the result.
+
+## Recover a query or diagnose a failure
+
+Run the default semantic query before checking Backend, model, or index status. If it returns a preparation state, follow [semantic query recovery](references/semantic-query-recovery.md) and retry the same query when ready. Do not silently switch to keyword; use `--mode keyword` only for an intentional offline lookup or semantic-runtime diagnosis.
+
+If a failure blocks the task or the user asks for diagnosis, inspect that invocation's `diagnostics.traceId` first, then follow the recovery reference and retry when the cause is resolved:
 
 ```sh
-lore get <practice-id>
+lore logs --trace-id <traceId>
 ```
 
-## Protect a host Agent's long-running Backend work
+## Use linked Pack resources
 
-For a multi-step host task that must keep an already running Lorelum Backend available beyond one ordinary query, acquire a task lease before the long-running portion, renew it before expiry while the task continues, and release it in its completion/cancellation path. The lease is machine state, not a user decision: keep its opaque ID private and do not ask the user to operate it. Model preparation and semantic indexing publish their own Backend activity automatically; do not create a lease merely for a short one-shot query.
+Resolve the path after a Practice's `resource:` link against the `packRoot` of its corresponding Store source in `lore get`. If multiple sources provide the Practice, use the task's Pack context to identify the source; do not guess or mix their roots. A ProjectContext `project-layer-N` is provenance, not a filesystem path.
+
+For explicit Pack browsing, get its current root with `lore pack list <pack-name>`. After a Pack mutation, refresh the locator with `lore get` or the named `pack list`, as appropriate. Copy Pack assets into the task workspace before editing them; run Pack scripts only when the task authorizes it and their purpose and inputs are clear.
+
+## Keep Backend available for a long task
+
+If a multi-step host task needs an already running Lorelum Backend to remain available between calls, acquire a lease before that work, renew it before expiry, and release it when the task completes or is cancelled. A single query does not need a lease.
 
 ```sh
 lore backend lease acquire
 lore backend lease renew <lease-id>
 lore backend lease release <lease-id>
 ```
-
-## Diagnose current-trace failures and offer local feedback without interrupting the main task
-
-A normal `lore` text failure displays `diagnostics.traceId`; the `--json` envelope carries the same local correlation ID. It identifies one invocation chain, not a credential, user identity, or public sharing ID.
-
-If a clear Lorelum bug, retrieval/guidance gap, or requested capability does not block the task and the user did not ask for diagnosis, retain only a candidate—no extra logs, draft, upload, or Issue—and finish the task. Make at most one non-blocking feedback offer at the final summary or a visible milestone.
-
-If the failure blocks the task, or the user explicitly asks for diagnosis, inspect only its original trace:
-
-```sh
-lore logs --trace-id <traceId>
-```
-
-Do not scan another trace or arbitrary location, and do not preflight Backend, model, index, or status before this read. Then read [diagnostic recovery](references/semantic-query-recovery.md). It owns evidence limits, controlled debug reproduction, consented local feedback, and semantic-query lifecycle recovery including progressive index operations.
-
-## Use Pack resources when a retrieved Practice points to them
-
-Packs may include optional `references/`, `assets/`, and `scripts/` directories. A Practice can point to one with a normal Markdown link whose target begins with `resource:`, for example:
-
-```markdown
-[API compatibility matrix](resource:references/api-compatibility.md)
-```
-
-The link is the Practice's suggested route for the current task, not an access-control allowlist. When the relevant Pack is already clear, the SessionStart Catalog provides its `packRoot` for Pack-level browsing. Resolve the part after `resource:` from the corresponding source shown by `lore get` whenever the selected Practice has a source; this preserves source choice when multiple Packs provide the same Practice. A `packRoot` is a mutable current view, so after a Pack mutation retrieve the current Practice/source again before interpreting a resource. When the user explicitly needs to browse or maintain a Pack, `lore pack list <pack-name>` obtains a fresh `packRoot`. Do not construct paths from a Pack name or use the Store's SQLite/projection layout as an interface.
-
-- Read linked `references/` material only when the Practice needs the extra detail.
-- Copy an `assets/` file to the task destination before editing it; the installed Pack is not a writable work directory.
-- Run a `scripts/` file only under the current task's authorization and with the Practice's stated purpose and inputs. Lorelum never runs Pack scripts automatically during install, validation, query, list, get, indexing, or recovery.
-
-If `lore get` shows multiple sources, preserve their separate roots and do not silently combine their resources or choose one source. A returned root names the current local artifact; if it is no longer available after a Pack update, obtain a fresh locator with `lore get` or `lore pack list`.
-
-The default query is semantic. Do not skip a ready semantic query solely because of expected latency. Do not run backend, model, index, or status commands before this query. Only after the query itself returns a preparation state or an error, read [semantic query recovery](references/semantic-query-recovery.md), follow the relevant recovery path, then retry the same query. Do not silently substitute keyword results for a failed or empty semantic query; use `--mode keyword` only for an intentional offline lookup or semantic-runtime diagnosis. Do not query before every edit, command, or ordinary reply.
