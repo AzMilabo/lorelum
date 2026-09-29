@@ -24,7 +24,7 @@ Windows 原生 Codex 使用 PowerShell，WSL 内运行的 Codex 使用 Linux 路
 ZCode 的 Hook 输入与 Codex 同形：`PreToolUse` payload 含 `hook_event_name`、`session_id`、`tool_name`、`tool_input`（由宿主产品代码在 stdin JSON 中提供），Plugin 沿用原生 `process` Hook 以 argv 直接运行 `lore hook zcode`，不经过 shell 或平台包装。三条宿主差异决定不照搬 Codex 的输出 JSON：
 
 1. **不返回权限决定。** ZCode 会把 Hook `permissionDecision: "allow"` 应用为对原本需要用户确认的调用的放行；`updatedInput` 的应用独立于权限决定。因此 ZCode 分支只返回 `updatedInput`，宿主审批流程保持原样，这比 Codex 的 `permissionDecision: "allow"` 更保守。
-2. **全平台 Unix `export`。** ZCode 的 Bash tool 是 POSIX shell（Windows 上自动检测 Git Bash，本机 `MINGW64` 实测），macOS/Linux 同为 POSIX；不需要 Codex 的 Windows PowerShell 分支。用户把 ZCode shell 显式覆盖为 CMD 等非 POSIX 方言时，`export` 行不设置变量，读取按既定规则漏记，原命令仍最后执行。
+2. **全平台 Unix `export`。** ZCode 的 Bash tool 是 POSIX shell（Windows 上自动检测 Git Bash，本机 `MINGW64` 实测），macOS/Linux 同为 POSIX；不需要 Codex 的 Windows PowerShell 分支。ZCode 解析到非 POSIX 方言时（用户显式覆盖为 CMD 等，或机器上未找到 POSIX shell 而走 legacy 回退），`export` 行不设置变量，读取按既定规则漏记，原命令仍最后执行。
 3. **没有 `SubagentStart`。** ZCode 的受支持事件不含子 Agent 启动类事件，Plugin 不注册空 Hook，也不把 SessionStart Pack Catalog 当作已读提示；用户文档说明该宿主不提供子 Agent 候选提示。
 
 共用逻辑收敛在 CLI 的 `buildShellSessionInjection`：`lore-only`/`all-shell` 判定、字段保留、no-op 条件与引用转义在两个宿主间一致，仅前缀语法与是否附带权限决定按宿主区分。旧版 CLI 收到 `PreToolUse` 时按现有降级路径输出 `{"continue":true}`；ZCode 的输出 schema 在所有事件上接受 `continue`，该 envelope 是无害 no-op，因此 Plugin 不需要 Codex 那层输出过滤包装。

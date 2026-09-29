@@ -72,7 +72,7 @@ Agent 共用的用户级配置 `agent.shellSessionInjection` SHALL 只接受 `lo
 
 ### Requirement: ZCode 会话身份传递保持宿主审批
 
-ZCode 集成 SHALL 只对 `Bash` tool 的 `PreToolUse` 返回 `updatedInput` 以传递宿主与会话 ID，且 MUST NOT 返回权限决定：ZCode 的 Hook `permissionDecision: "allow"` 会放行原本需要用户确认的调用，改写输入本身不需要该字段。ZCode 的 Bash tool 在所有受支持平台 SHALL 使用 Unix shell 环境变量语法（Windows 上为自动检测的 Git Bash）；用户把 ZCode shell 显式配置为非 POSIX 方言时 MAY 漏记，MUST NOT 影响原命令的执行。MUST 保留原输入的其他字段，并沿用 `agent.shellSessionInjection` 的 `lore-only` / `all-shell` 判定。ZCode 没有子 Agent 启动事件，Plugin MUST NOT 为此注册空 Hook，也 MUST NOT 把 SessionStart Pack Catalog 当作已读候选提示。旧版 CLI 或无效配置下，Hook SHALL 以宿主接受的 no-op envelope 降级，MUST NOT 阻塞原工具调用。
+ZCode 集成 SHALL 只对 `Bash` tool 的 `PreToolUse` 返回 `updatedInput` 以传递宿主与会话 ID，且 MUST NOT 返回权限决定：ZCode 的 Hook `permissionDecision: "allow"` 会放行原本需要用户确认的调用，改写输入本身不需要该字段。ZCode 的 Bash tool 在所有受支持平台 SHALL 使用 Unix shell 环境变量语法（Windows 上为自动检测的 Git Bash）；ZCode 将 shell 解析为非 POSIX 方言（显式配置覆盖或未找到 POSIX shell）时 MAY 漏记，MUST NOT 影响原命令的执行。MUST 保留原输入的其他字段，并沿用 `agent.shellSessionInjection` 的 `lore-only` / `all-shell` 判定。ZCode 没有子 Agent 启动事件，Plugin MUST NOT 为此注册空 Hook，也 MUST NOT 把 SessionStart Pack Catalog 当作已读候选提示。旧版 CLI 或无效配置下，Hook SHALL 以宿主接受的 no-op envelope 降级，MUST NOT 阻塞原工具调用。
 
 #### Scenario: Bash 命令在注入范围内
 
