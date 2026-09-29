@@ -59,3 +59,17 @@
 
 - 用户提供的 Arch x64 / Codex CLI 0.156.1 实测使用隔离的 HOME/CODEX_HOME、本地 Plugin 和与 PR `161c59a` 匹配的编译 CLI；未修改真实用户配置。在正常宿主运行环境，PreToolUse 改写与字段保留、`lore-only` / `all-shell` / 坏配置 / 非 Bash 分支、直接命令与本地子进程继承、原退出码均通过。
 - 同一环境中，成功 `lore get` 将候选写入真实会话 ID 对应的 Backend 文件；`SubagentStart` 的短提示出现在真实子 Agent 上下文，未自动 `get` 或注入正文。失败 `get` 的退出码保持为 2。上述为用户提供的实测证据，本 worktree 未独立复跑 Linux；4.3 仍需 Windows 真实宿主验收。
+
+## 6. ZCode 宿主接入（#254）
+
+- [x] 6.1 `lore hook zcode` 处理 `PreToolUse`：仅 `Bash` tool 返回前置 Unix `export` 的 `updatedInput`（全平台，含 Windows Git Bash），不返回 `permissionDecision`（ZCode 中该字段的 `allow` 会放行待确认调用），沿用 `agent.shellSessionInjection` 判定并保留其余工具输入字段；非 Bash、缺会话 ID 或命令非字符串输出 no-op。单测覆盖三平台前缀、lore-only 文本判定、all-shell 真实配置、无效配置降级、非 Bash no-op 与真实 shell 子进程继承。
+- [x] 6.2 ZCode Plugin `hooks.json` 增加匹配 `^Bash$` 的 `PreToolUse` process Hook；不注册 ZCode 不存在的 `SubagentStart`，不保留空跑 `PostToolUse`；插件测试覆盖配置形状、旧 CLI 的 `{"continue":true}` 降级透传与 payload 转发。
+- [x] 6.3 同步双语 ZCode 用户指南、配置入口、Plugin README 与 `docs/cli/hook.md`：说明已读候选记录、注入范围配置、无子 Agent 提示的宿主边界、CMD 方言漏记与更新要求（更新 CLI 与 Plugin 后需新会话加载 Hook）。
+- [ ] 6.4 在正常运行的 ZCode 宿主内完成真实链路验收：Hook 改写在真实 Bash 调用生效、成功 `get` 记录到正确会话、失败或 Backend 不可达不改 `get` 结果；当前交付以宿主产品 Hook schema 静态核对、真实 Git Bash 子进程执行与真实 Backend 集成测试替代，应用内会话级验收待具备新会话条件后补记。
+
+## 2026-09-29 ZCode 宿主接入本轮验证
+
+- 宿主合同静态核对：从 ZCode 产品安装的 `zcode.cjs` 提取 Hook 实现——`PreToolUse` stdin payload 含 `hook_event_name`、`session_id`、`tool_name`、`tool_input`（与 Codex 同形）；顶层输出 schema 为严格对象，`continue` 在所有事件上合法，`hookSpecificOutput.PreToolUse` 接受 `updatedInput` 且其应用独立于 `permissionDecision`，而 Hook `allow` 决定会把原本 `ask` 的调用直接放行——因此 ZCode 分支不返回权限决定。产品代码还确认 Hook（插件与工作区配置）只在会话启动时注册，应用内中途无法激活新 Hook，无头 CLI 不存在，这是 6.4 保持未勾的原因。
+- 真实 ZCode Bash 工具（Windows、MINGW64 Git Bash）内执行源码 CLI 产出的改写后命令原文：直接命令、`sh -c` 脚本、管道与命令替换均继承 `zcode/e2e-zcode-session-1` 身份，退出码 23 与工作目录保持不变；外层文本不含 `lore` 时 Hook 返回 `{}`。
+- 真实 Backend 集成：隔离 HOME 下从本 worktree 源码启动 Backend（ready、model unloaded），带成对身份的成功 `lore get`（项目 Pack）由 Backend 写入 `sessions/zcode/e2e-zcode-session-1/practice-reads.jsonl`，仅含 ID、digest、title、appliesWhen 与实际 cwd；会话 ID 为空串时 get 退出码 0 且不新增记录；停止 Backend 后同命令输出逐字节一致、退出码 0、无新文件。旧版已安装 CLI（0.1.0-alpha.3）对 `PreToolUse` 输出 `{"continue":true}` 且退出码 0。验证后已清理隔离目录并停止 Backend，真实用户 `~/.lorelum` 无 sessions 目录。
+- 本轮 `bun test packages/cli`：375 通过、2 项进程测试在 Windows 跳过、0 失败（另 2 项失败为本机环境既有限制：无符号链接权限的 symlink 用例与 main.test.ts 超时用例，均已在干净 main 上复现，与本变更无关）；`bun run typecheck`、`bun run lint`（0 warning）、变更文件 `oxfmt --check`、`bun run build:site`、`openspec validate share-read-practice-hints --strict` 通过。

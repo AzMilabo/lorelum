@@ -38,7 +38,7 @@ export interface HostHookResponse {
     | { readonly hookEventName: HostHookEvent; readonly additionalContext: string }
     | {
         readonly hookEventName: "PreToolUse";
-        readonly permissionDecision: "allow";
+        readonly permissionDecision?: "allow";
         readonly updatedInput: Record<string, unknown>;
       };
   readonly continue?: boolean;
@@ -166,8 +166,10 @@ export async function runHostHook(options: RunHostHookOptions): Promise<0> {
   } catch (error) {
     options.log?.error("hook.degraded", { host: options.host }, error);
     options.stderr.write(`lore hook ${options.host} degraded: ${diagnosticMessage(error)}\n`);
-    // PreToolUse does not accept `continue`, so a failed optional hint Hook
-    // must return an empty, valid result instead of a malformed permission.
+    // Codex's PreToolUse does not accept `continue`, so a failed optional hint
+    // Hook must return an empty, valid result instead of a malformed
+    // permission. ZCode accepts `continue` on every event, so its shared
+    // degrade envelope stays a host-safe no-op.
     options.stdout.write(
       options.host === "codex" &&
         eventName !== "SessionStart" &&
@@ -189,6 +191,13 @@ function respondToHostHook(
     return respondToCodexPracticeHint(
       input,
       services.practiceHints ?? defaultPracticeHints,
+      services.agentHookSettings ?? loadAgentHookSettings,
+      services.platform,
+    );
+  }
+  if (host === "zcode" && input.hook_event_name === "PreToolUse") {
+    return respondToZcodeShellSessionInjection(
+      input,
       services.agentHookSettings ?? loadAgentHookSettings,
       services.platform,
     );
@@ -226,36 +235,63 @@ async function respondToCodexPracticeHint(
     // never receive session identity, even if a matcher is broadened.
     if (input.tool_name !== "Bash") return {};
     if (input.hook_event_name === "PostToolUse") return {};
-    if (platform === "darwin" || platform === "linux" || platform === "win32") {
-      const session = sessionRefSchema.safeParse({
-        hostKey: "codex",
-        sessionId: input.session_id,
-      });
-      if (!session.success || !isRecord(input.tool_input)) return {};
-      const command = input.tool_input.command;
-      if (typeof command !== "string") return {};
-      const settings = await loadSettings();
-      if (settings.shellSessionInjection === "lore-only" && !containsLoreToken(command)) return {};
-      return {
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          permissionDecision: "allow",
-          updatedInput: {
-            ...input.tool_input,
-            command:
-              (platform === "win32"
-                ? `$env:LORELUM_HOST_KEY = 'codex'\n` +
-                  `$env:LORELUM_HOST_SESSION_ID = ${powerShellQuote(session.data.sessionId)}\n`
-                : `export LORELUM_HOST_KEY='codex'\n` +
-                  `export LORELUM_HOST_SESSION_ID=${shellQuote(session.data.sessionId)}\n`) +
-              command,
-          },
-        },
-      };
-    }
-    return {};
+    return buildShellSessionInjection(input, "codex", loadSettings, platform);
   }
   throw new Error("Lorelum Codex Hook received an unsupported event.");
+}
+
+async function respondToZcodeShellSessionInjection(
+  input: HostHookInput,
+  loadSettings: () => Promise<AgentHookSettings>,
+  platform: NodeJS.Platform = process.platform,
+): Promise<HostHookResponse> {
+  // ZCode runs shell commands through its POSIX "Bash" tool on every platform
+  // (Git Bash on Windows), and other tools never receive session identity.
+  if (input.tool_name !== "Bash") return {};
+  return buildShellSessionInjection(input, "zcode", loadSettings, platform);
+}
+
+/**
+ * Rewrite a shell tool command so `lore get` and its local child processes can
+ * report the host session that read a Practice. Codex must return the
+ * host-mandated `permissionDecision: "allow"` with `updatedInput`; ZCode
+ * applies `updatedInput` without a permission decision, where "allow" would
+ * bypass the host's ask prompts.
+ */
+async function buildShellSessionInjection(
+  input: HostHookInput,
+  hostKey: "codex" | "zcode",
+  loadSettings: () => Promise<AgentHookSettings>,
+  platform: NodeJS.Platform,
+): Promise<HostHookResponse> {
+  if (platform !== "darwin" && platform !== "linux" && platform !== "win32") return {};
+  const session = sessionRefSchema.safeParse({
+    hostKey,
+    sessionId: input.session_id,
+  });
+  if (!session.success || !isRecord(input.tool_input)) return {};
+  const command = input.tool_input.command;
+  if (typeof command !== "string") return {};
+  const settings = await loadSettings();
+  if (settings.shellSessionInjection === "lore-only" && !containsLoreToken(command)) return {};
+  // Codex's Windows shell tool is native PowerShell; ZCode's Bash tool stays
+  // POSIX (auto-detected Git Bash) on Windows.
+  const usePowerShell = hostKey === "codex" && platform === "win32";
+  const prefix = usePowerShell
+    ? `$env:LORELUM_HOST_KEY = '${hostKey}'\n` +
+      `$env:LORELUM_HOST_SESSION_ID = ${powerShellQuote(session.data.sessionId)}\n`
+    : `export LORELUM_HOST_KEY='${hostKey}'\n` +
+      `export LORELUM_HOST_SESSION_ID=${shellQuote(session.data.sessionId)}\n`;
+  return {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      ...(hostKey === "codex" ? { permissionDecision: "allow" as const } : {}),
+      updatedInput: {
+        ...input.tool_input,
+        command: prefix + command,
+      },
+    },
+  };
 }
 
 function shellQuote(value: string): string {

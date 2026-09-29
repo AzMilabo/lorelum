@@ -19,9 +19,19 @@ Codex 的 `PreToolUse` 仅匹配 Bash，保留原 `tool_input` 的所有字段�
 
 Windows 原生 Codex 使用 PowerShell，WSL 内运行的 Codex 使用 Linux 路径；Hook 的 Windows `commandWindows` 只负责调用 `lore hook codex`，具体的 PowerShell 命令前缀由 CLI 返回。其他宿主若没有安全的输入改写能力，仍可映射自己的 shell Pre/Post 到同一公共后备；不能为每项会话功能另建窗口。Codex 三个平台不同时写窗口以追求双保险，避免每次 Bash 的 Backend 请求与两套归属结果。尚未完成的 Linux/Windows 真实宿主验证须在交付说明中标明，不把单测视为实测。
 
+### ZCode 宿主映射（#254）
+
+ZCode 的 Hook 输入与 Codex 同形：`PreToolUse` payload 含 `hook_event_name`、`session_id`、`tool_name`、`tool_input`（由宿主产品代码在 stdin JSON 中提供），Plugin 沿用原生 `process` Hook 以 argv 直接运行 `lore hook zcode`，不经过 shell 或平台包装。三条宿主差异决定不照搬 Codex 的输出 JSON：
+
+1. **不返回权限决定。** ZCode 会把 Hook `permissionDecision: "allow"` 应用为对原本需要用户确认的调用的放行；`updatedInput` 的应用独立于权限决定。因此 ZCode 分支只返回 `updatedInput`，宿主审批流程保持原样，这比 Codex 的 `permissionDecision: "allow"` 更保守。
+2. **全平台 Unix `export`。** ZCode 的 Bash tool 是 POSIX shell（Windows 上自动检测 Git Bash，本机 `MINGW64` 实测），macOS/Linux 同为 POSIX；不需要 Codex 的 Windows PowerShell 分支。用户把 ZCode shell 显式覆盖为 CMD 等非 POSIX 方言时，`export` 行不设置变量，读取按既定规则漏记，原命令仍最后执行。
+3. **没有 `SubagentStart`。** ZCode 的受支持事件不含子 Agent 启动类事件，Plugin 不注册空 Hook，也不把 SessionStart Pack Catalog 当作已读提示；用户文档说明该宿主不提供子 Agent 候选提示。
+
+共用逻辑收敛在 CLI 的 `buildShellSessionInjection`：`lore-only`/`all-shell` 判定、字段保留、no-op 条件与引用转义在两个宿主间一致，仅前缀语法与是否附带权限决定按宿主区分。旧版 CLI 收到 `PreToolUse` 时按现有降级路径输出 `{"continue":true}`；ZCode 的输出 schema 在所有事件上接受 `continue`，该 envelope 是无害 no-op，因此 Plugin 不需要 Codex 那层输出过滤包装。
+
 ### 仅在需要时改写 shell 命令
 
-`~/.lorelum/config.yaml` 的 `agent.shellSessionInjection` 是 Agent 共用配置，仅支持 `lore-only` 与 `all-shell`。当前只有 Codex Hook 消费它；其他宿主尚无 shell 身份改写能力，不为统一名称新增空跑 Hook。缺失时默认 `lore-only`：Codex Hook 仍会收到每次 Bash PreToolUse，但只在原 `tool_input.command` 文本出现独立的 `lore` 字样时返回 `updatedInput`；`lore get`、绝对路径中的 `/lore`、管道和命令替换都可命中。这里只做文本边界判断，不解析 shell AST，也不检查本地脚本内容。文本提到 `lore` 但未执行时可能多注入一次；外层只有 `sh script.sh` 而脚本内部调用 `lore` 时会漏记。这是用户认可的默认取舍，不另建窗口补记。
+`~/.lorelum/config.yaml` 的 `agent.shellSessionInjection` 是 Agent 共用配置，仅支持 `lore-only` 与 `all-shell`。当前 Codex 与 ZCode Hook 消费它；其他宿主尚无 shell 身份改写能力，不为统一名称新增空跑 Hook。缺失时默认 `lore-only`：Codex Hook 仍会收到每次 Bash PreToolUse，但只在原 `tool_input.command` 文本出现独立的 `lore` 字样时返回 `updatedInput`；`lore get`、绝对路径中的 `/lore`、管道和命令替换都可命中。这里只做文本边界判断，不解析 shell AST，也不检查本地脚本内容。文本提到 `lore` 但未执行时可能多注入一次；外层只有 `sh script.sh` 而脚本内部调用 `lore` 时会漏记。这是用户认可的默认取舍，不另建窗口补记。
 
 用户显式选择 `all-shell` 后，Codex 为每次有效的 Bash 命令都注入，覆盖脚本内间接调用的常见子进程继承。该值不表示非 shell tool 也注入。设置由 CLI 在 Hook 调用时读取用户级共享配置，只校验 `agent` section，不写配置或更改已有自定义字段；缺失配置正常使用默认。无效 YAML 或无效值使本次 Hook 输出 no-op 和不含配置内容的诊断，不阻塞原命令，也绝不默默扩大为 `all-shell`。SessionStart Catalog、SubagentStart 提示和普通 `lore get` 不受此开关控制。两种模式都仍运行 Codex Pre Hook，因此默认模式减少的是命令改写和变量可见性，不承诺消除每条 shell 命令的 Hook 进程开销。先前 `codex.shellSessionInjection` 只存在于未合并 PR，不另加双配置优先级或迁移器。
 
