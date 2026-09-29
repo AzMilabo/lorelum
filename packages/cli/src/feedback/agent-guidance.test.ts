@@ -12,6 +12,11 @@ const skills = [
     recoveryReference: "plugins/codex/lorelum/skills/lorelum/references/semantic-query-recovery.md",
   },
   {
+    path: "plugins/claude/lorelum/skills/lorelum/SKILL.md",
+    recoveryReference:
+      "plugins/claude/lorelum/skills/lorelum/references/semantic-query-recovery.md",
+  },
+  {
     path: "plugins/zcode/lorelum/skills/lorelum/SKILL.md",
     recoveryReference: "plugins/zcode/lorelum/skills/lorelum/references/semantic-query-recovery.md",
   },

@@ -1,0 +1,66 @@
+---
+title: Claude Code
+description: Install Lorelum in Claude Code and retrieve Practices with the /lorelum:lorelum skill.
+icon: Plug
+---
+
+The Lorelum Plugin adds engineering guidance and the `/lorelum:lorelum` skill to Claude Code.
+
+## Before you start
+
+Complete [Quickstart](./quickstart). The `lore` command must be available on the `PATH` inherited by Claude Code, and you need at least one installed Pack.
+
+## Install
+
+1. In a terminal:
+
+   ```sh
+   claude plugin marketplace add lorelum/lorelum
+   claude plugin install lorelum@lorelum-plugins
+   ```
+
+   The install is user-scoped by default; add `--scope project` (shared with everyone working in the repository) or `--scope local` (this machine only) to choose a different scope. For a local checkout (developer preview), pass the repository-root path instead of the GitHub shorthand.
+
+2. Or install without a terminal: run `/plugin` in a session (Marketplaces, then Install), or use the desktop app's plugin manager (**+ → Plugins → Add plugin**) and pick **Lorelum** from `lorelum-plugins`.
+
+3. Start a new local session. Claude Code receives the installed Pack Catalog at the session start.
+
+Plugins are available in local and SSH sessions; cloud sessions and WSL sessions do not load Plugins.
+
+## Use Lorelum
+
+Check that `/lorelum:lorelum` appears when you type `/` in the prompt. You can ask:
+
+```text
+/lorelum:lorelum How should I verify this change?
+```
+
+Or ask Claude Code to use Lorelum before it finalizes an important decision.
+
+Claude Code implements [session read hints](./agent-setup#session-read-hints): the `PreToolUse` Hook passes session identity to eligible Bash and PowerShell commands, and `SubagentStart` can show the candidate metadata to a new subagent (for example one started with the Agent tool). This is one host adapter for a shared Lorelum capability, not a Claude Code-only feature. The shared [Agent shell setting](./configuration#agent-shell-session-identity) controls which shell commands receive identity. These hints go to new subagents, not to the main agent after compaction.
+
+### Why environment assignments appear before a command
+
+When a command is in the selected injection scope, the `PreToolUse` Hook sets `LORELUM_HOST_KEY=claude` and `LORELUM_HOST_SESSION_ID=<current session ID>` before the shell command: `export` assignments for the Bash tool (which also runs through Git Bash on Windows), PowerShell `$env:` assignments for the PowerShell tool. Claude did not write those lines, and they are not login credentials. They let `lore get` in the command or its local child processes associate a candidate with the right conversation.
+
+The rewrite only changes the command text; it does not approve anything. Claude Code still runs its normal permission flow against the rewritten command, so your permission rules and prompts apply unchanged. The rewritten command may appear in tool details or records, and a command that prints its environment can put the variables in the tool result; they are only for session association, and the agent does not need to use or manage them.
+
+The Plugin uses `PreToolUse` and does not install an empty `PostToolUse` Hook. If Pre is disabled, new `lore get` reads cannot be associated with the conversation, so subagents will not receive hints for those reads; `lore get` itself and the Pack Catalog still work.
+
+## Update
+
+Run `claude plugin update lorelum@lorelum-plugins`, or select **Update now** on the Installed tab of `/plugin`. Third-party marketplaces do not update automatically by default.
+
+## Remove
+
+Run `claude plugin uninstall lorelum@lorelum-plugins`, or uninstall Lorelum from the plugin manager. Removing the Plugin removes the skill and the session-start catalog; your installed Packs and the `lore` CLI are untouched.
+
+## Troubleshoot
+
+If `/lorelum:lorelum` or guidance is missing:
+
+1. Confirm Lorelum is installed and enabled (`/plugin`, Manage plugins).
+2. Confirm `lore --version` works in the environment Claude Code inherits.
+3. Start a new session after installing or updating. A failed session-start Hook never blocks the session; it only shows a notice.
+
+For retrieval or model problems, see [Troubleshooting](./troubleshooting).

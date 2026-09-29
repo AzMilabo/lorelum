@@ -1,0 +1,21 @@
+{
+  "name": "lorelum-plugins",
+  "owner": {
+    "name": "Lorelum",
+    "url": "https://lorelum.com"
+  },
+  "plugins": [
+    {
+      "name": "lorelum",
+      "source": "./plugins/claude/lorelum",
+      "version": "0.1.0-alpha.4",
+      "description": "On-demand engineering Practices for Claude Code: a compact installed Knowledge Pack catalog with targeted semantic retrieval.",
+      "author": {
+        "name": "Lorelum",
+        "url": "https://lorelum.com"
+      },
+      "category": "productivity",
+      "icon": "https://lorelum.com/brand/lorelum-icon.svg"
+    }
+  ]
+}

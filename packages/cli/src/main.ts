@@ -9,6 +9,11 @@ import {
   type TextInput,
 } from "./hook/codex.js";
 import {
+  parseClaudeHookInvocation,
+  runClaudeHook,
+  type ClaudeHookServices,
+} from "./hook/claude.js";
+import {
   parseCursorHookInvocation,
   runCursorHook,
   type CursorHookServices,
@@ -48,6 +53,8 @@ export interface RunOptions {
   zcodeHookServices?: ZcodeHookServices;
   /** Override the raw Cursor Hook Store adapter in source-level tests. */
   cursorHookServices?: CursorHookServices;
+  /** Override the raw Claude Code Hook Store adapter in source-level tests. */
+  claudeHookServices?: ClaudeHookServices;
   /** Override the raw WorkBuddy Hook Store adapter in source-level tests. */
   workbuddyHookServices?: WorkbuddyHookServices;
   stderr?: OutputWriter;
@@ -152,6 +159,29 @@ export async function run(arguments_: string[], options: RunOptions = {}): Promi
         ? {}
         : { services: options.workbuddyHookServices }),
       ...(workbuddyHook.storeRoot === undefined ? {} : { storeRoot: workbuddyHook.storeRoot }),
+      log: runtime.log,
+    });
+    await runtime.flush();
+    return exitCode;
+  }
+  const claudeHook = parseClaudeHookInvocation(arguments_);
+  if (claudeHook !== undefined) {
+    const runtime = await createProcessLogRuntime(stderr, traceId, {
+      debug: claudeHook.debug ?? false,
+      source: "hook",
+      host: "claude",
+      ...(options.logDirectory === undefined ? {} : { rootDirectory: options.logDirectory }),
+      persist:
+        (options.stdout === undefined && options.stderr === undefined) ||
+        options.logDirectory !== undefined,
+    });
+    runtime.log.info("hook.started", { event: "SessionStart" });
+    const exitCode = await runClaudeHook({
+      stdin: options.stdin ?? standardInput,
+      stdout,
+      stderr,
+      ...(options.claudeHookServices === undefined ? {} : { services: options.claudeHookServices }),
+      ...(claudeHook.storeRoot === undefined ? {} : { storeRoot: claudeHook.storeRoot }),
       log: runtime.log,
     });
     await runtime.flush();

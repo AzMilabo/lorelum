@@ -1,0 +1,66 @@
+---
+title: Claude Code
+description: 在 Claude Code 中安装 Lorelum，并使用 /lorelum:lorelum 技能检索 Practices。
+icon: Plug
+---
+
+Lorelum Plugin 为 Claude Code 带来工程指引与 `/lorelum:lorelum` 技能。
+
+## 开始之前
+
+先完成[快速开始](./quickstart)。`lore` 命令必须在 Claude Code 继承的 `PATH` 上可用，并且至少安装一个 Pack。
+
+## 安装
+
+1. 在终端执行：
+
+   ```sh
+   claude plugin marketplace add lorelum/lorelum
+   claude plugin install lorelum@lorelum-plugins
+   ```
+
+   默认安装到用户作用域；可加 `--scope project`（与仓库协作成员共享）或 `--scope local`（仅本机）选择其他作用域。开发者预览本地检出时，可把 GitHub 简写换成本地仓库根目录路径。
+
+2. 或者不使用终端：在会话中运行 `/plugin`（Marketplaces → Install），或使用桌面应用的插件管理器（**+ → Plugins → Add plugin**），从 `lorelum-plugins` 选择 **Lorelum** 安装。
+
+3. 开始一个新的本地会话。Claude Code 会在会话开始时收到已安装的 Pack 目录。
+
+插件在本地会话与 SSH 会话中可用；云端会话与 WSL 会话不加载插件。
+
+## 使用 Lorelum
+
+在输入框输入 `/` 时确认 `/lorelum:lorelum` 出现在列表中。你可以这样问：
+
+```text
+/lorelum:lorelum 这个改动应该如何验证？
+```
+
+或在 Claude Code 最终确定重要决策之前，让它先用 Lorelum 检索相关指引。
+
+Claude Code 接入了[会话已读候选](./agent-setup#会话中的已读候选)：`PreToolUse` Hook 为符合条件的 Bash 和 PowerShell 命令传递会话身份，`SubagentStart` 可以给新子 Agent（例如经 Agent 工具启动的）展示候选元数据。这是 Lorelum 的共用能力，不是 Claude Code 专属功能。哪些 shell 命令会得到身份，由[共享的 Agent 配置](./configuration#agent-shell-会话身份)决定。这些提示只给新子 Agent，不在主 Agent compact 后恢复。
+
+### 为什么命令前会出现环境变量赋值
+
+当命令符合注入范围时，`PreToolUse` Hook 会在 shell 命令前设置 `LORELUM_HOST_KEY=claude` 和 `LORELUM_HOST_SESSION_ID=<当前会话 ID>`：Bash 工具使用 `export`（Windows 上同样经 Git Bash 执行），PowerShell 工具使用 `$env:` 赋值。这不是 Claude 手写的命令，也不是登录凭据；它们让命令及其本地子进程中的 `lore get` 知道应该把候选记到哪个会话。
+
+改写只调整命令文本，不代表任何批准：Claude Code 仍会按改写后的命令走正常权限流程，你的权限规则与确认提示照常生效。改写后的命令可能显示在工具详情或记录中，命令主动输出环境变量时也会进入工具结果；这两个变量只用于会话关联，不要求 Agent 使用或管理。
+
+Plugin 使用 `PreToolUse`，不安装空跑的 `PostToolUse` Hook。关闭 Pre 后，新的 `lore get` 无法关联会话，子 Agent 就收不到这些读取的候选提示；`lore get` 本身和 Pack Catalog 仍可使用。
+
+## 更新
+
+运行 `claude plugin update lorelum@lorelum-plugins`，或在 `/plugin` 的已安装标签中选择 **Update now**。第三方市场默认不自动更新。
+
+## 移除
+
+运行 `claude plugin uninstall lorelum@lorelum-plugins`，或在插件管理器中卸载 Lorelum。移除插件会移除技能与会话开始的目录注入；已安装的 Pack 和 `lore` CLI 不受影响。
+
+## 排障
+
+如果 `/lorelum:lorelum` 或指引缺失：
+
+1. 确认 Lorelum 已在 `/plugin` 的插件管理中安装并启用。
+2. 确认 `lore --version` 在 Claude Code 继承的环境中可用。
+3. 安装或更新后，开始一个新会话。会话开始的 Hook 失败不会阻塞会话，只会显示一条提示。
+
+检索或模型问题参见[故障排查](./troubleshooting)。
