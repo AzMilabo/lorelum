@@ -73,8 +73,3 @@
 - 真实 ZCode Bash 工具（Windows、MINGW64 Git Bash）内执行源码 CLI 产出的改写后命令原文：直接命令、`sh -c` 脚本、管道与命令替换均继承 `zcode/e2e-zcode-session-1` 身份，退出码 23 与工作目录保持不变；外层文本不含 `lore` 时 Hook 返回 `{}`。
 - 真实 Backend 集成：隔离 HOME 下从本 worktree 源码启动 Backend（ready、model unloaded），带成对身份的成功 `lore get`（项目 Pack）由 Backend 写入 `sessions/zcode/e2e-zcode-session-1/practice-reads.jsonl`，仅含 ID、digest、title、appliesWhen 与实际 cwd；会话 ID 为空串时 get 退出码 0 且不新增记录；停止 Backend 后同命令输出逐字节一致、退出码 0、无新文件。旧版已安装 CLI（0.1.0-alpha.3）对 `PreToolUse` 输出 `{"continue":true}` 且退出码 0。验证后已清理隔离目录并停止 Backend，真实用户 `~/.lorelum` 无 sessions 目录。
 - 本轮 `bun test packages/cli`：375 通过、2 项进程测试在 Windows 跳过、0 失败（另 2 项失败为本机环境既有限制：无符号链接权限的 symlink 用例与 main.test.ts 超时用例，均已在干净 main 上复现，与本变更无关）；`bun run typecheck`、`bun run lint`（0 warning）、变更文件 `oxfmt --check`、`bun run build:site`、`openspec validate share-read-practice-hints --strict` 通过。
-
-## 2026-09-29 ZCode 接入复审（对照被淘汰的 shell 包装方案）
-
-- 复查 `570327f fix(plugins): run ZCode hooks without shell wrappers`（PR #193）：当时淘汰的是 Hook 调用本身走 `type: "command"` + 探测 Git Bash 的 polyglot wrapper（bash 缺失时 Hook 整体静默 no-op）。本次接入未重现该模式：新增的 `PreToolUse` Hook 同为 `process` 形式 argv 直调，插件目录无新增脚本，「不 ship shell 或 Git Bash Hook wrappers」测试仍通过；POSIX 语法只位于宿主自身 Bash tool 执行的命令前缀，bash 缺失时仅漏记可选读取，Hook 与 Catalog 不受影响。design.md、`docs/cli/hook.md`、Plugin README 与双语用户指南已补充分界说明与非 POSIX 方言的漏记行为。
-- 补充权限语义精确性：ZCode 对改写后命令文本走正常权限规则评估；由于不返回权限决定，改写只会使行首锚定的规则少命中（更保守方向），不会放行原本需要确认的调用。
